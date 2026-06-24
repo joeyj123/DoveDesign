@@ -82,3 +82,4 @@ html, body, #root {
     @apply bg-zinc-950/85 rounded border border-zinc-700/80 shadow-lg;
     border-radius: 4px;
   }
+}
