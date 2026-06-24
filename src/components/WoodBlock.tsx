@@ -15,6 +15,7 @@ import {
 } from '../lib/mating';
 import { buildEdgeTreatmentSubtractions, getBoxEdgeSegment } from '../lib/edgeTreatments';
 import { buildCustomPolygonShape, createMemberBaseGeometry } from '../lib/memberGeometry';
+import { consumeBoxSelectClickSuppress } from '../lib/boxSelectGuard';
 import TransformGizmo from './TransformGizmo';
 
 interface Props {
@@ -39,7 +40,6 @@ export default function WoodBlock({ member }: Props) {
   const edgeTreatments = useAppStore((s) => s.project.edgeTreatments);
   const selectedId   = useAppStore((s) => s.ui.selectedMemberId);
   const multiSelection = useAppStore((s) => s.ui.multiSelection);
-  const setBoxSelectPending = useAppStore((s) => s.setBoxSelectPending);
   const toggleMultiSelectionMember = useAppStore((s) => s.toggleMultiSelectionMember);
   const isolatedMemberId = useAppStore((s) => s.ui.isolatedMemberId);
   const suggestionHighlightIds = useAppStore((s) => s.ui.suggestionHighlightIds);
@@ -94,11 +94,11 @@ export default function WoodBlock({ member }: Props) {
   function handleClick(e: ThreeEvent<MouseEvent>) {
     e.stopPropagation();
 
-    const ui = useAppStore.getState().ui;
-    if (ui.boxSelectRect) return;
-    if (activeTool === 'drawBoard') return;
+    if (consumeBoxSelectClickSuppress()) return;
 
-    setBoxSelectPending(null);
+    const ui = useAppStore.getState().ui;
+    if (ui.boxSelectRect || ui.boxSelectPending) return;
+    if (activeTool === 'drawBoard') return;
 
     if (activeTool === 'placeHardware' && hardwareLibraryPick && e.face) {
       const face = handleFaceFromEvent(e)!;
@@ -160,7 +160,9 @@ export default function WoodBlock({ member }: Props) {
     if (e.button !== 0) return;
     if (activeTool === 'drawBoard') return;
     const ui = useAppStore.getState().ui;
-    if (ui.boxSelectRect) return;
+    if (ui.boxSelectRect) {
+      e.stopPropagation();
+    }
   }
 
   function handlePointerMove(e: ThreeEvent<PointerEvent>) {

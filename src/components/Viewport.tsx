@@ -17,7 +17,7 @@ import RadialOrbitalSelector from './RadialOrbitalSelector';
 import FastenerPlacementBar from './FastenerPlacementBar';
 import FastenerInfoPanel from './FastenerInfoPanel';
 import QuickJoinToolbar from './QuickJoinToolbar';
-import BoxSelectionHandler from './BoxSelectionHandler';
+import BoxSelectionHandler, { SelectBoxPlane } from './BoxSelectionHandler';
 import DesignSuggestionsBridge from './DesignSuggestionsBridge';
 import PlacedHardwareMeshes from './PlacedHardwareMeshes';
 import AttachmentPointLinks, { PolygonDrawTool } from './AttachmentPointLinks';
@@ -53,6 +53,7 @@ function AdaptiveCamera() {
 export default function Viewport() {
   const members      = useAppStore((s) => s.project.members);
   const setBoxSelectPending = useAppStore((s) => s.setBoxSelectPending);
+  const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
   const activeTool   = useAppStore((s) => s.ui.activeTool);
   const gridVisible  = useAppStore((s) => s.ui.gridVisible);
   const showWelcome  = members.length === 0;
@@ -78,11 +79,12 @@ export default function Viewport() {
         onPointerMissed={(e) => {
           if (activeTool !== 'select') return;
           if (useAppStore.getState().ui.boxSelectRect) return;
+          setOrbitControlsEnabled(false);
           setBoxSelectPending({
-              x: e.clientX,
-              y: e.clientY,
-              shiftKey: e.shiftKey,
-            });
+            x: e.clientX,
+            y: e.clientY,
+            shiftKey: e.shiftKey,
+          });
         }}
       >
         <AdaptiveCamera />
@@ -121,6 +123,7 @@ export default function Viewport() {
         )}
 
         <ShadowFloor />
+        <SelectBoxPlane />
         <DrawBoardTool />
         <ContextMenuHandler />
         <FaceGridOverlay />

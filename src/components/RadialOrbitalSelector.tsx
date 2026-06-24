@@ -9,17 +9,113 @@ const SEGMENTS = [
   { id: 'delete', label: 'Delete', title: 'Delete board' },
 ] as const;
 
-const ARC_OFFSETS = [-28, -14, 0, 14, 28];
+type SegId = (typeof SEGMENTS)[number]['id'];
+
+const WHEEL_SIZE = 240;
+const CENTER = WHEEL_SIZE / 2;
+const OUTER_R = 118;
+const INNER_R = 34;
+const SEG_COUNT = 5;
+const SEG_ANGLE = 360 / SEG_COUNT;
+
+function polar(cx: number, cy: number, r: number, deg: number) {
+  const rad = ((deg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function segmentPath(i: number) {
+  const start = i * SEG_ANGLE;
+  const end = start + SEG_ANGLE;
+  const p1 = polar(CENTER, CENTER, OUTER_R, start);
+  const p2 = polar(CENTER, CENTER, OUTER_R, end);
+  const p3 = polar(CENTER, CENTER, INNER_R, end);
+  const p4 = polar(CENTER, CENTER, INNER_R, start);
+  return `M ${p1.x} ${p1.y} A ${OUTER_R} ${OUTER_R} 0 0 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${INNER_R} ${INNER_R} 0 0 0 ${p4.x} ${p4.y} Z`;
+}
+
+function segmentMidAngle(i: number) {
+  return i * SEG_ANGLE + SEG_ANGLE / 2;
+}
+
+function SegmentIcon({ id }: { id: SegId }) {
+  const props = {
+    width: 20,
+    height: 20,
+    viewBox: '0 0 20 20',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.5,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
+
+  switch (id) {
+    case 'dimensions':
+      return (
+        <svg {...props}>
+          <path d="M3 16 L17 16" />
+          <path d="M3 16 L3 13" />
+          <path d="M7 16 L7 14" />
+          <path d="M11 16 L11 13" />
+          <path d="M15 16 L15 14" />
+          <path d="M17 16 L17 13" />
+        </svg>
+      );
+    case 'mate':
+      return (
+        <svg {...props}>
+          <rect x="2" y="5" width="7" height="10" rx="0.5" />
+          <rect x="11" y="5" width="7" height="10" rx="0.5" />
+          <path d="M9 10 L11 10" />
+        </svg>
+      );
+    case 'edge':
+      return (
+        <svg {...props}>
+          <path d="M4 16 L16 4" />
+          <path d="M4 16 L4 12" />
+          <path d="M16 4 L12 4" />
+        </svg>
+      );
+    case 'flip':
+      return (
+        <svg {...props}>
+          <path d="M4 10 L10 4 L10 8 L16 8 L16 12 L10 12 L10 16 Z" />
+          <path d="M14 6 L17 6" />
+          <path d="M14 14 L17 14" />
+        </svg>
+      );
+    case 'delete':
+      return (
+        <svg {...props}>
+          <path d="M5 6 L15 6" />
+          <path d="M8 6 L8 4 L12 4 L12 6" />
+          <path d="M6 6 L7 16 L13 16 L14 6" />
+          <path d="M8.5 9 L9 14" />
+          <path d="M11.5 9 L11 14" />
+        </svg>
+      );
+  }
+}
+
+function clampWheelPosition(cx: number, cy: number) {
+  const half = WHEEL_SIZE / 2;
+  const margin = 12;
+  const maxW = typeof window !== 'undefined' ? window.innerWidth : 1920;
+  const maxH = typeof window !== 'undefined' ? window.innerHeight : 1080;
+  return {
+    left: Math.max(margin, Math.min(maxW - WHEEL_SIZE - margin, cx - half)),
+    top: Math.max(margin, Math.min(maxH - WHEEL_SIZE - margin, cy - half - 48)),
+  };
+}
 
 export default function RadialOrbitalSelector() {
   const open = useAppStore((s) => s.ui.radialWheelOpen);
-  const collapsed = useAppStore((s) => s.ui.radialWheelCollapsed);
   const bounds = useAppStore((s) => s.ui.memberScreenBounds);
   const selectedId = useAppStore((s) => s.ui.selectedMemberId);
   const members = useAppStore((s) => s.project.members);
 
   const setRadialWheelOpen = useAppStore((s) => s.setRadialWheelOpen);
-  const setRadialWheelCollapsed = useAppStore((s) => s.setRadialWheelCollapsed);
   const setQuickDimensionsOpen = useAppStore((s) => s.setQuickDimensionsOpen);
   const setEdgeToolMemberId = useAppStore((s) => s.setEdgeToolMemberId);
   const setActiveTool = useAppStore((s) => s.setActiveTool);
@@ -29,16 +125,22 @@ export default function RadialOrbitalSelector() {
   const removeMember = useAppStore((s) => s.removeMember);
   const selectMember = useAppStore((s) => s.selectMember);
 
+  const [hovered, setHovered] = useState<SegId | null>(null);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const wheelRef = useRef<HTMLDivElement>(null);
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const selectedMember = members.find((m) => m.id === selectedId);
+
   useEffect(() => {
-    if (!open) setDeleteArmed(false);
+    if (!open) {
+      setDeleteArmed(false);
+      setHovered(null);
+    }
   }, [open, selectedId]);
 
   useEffect(() => {
-    if (!open || collapsed) return;
+    if (!open) return;
     function onClickOutside(e: MouseEvent) {
       if (wheelRef.current && !wheelRef.current.contains(e.target as Node)) {
         setDeleteArmed(false);
@@ -46,12 +148,13 @@ export default function RadialOrbitalSelector() {
     }
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
-  }, [open, collapsed]);
+  }, [open]);
 
   if (!open || !bounds || !selectedId) return null;
 
-  const anchorLeft = Math.max(8, bounds.left + 4);
-  const anchorTop = Math.max(8, bounds.top + 4);
+  const cx = (bounds.left + bounds.right) / 2;
+  const cy = (bounds.top + bounds.bottom) / 2;
+  const pos = clampWheelPosition(cx, cy);
 
   function flipLongestAxis(memberId: string) {
     const m = members.find((mem) => mem.id === memberId);
@@ -73,26 +176,25 @@ export default function RadialOrbitalSelector() {
     deleteTimerRef.current = setTimeout(() => setDeleteArmed(false), 4000);
   }
 
-  function handleSegment(segId: (typeof SEGMENTS)[number]['id']) {
+  function handleSegment(segId: SegId) {
     switch (segId) {
       case 'dimensions':
         setQuickDimensionsOpen(true);
-        setRadialWheelCollapsed(true);
+        setRadialWheelOpen(false);
         break;
       case 'mate':
         setActiveTool('mate');
         setMatePickTarget('A');
         setMateFaceA(null);
-        setRadialWheelCollapsed(true);
+        setRadialWheelOpen(false);
         break;
       case 'edge':
         setActiveTool('edge');
         setEdgeToolMemberId(selectedId!);
-        setRadialWheelCollapsed(true);
+        setRadialWheelOpen(false);
         break;
       case 'flip':
         flipLongestAxis(selectedId!);
-        setRadialWheelCollapsed(true);
         break;
       case 'delete':
         if (!deleteArmed) {
@@ -108,63 +210,98 @@ export default function RadialOrbitalSelector() {
     }
   }
 
-  if (collapsed) {
-    return (
-      <div
-        className="absolute z-40 pointer-events-auto"
-        style={{ left: anchorLeft, top: anchorTop }}
-      >
-        <button
-          type="button"
-          title="Show action wheel"
-          onClick={() => setRadialWheelCollapsed(false)}
-          className="text-xs px-2.5 py-1 rounded-full border border-zinc-600 bg-zinc-950/60 text-zinc-300 font-semibold"
-        >
-          •••
-        </button>
-      </div>
-    );
-  }
+  const centerLabel = selectedMember?.label ?? 'Board';
 
   return (
     <div
       ref={wheelRef}
-      className="absolute z-40 pointer-events-none"
-      style={{ left: anchorLeft, top: anchorTop, maxWidth: 200 }}
+      className="absolute z-40 pointer-events-auto"
+      style={{ left: pos.left, top: pos.top, width: WHEEL_SIZE, height: WHEEL_SIZE }}
     >
-      <div
-        className="flex items-start gap-0.5 pointer-events-auto origin-top-left"
-        style={{ animation: 'wheelIn 120ms ease-out' }}
+      <svg
+        width={WHEEL_SIZE}
+        height={WHEEL_SIZE}
+        viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`}
+        className="wheel-scale-in"
+        role="menu"
+        aria-label="Member actions"
       >
-        <button
-          type="button"
-          title="Hide action wheel"
-          onClick={() => setRadialWheelCollapsed(true)}
-          className="text-xs px-2.5 py-1 rounded-full border border-zinc-600 bg-zinc-950/60 text-zinc-300 shrink-0 self-start"
-        >
-          •••
-        </button>
+        <circle
+          cx={CENTER}
+          cy={CENTER}
+          r={OUTER_R + 1}
+          fill="rgba(9,9,11,0.72)"
+          stroke="#f59e0b"
+          strokeWidth={2}
+          className="wheel-ring-pulse"
+        />
 
-        <div className="flex flex-wrap items-center gap-0.5 max-w-[168px] p-1 rounded bg-zinc-950/60 border border-zinc-700/60 backdrop-blur-sm">
-          {SEGMENTS.map((seg, i) => (
-            <button
-              key={seg.id}
-              type="button"
-              title={seg.id === 'delete' && deleteArmed ? 'Click again to confirm' : seg.title}
-              onClick={() => handleSegment(seg.id)}
-              className={[
-                'text-xs rounded-full border font-medium whitespace-nowrap transition-colors',
-                seg.id === 'delete' && deleteArmed
-                  ? 'px-2.5 py-1 border-red-500 bg-red-950/70 text-red-100'
-                  : 'px-[10px] py-1 border-amber-500/50 text-amber-100 hover:bg-amber-950/50 hover:border-amber-400',
-              ].join(' ')}
-              style={{ transform: `translateY(${ARC_OFFSETS[i] * 0.15}px)` }}
-            >
-              {seg.id === 'delete' && deleteArmed ? 'Confirm?' : seg.label}
-            </button>
-          ))}
-        </div>
-      </div>
+        {SEGMENTS.map((seg, i) => {
+          const isHov = hovered === seg.id;
+          const isDelArmed = seg.id === 'delete' && deleteArmed;
+          const mid = segmentMidAngle(i);
+          const iconPos = polar(CENTER, CENTER, (INNER_R + OUTER_R) / 2 - 6, mid);
+          const labelPos = polar(CENTER, CENTER, OUTER_R - 18, mid);
+
+          return (
+            <g key={seg.id}>
+              <path
+                d={segmentPath(i)}
+                fill={
+                  isDelArmed
+                    ? 'rgba(220,38,38,0.45)'
+                    : isHov
+                      ? 'rgba(245,158,11,0.3)'
+                      : 'rgba(24,24,27,0.55)'
+                }
+                stroke="rgba(63,63,70,0.8)"
+                strokeWidth={1}
+                className="cursor-pointer"
+                onMouseEnter={() => setHovered(seg.id)}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => handleSegment(seg.id)}
+              />
+              <foreignObject
+                x={iconPos.x - 10}
+                y={iconPos.y - 14}
+                width={20}
+                height={20}
+                className="pointer-events-none"
+              >
+                <div
+                  className={[
+                    'flex items-center justify-center w-5 h-5',
+                    isHov || isDelArmed ? 'text-white' : 'text-zinc-300',
+                  ].join(' ')}
+                >
+                  <SegmentIcon id={seg.id} />
+                </div>
+              </foreignObject>
+              <text
+                x={labelPos.x}
+                y={labelPos.y + 16}
+                textAnchor="middle"
+                className={[
+                  'text-[10px] font-semibold select-none pointer-events-none',
+                  isDelArmed ? 'fill-red-200' : isHov ? 'fill-amber-100' : 'fill-zinc-300',
+                ].join(' ')}
+              >
+                {seg.id === 'delete' && deleteArmed ? 'Confirm?' : seg.label}
+              </text>
+            </g>
+          );
+        })}
+
+        <circle cx={CENTER} cy={CENTER} r={INNER_R - 2} fill="rgba(9,9,11,0.9)" stroke="rgba(63,63,70,0.9)" strokeWidth={1} />
+        <text
+          x={CENTER}
+          y={CENTER + 3}
+          textAnchor="middle"
+          className="fill-zinc-400 text-[8px] font-medium select-none pointer-events-none"
+        >
+          {centerLabel.length > 14 ? `${centerLabel.slice(0, 12)}…` : centerLabel}
+        </text>
+      </svg>
     </div>
   );
 }

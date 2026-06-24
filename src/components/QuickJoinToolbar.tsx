@@ -30,7 +30,7 @@ export default function QuickJoinToolbar() {
           <button
             key={axis}
             type="button"
-            className="text-sm px-2 py-1 rounded border border-zinc-600 hover:border-amber-500 text-zinc-200 whitespace-nowrap"
+            className="text-sm py-1 px-2 rounded border border-zinc-600 hover:border-amber-500 text-zinc-200 whitespace-nowrap"
             onClick={() => applyMiterJoints(axis)}
           >
             {axis.toUpperCase()}
@@ -61,7 +61,7 @@ export default function QuickJoinToolbar() {
       </span>
       <button
         type="button"
-        className="text-sm px-2 py-1 rounded border border-blue-600/80 bg-blue-950/40 text-blue-100 whitespace-nowrap"
+        className="text-sm py-1 px-2 rounded border border-blue-600/80 bg-blue-950/40 text-blue-100 whitespace-nowrap"
         onClick={() => autoDetectJoints()}
       >
         Auto-Detect

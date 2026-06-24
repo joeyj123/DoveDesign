@@ -5,11 +5,14 @@ import { PepeEmbedded } from './PepeAssistant';
 
 type ToolTab = 'model' | 'modify' | 'joinery' | 'shapes';
 
-const TABS: { id: ToolTab; label: string }[] = [
-  { id: 'model', label: 'Model' },
-  { id: 'modify', label: 'Modify' },
-  { id: 'joinery', label: 'Joinery' },
-  { id: 'shapes', label: 'Shapes' },
+const TAB_WIDTH = 36;
+const PANEL_WIDTH = 180;
+
+const TABS: { id: ToolTab; short: string; label: string }[] = [
+  { id: 'model', short: 'M', label: 'Model' },
+  { id: 'modify', short: 'D', label: 'Modify' },
+  { id: 'joinery', short: 'J', label: 'Joinery' },
+  { id: 'shapes', short: 'S', label: 'Shapes' },
 ];
 
 const MODEL_TOOLS: { id: ActiveTool; label: string }[] = [
@@ -19,7 +22,7 @@ const MODEL_TOOLS: { id: ActiveTool; label: string }[] = [
 ];
 
 const MODIFY_TOOLS: { id: ActiveTool; label: string }[] = [
-  { id: 'cut', label: 'Cross Cut (XCut)' },
+  { id: 'cut', label: 'Cross Cut' },
   { id: 'rip', label: 'Rip Cut' },
   { id: 'miter', label: 'Miter' },
   { id: 'trimExtend', label: 'Trim' },
@@ -36,8 +39,8 @@ const SHAPE_TOOLS: { id: ActiveTool; label: string }[] = [
   { id: 'shapeCylinder', label: 'Cylinder' },
   { id: 'shapeSphere', label: 'Sphere' },
   { id: 'shapeCone', label: 'Cone' },
-  { id: 'shapeTriPrism', label: 'Triangle Prism' },
-  { id: 'shapeHexPrism', label: 'Hexagon Prism' },
+  { id: 'shapeTriPrism', label: 'Triangle' },
+  { id: 'shapeHexPrism', label: 'Hexagon' },
 ];
 
 export default function LeftToolPanel() {
@@ -59,9 +62,7 @@ export default function LeftToolPanel() {
     if (id !== 'select') setRightPanelTab('inspector');
   }
 
-  function activateJoineryTool(
-    tool: (typeof JOINERY_TOOLS)[number]
-  ) {
+  function activateJoineryTool(tool: (typeof JOINERY_TOOLS)[number]) {
     if (tool.action === 'mate') {
       pickTool('mate');
       setMatePickTarget('A');
@@ -161,60 +162,58 @@ export default function LeftToolPanel() {
     }
   })();
 
-  if (collapsed) {
-    return (
-      <button
-        type="button"
-        onClick={() => setCollapsed(false)}
-        className="shrink-0 w-6 flex items-center justify-center bg-zinc-950 border-r border-zinc-800 text-zinc-400 hover:text-amber-300 hover:bg-zinc-900 text-base font-bold"
-        title="Expand tool panel"
-        aria-label="Expand tool panel"
-      >
-        »
-      </button>
-    );
-  }
-
   return (
     <aside
-      className="shrink-0 w-[180px] flex flex-col bg-zinc-950 border-r border-zinc-800 min-h-0"
+      className="shrink-0 flex bg-zinc-950 border-r border-zinc-800 min-h-0"
+      style={{ width: collapsed ? TAB_WIDTH : PANEL_WIDTH }}
       aria-label="Shop tools"
     >
-      <button
-        type="button"
-        onClick={() => setCollapsed(true)}
-        className="shrink-0 w-full h-8 text-base text-zinc-400 hover:text-amber-300 hover:bg-zinc-900 border-b border-zinc-800 text-left px-3"
-        title="Collapse tool panel"
-        aria-label="Collapse tool panel"
-      >
-        «
-      </button>
-
-      <nav className="shrink-0 flex flex-col border-b border-zinc-800">
+      <nav className="shrink-0 flex flex-col border-r border-zinc-800" style={{ width: TAB_WIDTH }}>
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          className="h-8 text-sm text-zinc-400 hover:text-amber-300 hover:bg-zinc-900 border-b border-zinc-800"
+          title={collapsed ? 'Expand tool panel' : 'Collapse tool panel'}
+          aria-label={collapsed ? 'Expand tool panel' : 'Collapse tool panel'}
+        >
+          {collapsed ? '»' : '«'}
+        </button>
         {TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id);
+              if (collapsed) setCollapsed(false);
+            }}
+            title={tab.label}
             className={[
-              'text-base text-left px-3 py-2 border-l-2 transition-colors',
+              'h-10 flex flex-col items-center justify-center text-xs border-l-2 transition-colors',
               activeTab === tab.id
-                ? 'font-bold text-amber-200 border-l-amber-500 border-b-2 border-b-amber-500/80 bg-zinc-900/60'
-                : 'font-medium text-zinc-400 border-l-transparent hover:text-zinc-200 hover:bg-zinc-900/40',
+                ? 'font-bold text-amber-200 border-l-amber-500 bg-zinc-900/60'
+                : 'font-medium text-zinc-500 border-l-transparent hover:text-zinc-200 hover:bg-zinc-900/40',
             ].join(' ')}
           >
-            {tab.label}
+            <span className="text-sm font-bold leading-none">{tab.short}</span>
+            {!collapsed && (
+              <span className="text-[9px] mt-0.5 leading-none truncate max-w-full px-0.5">
+                {tab.label.slice(0, 4)}
+              </span>
+            )}
           </button>
         ))}
       </nav>
 
-      <div className="flex-1 min-h-0 overflow-y-auto sidebar-scroll py-1">
-        {toolsForTab}
-      </div>
-
-      <div className="shrink-0 border-t border-zinc-800 p-2">
-        <PepeEmbedded />
-      </div>
+      {!collapsed && (
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto sidebar-scroll py-1">
+            {toolsForTab}
+          </div>
+          <div className="shrink-0 border-t border-zinc-800 p-2">
+            <PepeEmbedded />
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
@@ -233,13 +232,12 @@ function ToolButton({
       type="button"
       onClick={onClick}
       className={[
-        'w-full h-10 flex items-center gap-2 px-2 text-base text-left transition-colors',
+        'w-full h-10 flex items-center px-2 text-base text-left transition-colors',
         active
-          ? 'bg-amber-500/25 text-amber-100 border-y border-amber-500/60'
-          : 'text-zinc-300 border-y border-transparent hover:bg-zinc-900 hover:text-zinc-100',
+          ? 'bg-amber-500/25 text-amber-100 border border-amber-500/70'
+          : 'text-zinc-300 border border-transparent hover:bg-zinc-900 hover:text-zinc-100',
       ].join(' ')}
     >
-      <span className="w-5 h-5 shrink-0 rounded bg-zinc-800 border border-zinc-700" aria-hidden />
       <span className="truncate">{label}</span>
     </button>
   );

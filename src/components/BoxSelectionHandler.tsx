@@ -1,8 +1,41 @@
 import { useEffect, useRef } from 'react';
+import { ThreeEvent } from '@react-three/fiber';
 import { useAppStore } from '../store';
 import { getMemberScreenBounds } from '../lib/screenProjection';
+import { armBoxSelectClickSuppress } from '../lib/boxSelectGuard';
 
 const DRAG_THRESHOLD = 6;
+
+/** Invisible floor plane — starts box-select drag without orbit controls stealing the pointer. */
+export function SelectBoxPlane() {
+  const activeTool = useAppStore((s) => s.ui.activeTool);
+  const setBoxSelectPending = useAppStore((s) => s.setBoxSelectPending);
+  const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
+
+  if (activeTool !== 'select') return null;
+
+  function onPointerDown(e: ThreeEvent<PointerEvent>) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    setOrbitControlsEnabled(false);
+    setBoxSelectPending({
+      x: e.clientX,
+      y: e.clientY,
+      shiftKey: e.shiftKey,
+    });
+  }
+
+  return (
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[0, 0.005, 0]}
+      onPointerDown={onPointerDown}
+    >
+      <planeGeometry args={[5000, 5000]} />
+      <meshBasicMaterial visible={false} />
+    </mesh>
+  );
+}
 
 /** Rubber-band multi-select on empty viewport drag (select tool only). */
 export default function BoxSelectionHandler() {
@@ -40,17 +73,20 @@ export default function BoxSelectionHandler() {
     function onPointerUp(e: PointerEvent) {
       const d = pendingRef.current;
       if (!d) return;
-      const dragged = Math.hypot(e.clientX - d.x, e.clientY - d.y) >= DRAG_THRESHOLD;
-      setBoxSelectPending(null);
-      setOrbitControlsEnabled(true);
 
+      const dragged = Math.hypot(e.clientX - d.x, e.clientY - d.y) >= DRAG_THRESHOLD;
       const rect = useAppStore.getState().ui.boxSelectRect;
+
+      setBoxSelectPending(null);
       setBoxSelectRect(null);
+      setOrbitControlsEnabled(true);
 
       if (!rect || !dragged) {
         if (!d.shiftKey) selectMember(null);
         return;
       }
+
+      armBoxSelectClickSuppress();
 
       const canvas = document.querySelector('canvas');
       const camera = (window as unknown as { __doveCamera?: import('three').Camera }).__doveCamera;

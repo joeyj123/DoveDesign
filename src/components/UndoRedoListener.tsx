@@ -8,7 +8,6 @@ export function UndoRedoListener() {
   const closeContextMenu = useAppStore((s) => s.closeContextMenu);
   const selectMember = useAppStore((s) => s.selectMember);
   const setRadialWheelOpen = useAppStore((s) => s.setRadialWheelOpen);
-  const setRadialWheelCollapsed = useAppStore((s) => s.setRadialWheelCollapsed);
   const setQuickDimensionsOpen = useAppStore((s) => s.setQuickDimensionsOpen);
   const setFastenerPlacementMode = useAppStore((s) => s.setFastenerPlacementMode);
   const cancelDrawBoard = useAppStore((s) => s.cancelDrawBoard);
@@ -39,12 +38,7 @@ export function UndoRedoListener() {
           return;
         }
 
-        if (ui.radialWheelOpen && !ui.radialWheelCollapsed) {
-          setRadialWheelCollapsed(true);
-          return;
-        }
-
-        if (ui.radialWheelOpen && ui.radialWheelCollapsed) {
+        if (ui.radialWheelOpen) {
           setRadialWheelOpen(false);
           return;
         }
@@ -77,7 +71,6 @@ export function UndoRedoListener() {
     closeContextMenu,
     selectMember,
     setRadialWheelOpen,
-    setRadialWheelCollapsed,
     setQuickDimensionsOpen,
     setFastenerPlacementMode,
     cancelDrawBoard,

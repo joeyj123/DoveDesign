@@ -7,6 +7,21 @@
   to { transform: scale(1); opacity: 1; }
 }
 
+@keyframes wheelRingPulse {
+  0%, 100% { stroke-opacity: 1; }
+  40% { stroke-opacity: 0.45; }
+  100% { stroke-opacity: 1; }
+}
+
+.wheel-scale-in {
+  transform-origin: center center;
+  animation: wheelIn 150ms ease-out;
+}
+
+.wheel-ring-pulse {
+  animation: wheelRingPulse 600ms ease-out 1;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
@@ -65,4 +80,5 @@ html, body, #root {
 
   .floating-panel {
     @apply bg-zinc-950/85 rounded border border-zinc-700/80 shadow-lg;
+    border-radius: 4px;
   }
