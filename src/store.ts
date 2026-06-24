@@ -73,6 +73,7 @@ const DEFAULT_UI: UIState = {
   pepePanelOpen: false,
   pepeTab: 'suggestions',
   pepeExpression: 'neutral',
+  missedQueries: [],
   designSuggestions: [],
   suggestionHighlightIds: [],
   dimensionEditPending: false,
@@ -216,6 +217,7 @@ interface AppStore {
   setPepePanelOpen: (open: boolean) => void;
   setPepeTab: (tab: UIState['pepeTab']) => void;
   setPepeExpression: (expr: UIState['pepeExpression']) => void;
+  addPepeMissedQuery: (query: string) => void;
   setDesignSuggestions: (suggestions: DesignSuggestion[]) => void;
   setSuggestionHighlightIds: (ids: string[]) => void;
   setDimensionEditPending: (pending: boolean) => void;
@@ -867,6 +869,13 @@ export const useAppStore = create<AppStore>()(
 
   setPepeExpression: (expr) =>
     set((s) => ({ ui: { ...s.ui, pepeExpression: expr } })),
+
+  addPepeMissedQuery: (query) =>
+    set((s) => {
+      const q = query.trim();
+      if (!q || s.ui.missedQueries.includes(q)) return s;
+      return { ui: { ...s.ui, missedQueries: [...s.ui.missedQueries, q] } };
+    }),
 
   setDesignSuggestions: (suggestions) =>
     set((s) => ({ ui: { ...s.ui, designSuggestions: suggestions } })),

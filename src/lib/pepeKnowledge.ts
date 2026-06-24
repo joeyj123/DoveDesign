@@ -1,3 +1,5 @@
+import { PEPE_KNOWLEDGE_BOOKS } from './pepeKnowledgeBooks';
+
 export interface KnowledgeEntry {
   id: string;
   keywords: string[];
@@ -5,7 +7,7 @@ export interface KnowledgeEntry {
   answer: string;
 }
 
-export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
+const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
   {
     id: 'left-tool-panel',
     topic: 'Left tool panel tabs',
@@ -458,4 +460,9 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
     answer:
       'Wear eye and ear protection. Keep guards on tools. Use push sticks past the blade. Unplug tools when changing bits or blades. Keep floors clear of offcuts and extension cords. Never reach over a spinning blade.',
   },
+];
+
+export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
+  ...PEPE_KNOWLEDGE_APP,
+  ...PEPE_KNOWLEDGE_BOOKS,
 ];

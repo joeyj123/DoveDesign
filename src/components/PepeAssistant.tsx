@@ -1,13 +1,51 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { useAppStore } from '../store';
-import { PEPE_KNOWLEDGE } from '../lib/pepeKnowledge';
+import { PEPE_KNOWLEDGE, type KnowledgeEntry } from '../lib/pepeKnowledge';
 
 const fuse = new Fuse(PEPE_KNOWLEDGE, {
-  keys: ['keywords', 'topic'],
+  keys: ['keywords', 'topic', 'answer'],
   threshold: 0.45,
   includeScore: true,
 });
+
+const NO_MATCH_MSG =
+  "Hmm, I'm not sure about that one -- try the Tutorial tab for more detail!";
+
+function hasNumberedSteps(text: string): boolean {
+  return /\b1\.\s/.test(text) || /\bStep\s+1\b/i.test(text);
+}
+
+function parseNumberedSteps(text: string): string[] {
+  const parts = text.split(/(?:Step\s+\d+[:.]?\s*|\d+\.\s+)/i).filter((p) => p.trim());
+  return parts.map((p) => p.trim()).filter(Boolean);
+}
+
+function pickRandomTopics(count: number): KnowledgeEntry[] {
+  const pool = [...PEPE_KNOWLEDGE];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, count);
+}
+
+function AnswerBody({ answer }: { answer: string }) {
+  if (!hasNumberedSteps(answer)) {
+    return <p className="text-sm text-zinc-200 leading-relaxed">{answer}</p>;
+  }
+  const steps = parseNumberedSteps(answer);
+  if (steps.length < 2) {
+    return <p className="text-sm text-zinc-200 leading-relaxed">{answer}</p>;
+  }
+  return (
+    <ol className="text-sm text-zinc-200 leading-relaxed list-decimal list-inside space-y-1.5">
+      {steps.map((step, i) => (
+        <li key={i}>{step}</li>
+      ))}
+    </ol>
+  );
+}
 
 function PepeEyes({ expression }: { expression: 'neutral' | 'thinking' | 'happy' }) {
   if (expression === 'thinking') {
@@ -124,34 +162,93 @@ export function PepeEmbedded() {
   const setPepePanelOpen = useAppStore((s) => s.setPepePanelOpen);
   const setPepeTab = useAppStore((s) => s.setPepeTab);
   const setPepeExpression = useAppStore((s) => s.setPepeExpression);
+  const addPepeMissedQuery = useAppStore((s) => s.addPepeMissedQuery);
   const setSuggestionHighlightIds = useAppStore((s) => s.setSuggestionHighlightIds);
   const setRightPanelTab = useAppStore((s) => s.setRightPanelTab);
 
   const [query, setQuery] = useState('');
-  const [answer, setAnswer] = useState('');
+  const [matchedEntry, setMatchedEntry] = useState<KnowledgeEntry | null>(null);
+  const [noMatch, setNoMatch] = useState(false);
+  const [suggestedTopics, setSuggestedTopics] = useState<KnowledgeEntry[]>([]);
+  const [helpful, setHelpful] = useState<'up' | 'down' | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastQueryRef = useRef('');
 
-  const search = useCallback(
+  const runSearch = useCallback(
     (q: string) => {
-      setQuery(q);
-      if (!q.trim()) {
-        setAnswer('');
+      const trimmed = q.trim();
+      lastQueryRef.current = trimmed;
+
+      if (!trimmed) {
+        setMatchedEntry(null);
+        setNoMatch(false);
+        setSuggestedTopics([]);
+        setHelpful(null);
         setPepeExpression('neutral');
         return;
       }
-      setPepeExpression('thinking');
-      const results = fuse.search(q.trim());
+
+      const results = fuse.search(trimmed);
       if (results.length > 0 && (results[0].score ?? 1) < 0.5) {
-        setAnswer(results[0].item.answer);
+        setMatchedEntry(results[0].item);
+        setNoMatch(false);
+        setSuggestedTopics([]);
+        setHelpful(null);
         setPepeExpression('happy');
       } else {
-        setAnswer(
-          "Hmm, I'm not sure about that one — try the Suggestions tab or the Tutorial for more detail!"
-        );
+        setMatchedEntry(null);
+        setNoMatch(true);
+        setSuggestedTopics(pickRandomTopics(3));
+        setHelpful(null);
         setPepeExpression('thinking');
       }
     },
     [setPepeExpression]
   );
+
+  const handleQueryChange = useCallback(
+    (value: string) => {
+      setQuery(value);
+      setHelpful(null);
+
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      if (!value.trim()) {
+        runSearch('');
+        return;
+      }
+
+      setPepeExpression('thinking');
+      debounceRef.current = setTimeout(() => runSearch(value), 300);
+    },
+    [runSearch, setPepeExpression]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  const showChipEntry = useCallback(
+    (entry: KnowledgeEntry) => {
+      setMatchedEntry(entry);
+      setNoMatch(false);
+      setSuggestedTopics([]);
+      setHelpful(null);
+      setPepeExpression('happy');
+    },
+    [setPepeExpression]
+  );
+
+  const handleThumbsDown = useCallback(() => {
+    setHelpful('down');
+    if (lastQueryRef.current) {
+      addPepeMissedQuery(lastQueryRef.current);
+    }
+  }, [addPepeMissedQuery]);
+
+  const showResponse = matchedEntry !== null || noMatch;
 
   return (
     <div className="flex flex-col items-center">
@@ -216,13 +313,69 @@ export function PepeEmbedded() {
                   type="text"
                   className="input-field text-base"
                   value={query}
-                  onChange={(e) => search(e.target.value)}
-                  placeholder="e.g. pocket holes?"
+                  onChange={(e) => handleQueryChange(e.target.value)}
+                  placeholder="Ask me anything about woodworking..."
                 />
               </label>
-              {answer && (
-                <p className="text-base text-zinc-200 leading-relaxed">{answer}</p>
+
+              {showResponse && (
+                <div className="rounded-lg border-2 border-zinc-700 bg-zinc-900/80 p-2.5 space-y-2">
+                  {matchedEntry ? (
+                    <>
+                      <p className="text-xs font-bold text-green-300">{matchedEntry.topic}</p>
+                      <AnswerBody answer={matchedEntry.answer} />
+                      <div className="flex items-center gap-2 pt-1 border-t border-zinc-700/80">
+                        <span className="text-xs text-zinc-400">Was this helpful?</span>
+                        <button
+                          type="button"
+                          aria-label="Yes, helpful"
+                          onClick={() => setHelpful('up')}
+                          className={[
+                            'text-base px-2 py-0.5 rounded border-2',
+                            helpful === 'up'
+                              ? 'border-green-500 bg-green-950/50 text-green-200'
+                              : 'border-zinc-600 text-zinc-300 hover:border-zinc-500',
+                          ].join(' ')}
+                        >
+                          👍
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="No, not helpful"
+                          onClick={handleThumbsDown}
+                          className={[
+                            'text-base px-2 py-0.5 rounded border-2',
+                            helpful === 'down'
+                              ? 'border-amber-600 bg-amber-950/40 text-amber-100'
+                              : 'border-zinc-600 text-zinc-300 hover:border-zinc-500',
+                          ].join(' ')}
+                        >
+                          👎
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-zinc-200 leading-relaxed">{NO_MATCH_MSG}</p>
+                      {suggestedTopics.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {suggestedTopics.map((entry) => (
+                            <button
+                              key={entry.id}
+                              type="button"
+                              onClick={() => showChipEntry(entry)}
+                              className="text-sm px-2 py-1 rounded-full border-2 border-green-700/80 bg-green-950/30 text-green-200 hover:border-green-500"
+                            >
+                              {entry.topic}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
+
               <button
                 type="button"
                 className="text-base text-green-400 underline"

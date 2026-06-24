@@ -381,6 +381,8 @@ export interface UIState {
   pepePanelOpen: boolean;
   pepeTab: 'suggestions' | 'ask';
   pepeExpression: 'neutral' | 'thinking' | 'happy';
+  /** Ask Pepe queries that received thumbs-down (not persisted). */
+  missedQueries: string[];
   /** Ephemeral design suggestions (not persisted). */
   designSuggestions: DesignSuggestion[];
   suggestionHighlightIds: string[];
