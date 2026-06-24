@@ -6,12 +6,14 @@ import MemberInspector from './MemberInspector';
 import TutorialPanel from './TutorialPanel';
 import EngineeringPanel from './EngineeringPanel';
 import HardwarePanel from './HardwarePanel';
+import CutOptimizerPanel from './CutOptimizerPanel';
 import type { RightPanelTab } from '../types';
 
 const TABS: { id: RightPanelTab; label: string }[] = [
   { id: 'inspector', label: 'Inspector' },
   { id: 'estimating', label: 'Estimating' },
   { id: 'cutlist', label: 'Cut List' },
+  { id: 'optimizer', label: 'Optimizer' },
   { id: 'engineering', label: 'Engineering' },
   { id: 'hardware', label: 'Hardware' },
   { id: 'tutorial', label: 'Tutorial' },
@@ -63,6 +65,7 @@ export default function RightSidebar() {
         )}
         {activeTab === 'estimating' && <EstimatingPanel />}
         {activeTab === 'cutlist' && <CutListPanel />}
+        {activeTab === 'optimizer' && <CutOptimizerPanel />}
         {activeTab === 'engineering' && <EngineeringPanel />}
         {activeTab === 'hardware' && <HardwarePanel />}
         {activeTab === 'tutorial' && <TutorialPanel />}

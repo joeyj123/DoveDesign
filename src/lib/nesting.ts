@@ -109,6 +109,62 @@ export function optimizeCutList(members: WoodMember[], kerf = SAW_KERF_INCHES): 
   return { groups, kerfInches: kerf };
 }
 
+export interface ManualCutPart {
+  label: string;
+  length: number;
+  memberId?: string;
+}
+
+/** 1D bin packing with user-supplied stock lengths (first-fit decreasing). */
+export function optimizeManualLumber(
+  parts: ManualCutPart[],
+  stockLengths: number[],
+  kerf = SAW_KERF_INCHES
+): NestingStock[] {
+  if (parts.length === 0 || stockLengths.length === 0) return [];
+
+  const sortedStock = [...stockLengths].sort((a, b) => a - b);
+  const entries: PartEntry[] = parts.map((p) => ({
+    memberId: p.memberId ?? p.label,
+    label: p.label,
+    length: p.length,
+  }));
+
+  const sorted = [...entries].sort((a, b) => b.length - a.length);
+  const stocks: NestingStock[] = [];
+
+  for (const part of sorted) {
+    let placed = false;
+    for (const stock of stocks) {
+      const used =
+        stock.parts.reduce((s, p) => s + p.length + kerf, 0) - (stock.parts.length > 0 ? kerf : 0);
+      const needed = part.length + (stock.parts.length > 0 ? kerf : 0);
+      if (needed <= stock.stockLength - used) {
+        stock.parts.push({ memberId: part.memberId, label: part.label, length: part.length });
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      const fitting = sortedStock.filter((len) => len >= part.length);
+      const stockLength = fitting[0] ?? Math.max(part.length, ...sortedStock);
+      stocks.push({
+        stockLength,
+        parts: [{ memberId: part.memberId, label: part.label, length: part.length }],
+        waste: 0,
+      });
+    }
+  }
+
+  for (const stock of stocks) {
+    const used =
+      stock.parts.reduce((s, p) => s + p.length + kerf, 0) - (stock.parts.length > 0 ? kerf : 0);
+    stock.waste = Math.max(0, stock.stockLength - used);
+  }
+
+  return stocks;
+}
+
 export function formatStockLength(inches: number): string {
   const feet = inches / 12;
   return `${feet}ft (${inches}")`;

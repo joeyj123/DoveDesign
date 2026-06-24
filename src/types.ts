@@ -313,7 +313,7 @@ export type ViewportMode = 'design' | 'assembly';
 export type DisplayMode = 'shaded' | 'wireframe' | 'shadedEdges' | 'xray';
 
 export type RightPanelTab =
-  | 'inspector' | 'estimating' | 'cutlist' | 'engineering' | 'tutorial' | 'hardware';
+  | 'inspector' | 'estimating' | 'cutlist' | 'engineering' | 'tutorial' | 'hardware' | 'optimizer';
 
 export type TransformMode = 'translate' | 'rotate' | 'scale';
 

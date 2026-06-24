@@ -1,4 +1,5 @@
 import { PEPE_KNOWLEDGE_BOOKS } from './pepeKnowledgeBooks';
+import { PEPE_KNOWLEDGE_EXPANDED } from './pepeKnowledgeExpanded';
 
 export interface KnowledgeEntry {
   id: string;
@@ -465,4 +466,5 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
 export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
   ...PEPE_KNOWLEDGE_APP,
   ...PEPE_KNOWLEDGE_BOOKS,
+  ...PEPE_KNOWLEDGE_EXPANDED,
 ];
