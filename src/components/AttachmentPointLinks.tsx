@@ -3,6 +3,7 @@ import { Line } from '@react-three/drei';
 import { useAppStore } from '../store';
 import { getFacePointWorld } from '../lib/mating';
 import { snapToGrid } from '../lib/mating';
+import { computePolygonBBox, computePolygonCentroid } from '../lib/memberGeometry';
 
 const JOIN_COLORS: Record<string, string> = {
   Screws: '#fbbf24',
@@ -59,13 +60,46 @@ export default function AttachmentPointLinks() {
 export function PolygonDrawTool() {
   const activeTool = useAppStore((s) => s.ui.activeTool);
   const points = useAppStore((s) => s.ui.polygonDrawPoints);
+  const drawDefaults = useAppStore((s) => s.ui.drawDefaults);
   const setPolygonDrawPoints = useAppStore((s) => s.setPolygonDrawPoints);
   const addMember = useAppStore((s) => s.addMember);
+  const selectMember = useAppStore((s) => s.selectMember);
 
   if (activeTool !== 'shapePolygon') return null;
 
   function snap(v: number) {
     return snapToGrid(v);
+  }
+
+  function finishPolygon(verts: [number, number][]) {
+    const height = drawDefaults.thickness;
+    const [cx, cz] = computePolygonCentroid(verts);
+    const { length, width } = computePolygonBBox(verts);
+    const id = crypto.randomUUID();
+    addMember({
+      id,
+      label: 'Custom polygon',
+      category: drawDefaults.category,
+      species: drawDefaults.species,
+      nominalSize: 'Custom',
+      thickness: height,
+      width,
+      length,
+      position: [cx, height / 2, cz],
+      rotation: [0, 0, 0],
+      costPerBoardFoot: 3.5,
+      color: drawDefaults.color,
+      isSelected: false,
+      cuts: [],
+      orientation: 'flat',
+      loadLbs: 0,
+      materialKind: 'dimensional',
+      shapeType: 'customPolygon',
+      polygonPoints: verts,
+    });
+    setPolygonDrawPoints([]);
+    useAppStore.getState().setActiveTool('select');
+    selectMember(id);
   }
 
   return (
@@ -83,32 +117,7 @@ export function PolygonDrawTool() {
             next.length > 3 &&
             Math.hypot(first[0] - last[0], first[1] - last[1]) < 0.3
           ) {
-            const height = parseFloat(window.prompt('Extrusion height (inches)', '1.5') ?? '1.5');
-            if (!isNaN(height) && height > 0) {
-              addMember({
-                id: crypto.randomUUID(),
-                label: 'Custom polygon',
-                category: 'Softwood',
-                species: 'Southern Yellow Pine',
-                nominalSize: 'Custom',
-                thickness: height,
-                width: 12,
-                length: 12,
-                position: [0, height / 2, 0],
-                rotation: [0, 0, 0],
-                costPerBoardFoot: 3.5,
-                color: '#d4a96a',
-                isSelected: false,
-                cuts: [],
-                orientation: 'flat',
-                loadLbs: 0,
-                materialKind: 'dimensional',
-                shapeType: 'customPolygon',
-                polygonPoints: next.slice(0, -1),
-              });
-            }
-            setPolygonDrawPoints([]);
-            useAppStore.getState().setActiveTool('select');
+            finishPolygon(next.slice(0, -1));
             return;
           }
         }
@@ -119,6 +128,13 @@ export function PolygonDrawTool() {
         <planeGeometry args={[500, 500]} />
         <meshBasicMaterial visible={false} />
       </mesh>
+      {points.length >= 2 && (
+        <Line
+          points={points.map(([x, z]) => new THREE.Vector3(x, 0.2, z))}
+          color="#fbbf24"
+          lineWidth={2}
+        />
+      )}
       {points.map(([x, z], i) => (
         <mesh key={i} position={[x, 0.2, z]}>
           <sphereGeometry args={[0.15, 8, 8]} />

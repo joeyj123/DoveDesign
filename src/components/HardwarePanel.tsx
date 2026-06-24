@@ -1,84 +1,59 @@
 import { useAppStore } from '../store';
 import type { HardwareLibraryId } from '../types';
+import { HARDWARE_LIBRARY_COSTS, HARDWARE_LIBRARY_LABELS } from '../lib/hardwareLibrary';
 
-const LIBRARY: { id: HardwareLibraryId; label: string; cost: number; svg: JSX.Element }[] = [
-  {
-    id: 'drawer-slide',
-    label: 'Drawer slide (full extension)',
-    cost: 12,
-    svg: (
-      <svg viewBox="0 0 80 24" className="w-full h-8">
-        <rect x="4" y="10" width="72" height="4" fill="#71717a" rx="1" />
-        <rect x="8" y="8" width="64" height="8" fill="none" stroke="#a1a1aa" strokeWidth="1" />
-      </svg>
-    ),
-  },
-  {
-    id: 'cabinet-hinge',
-    label: 'Cabinet hinge (Euro cup)',
-    cost: 4.5,
-    svg: (
-      <svg viewBox="0 0 40 40" className="w-10 h-10">
-        <circle cx="14" cy="20" r="8" fill="#52525b" stroke="#a1a1aa" />
-        <rect x="22" y="17" width="14" height="6" fill="#71717a" />
-      </svg>
-    ),
-  },
-  {
-    id: 'drawer-pull',
-    label: 'Drawer pull / handle',
-    cost: 6,
-    svg: (
-      <svg viewBox="0 0 60 24" className="w-full h-8">
-        <rect x="8" y="4" width="4" height="16" fill="#a1a1aa" />
-        <rect x="48" y="4" width="4" height="16" fill="#a1a1aa" />
-        <rect x="8" y="10" width="44" height="4" fill="#d4d4d8" rx="2" />
-      </svg>
-    ),
-  },
-  {
-    id: 'shelf-pin',
-    label: 'Shelf pin',
-    cost: 0.25,
-    svg: (
-      <svg viewBox="0 0 16 16" className="w-6 h-6">
-        <circle cx="8" cy="8" r="4" fill="#a1a1aa" />
-      </svg>
-    ),
-  },
-  {
-    id: 'cam-lock',
-    label: 'Cam lock connector',
-    cost: 2,
-    svg: (
-      <svg viewBox="0 0 24 24" className="w-8 h-8">
-        <circle cx="12" cy="12" r="8" fill="#71717a" />
-        <line x1="12" y1="12" x2="18" y2="8" stroke="#27272a" strokeWidth="2" />
-      </svg>
-    ),
-  },
-  {
-    id: 'corner-bracket',
-    label: 'Corner bracket',
-    cost: 3,
-    svg: (
-      <svg viewBox="0 0 32 32" className="w-8 h-8">
-        <path d="M4 28 L4 12 L12 12 L12 4 L28 4 L28 12 L12 12 L12 28 Z" fill="#a1a1aa" />
-      </svg>
-    ),
-  },
-  {
-    id: 'barrel-bolt',
-    label: 'Barrel bolt',
-    cost: 8,
-    svg: (
-      <svg viewBox="0 0 48 16" className="w-full h-6">
-        <rect x="2" y="4" width="12" height="8" fill="#71717a" />
-        <rect x="14" y="6" width="30" height="4" fill="#a1a1aa" rx="2" />
-      </svg>
-    ),
-  },
-];
+const HARDWARE_SVGS: Record<HardwareLibraryId, JSX.Element> = {
+  'drawer-slide': (
+    <svg viewBox="0 0 80 24" className="w-full h-8">
+      <rect x="4" y="10" width="72" height="4" fill="#71717a" rx="1" />
+      <rect x="8" y="8" width="64" height="8" fill="none" stroke="#a1a1aa" strokeWidth="1" />
+    </svg>
+  ),
+  'cabinet-hinge': (
+    <svg viewBox="0 0 40 40" className="w-10 h-10">
+      <circle cx="14" cy="20" r="8" fill="#52525b" stroke="#a1a1aa" />
+      <rect x="22" y="17" width="14" height="6" fill="#71717a" />
+    </svg>
+  ),
+  'drawer-pull': (
+    <svg viewBox="0 0 60 24" className="w-full h-8">
+      <rect x="8" y="4" width="4" height="16" fill="#a1a1aa" />
+      <rect x="48" y="4" width="4" height="16" fill="#a1a1aa" />
+      <rect x="8" y="10" width="44" height="4" fill="#d4d4d8" rx="2" />
+    </svg>
+  ),
+  'shelf-pin': (
+    <svg viewBox="0 0 16 16" className="w-6 h-6">
+      <circle cx="8" cy="8" r="4" fill="#a1a1aa" />
+    </svg>
+  ),
+  'cam-lock': (
+    <svg viewBox="0 0 24 24" className="w-8 h-8">
+      <circle cx="12" cy="12" r="8" fill="#71717a" />
+      <line x1="12" y1="12" x2="18" y2="8" stroke="#27272a" strokeWidth="2" />
+    </svg>
+  ),
+  'corner-bracket': (
+    <svg viewBox="0 0 32 32" className="w-8 h-8">
+      <path d="M4 28 L4 12 L12 12 L12 4 L28 4 L28 12 L12 12 L12 28 Z" fill="#a1a1aa" />
+    </svg>
+  ),
+  'barrel-bolt': (
+    <svg viewBox="0 0 48 16" className="w-full h-6">
+      <rect x="2" y="4" width="12" height="8" fill="#71717a" />
+      <rect x="14" y="6" width="30" height="4" fill="#a1a1aa" rx="2" />
+    </svg>
+  ),
+};
+
+const LIBRARY: { id: HardwareLibraryId; label: string; cost: number; svg: JSX.Element }[] = (
+  Object.keys(HARDWARE_LIBRARY_LABELS) as HardwareLibraryId[]
+).map((id) => ({
+  id,
+  label: HARDWARE_LIBRARY_LABELS[id],
+  cost: HARDWARE_LIBRARY_COSTS[id],
+  svg: HARDWARE_SVGS[id],
+}));
 
 export default function HardwarePanel() {
   const pick = useAppStore((s) => s.ui.hardwareLibraryPick);
@@ -120,7 +95,7 @@ export default function HardwarePanel() {
           <h3 className="text-base font-semibold text-zinc-300">Placed hardware</h3>
           {placed.map((h) => (
             <div key={h.id} className="flex justify-between items-center text-base border border-zinc-800 rounded-lg px-3 py-2">
-              <span className="text-zinc-300">{h.libraryId}</span>
+              <span className="text-zinc-300">{HARDWARE_LIBRARY_LABELS[h.libraryId]}</span>
               <button type="button" className="text-red-400 text-base" onClick={() => removePlacedHardware(h.id)}>
                 Remove
               </button>

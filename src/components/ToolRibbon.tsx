@@ -28,6 +28,7 @@ export default function ToolRibbon() {
   const setActiveTool = useAppStore((s) => s.setActiveTool);
   const setRightPanelTab = useAppStore((s) => s.setRightPanelTab);
   const addMember = useAppStore((s) => s.addMember);
+  const selectMember = useAppStore((s) => s.selectMember);
 
   function pickTool(id: ActiveTool) {
     setActiveTool(id);
@@ -37,7 +38,6 @@ export default function ToolRibbon() {
   function addShape(tool: ActiveTool) {
     pickTool(tool);
     const base = {
-      id: crypto.randomUUID(),
       label: tool.replace('shape', ''),
       category: 'Softwood' as const,
       species: 'Southern Yellow Pine',
@@ -68,7 +68,9 @@ export default function ToolRibbon() {
       setActiveTool('shapePolygon');
       return;
     }
-    addMember({ ...base, shapeType: shapeMap[tool] ?? 'box' });
+    const id = crypto.randomUUID();
+    addMember({ ...base, id, shapeType: shapeMap[tool] ?? 'box' });
+    selectMember(id);
     setActiveTool('select');
   }
 

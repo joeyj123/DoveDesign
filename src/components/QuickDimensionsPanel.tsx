@@ -10,7 +10,6 @@ export default function QuickDimensionsPanel() {
   const quickOpen = useAppStore((s) => s.ui.quickDimensionsOpen);
   const updateMember = useAppStore((s) => s.updateMember);
   const commitDimensionEdit = useAppStore((s) => s.commitDimensionEdit);
-  const setQuickDimensionsOpen = useAppStore((s) => s.setQuickDimensionsOpen);
   const setDimensionEditPending = useAppStore((s) => s.setDimensionEditPending);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -54,7 +53,7 @@ export default function QuickDimensionsPanel() {
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [quickOpen, commitDimensionEdit, setQuickDimensionsOpen]);
+  }, [quickOpen, commitDimensionEdit]);
 
   if (!selectedMember || !bounds || !quickOpen) return null;
 

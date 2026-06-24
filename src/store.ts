@@ -11,6 +11,7 @@ import type {
 import { trimToBoundary, extendToBoundary } from './lib/trimExtend';
 import { inferMaterialKind, getMaterialByName } from './lib/materials';
 import { computeMateTransform, computePointMateTransform } from './lib/mating';
+import { createDefaultFastenersForMate } from './lib/fastenerDefaults';
 import { serializeWcad, parseWcad } from './lib/wcad';
 
 const DEFAULT_ESTIMATING: EstimatingSettings = {
@@ -81,6 +82,7 @@ const DEFAULT_UI: UIState = {
   hardwareLibraryPick: null,
   polygonDrawPoints: [],
   assemblyGuideOpen: false,
+  assemblyDesignSnapshot: null,
   drawDefaults: {
     species: 'Southern Yellow Pine',
     thickness: 1.5,
@@ -587,13 +589,28 @@ export const useAppStore = create<AppStore>()(
       offsetB,
     };
 
-    commitProject(set, get, {
+    const steps = get().project.assemblySteps;
+    const nextProject = {
       ...get().project,
       members: get().project.members.map((m) =>
         m.id === b.id ? migrateMember({ ...m, ...patch }) : m
       ),
       mates: [...get().project.mates, mate],
-    });
+      ...(get().ui.viewportMode === 'assembly'
+        ? {
+            assemblySteps: [
+              ...steps,
+              {
+                stepIndex: steps.length + 1,
+                mateId: mate.id,
+                description: `Mate ${b.label} to ${a.label} (${mate.faceA} ↔ ${mate.faceB})`,
+              },
+            ],
+          }
+        : {}),
+    };
+
+    commitProject(set, get, nextProject);
     set((s) => ({
       ui: {
         ...s.ui,
@@ -607,23 +624,6 @@ export const useAppStore = create<AppStore>()(
         selectedMateId: mate.id,
       },
     }));
-
-    if (get().ui.viewportMode === 'assembly') {
-      const labelA = a.label;
-      const labelB = b.label;
-      const steps = get().project.assemblySteps;
-      commitProject(set, get, {
-        ...get().project,
-        assemblySteps: [
-          ...steps,
-          {
-            stepIndex: steps.length + 1,
-            mateId: mate.id,
-            description: `Mate ${labelB} to ${labelA} (${mate.faceA} ↔ ${mate.faceB})`,
-          },
-        ],
-      });
-    }
 
     return mate.id;
   },
@@ -650,12 +650,24 @@ export const useAppStore = create<AppStore>()(
     set((s) => ({ ui: { ...s.ui, mateGridOffset: offset } })),
 
   setMateJoinMethod: (mateId, method) => {
+    const mate = get().project.mates.find((m) => m.id === mateId);
+    const memberA = mate
+      ? get().project.members.find((m) => m.id === mate.memberAId)
+      : undefined;
+    const updatedMate = mate ? { ...mate, joinMethod: method } : null;
+    const newFasteners =
+      updatedMate && memberA
+        ? createDefaultFastenersForMate(updatedMate, memberA, method)
+        : [];
+
     commitProject(set, get, {
       ...get().project,
       mates: get().project.mates.map((m) =>
         m.id === mateId ? { ...m, joinMethod: method } : m
       ),
+      fasteners: [...get().project.fasteners, ...newFasteners],
     });
+
     if (method !== 'Unset' && method !== 'Glue' && method !== 'Mortise & Tenon') {
       set((s) => ({
         ui: {
@@ -667,7 +679,7 @@ export const useAppStore = create<AppStore>()(
       }));
     } else {
       set((s) => ({
-        ui: { ...s.ui, radialWheelOpen: false },
+        ui: { ...s.ui, radialWheelOpen: false, fastenerPlacementMode: false, fastenerPlacementMateId: null },
       }));
     }
   },
@@ -805,8 +817,14 @@ export const useAppStore = create<AppStore>()(
     set((s) => ({ ui: { ...s.ui, edgeSelectedIndex: idx } })),
 
   setViewportMode: (mode) => {
-    if (mode === 'assembly') {
-      const { members } = get().project;
+    const { project, ui } = get();
+    const { members } = project;
+    if (mode === 'assembly' && ui.viewportMode !== 'assembly') {
+      const snapshot = members.map((m) => ({
+        memberId: m.id,
+        position: [...m.position] as [number, number, number],
+        rotation: [...m.rotation] as [number, number, number],
+      }));
       const spacing = 8;
       const updated = members.map((m, i) => ({
         ...m,
@@ -814,8 +832,47 @@ export const useAppStore = create<AppStore>()(
         rotation: [0, 0, 0] as [number, number, number],
       }));
       commitProject(set, get, { ...get().project, members: updated });
+      set((s) => ({
+        ui: {
+          ...s.ui,
+          viewportMode: mode,
+          assemblyGuideOpen: true,
+          assemblyDesignSnapshot: snapshot,
+        },
+      }));
+      return;
     }
-    set((s) => ({ ui: { ...s.ui, viewportMode: mode, assemblyGuideOpen: mode === 'assembly' } }));
+
+    if (mode === 'design' && ui.viewportMode === 'assembly' && ui.assemblyDesignSnapshot) {
+      const snapMap = new Map(ui.assemblyDesignSnapshot.map((s) => [s.memberId, s]));
+      const restored = members.map((m) => {
+        const saved = snapMap.get(m.id);
+        if (!saved) return m;
+        return {
+          ...m,
+          position: saved.position,
+          rotation: saved.rotation,
+        };
+      });
+      commitProject(set, get, { ...get().project, members: restored });
+      set((s) => ({
+        ui: {
+          ...s.ui,
+          viewportMode: mode,
+          assemblyGuideOpen: false,
+          assemblyDesignSnapshot: null,
+        },
+      }));
+      return;
+    }
+
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        viewportMode: mode,
+        assemblyGuideOpen: mode === 'assembly',
+      },
+    }));
   },
 
   setDisplayMode: (mode) =>

@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import * as THREE from 'three';
 import { Html } from '@react-three/drei';
-import { ThreeEvent } from '@react-three/fiber';
+import { ThreeEvent, useThree } from '@react-three/fiber';
 import { useAppStore } from '../store';
 import type { AttachmentPoint } from '../types';
 import {
@@ -18,11 +18,11 @@ export default function AttachmentPointHandles() {
   const removeAttachmentPoint = useAppStore((s) => s.removeAttachmentPoint);
   const connectAttachmentPoints = useAppStore((s) => s.connectAttachmentPoints);
   const commitCurrentProject = useAppStore((s) => s.commitCurrentProject);
+  const { gl } = useThree();
 
   const dragId = useRef<string | null>(null);
 
   function onDrag(pt: AttachmentPoint, e: ThreeEvent<PointerEvent>) {
-    e.stopPropagation();
     const member = members.find((m) => m.id === pt.memberId);
     if (!member) return;
 
@@ -51,19 +51,23 @@ export default function AttachmentPointHandles() {
               onPointerDown={(e) => {
                 e.stopPropagation();
                 dragId.current = pt.id;
+                gl.domElement.setPointerCapture(e.pointerId);
               }}
               onPointerMove={(e) => {
                 if (dragId.current !== pt.id) return;
+                e.stopPropagation();
                 onDrag(pt, e);
               }}
-              onPointerUp={() => {
-                if (dragId.current === pt.id) {
-                  dragId.current = null;
-                  if (pt.connectedToId) {
-                    connectAttachmentPoints(pt.id, pt.connectedToId);
-                  } else {
-                    commitCurrentProject();
-                  }
+              onPointerUp={(e) => {
+                if (dragId.current !== pt.id) return;
+                dragId.current = null;
+                if (gl.domElement.hasPointerCapture(e.pointerId)) {
+                  gl.domElement.releasePointerCapture(e.pointerId);
+                }
+                if (pt.connectedToId) {
+                  connectAttachmentPoints(pt.id, pt.connectedToId);
+                } else {
+                  commitCurrentProject();
                 }
               }}
               onContextMenu={(e) => {

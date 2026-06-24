@@ -1,4 +1,5 @@
 import type { WoodMember } from '../types';
+import { computePolygonBBox } from './memberGeometry';
 
 /** Axis-aligned member dimensions for invisible pick meshes (inches). */
 export function getMemberHitSize(member: WoodMember): [number, number, number] {
@@ -13,6 +14,13 @@ export function getMemberHitSize(member: WoodMember): [number, number, number] {
     case 'triangularPrism':
     case 'hexagonalPrism':
       return [member.width, member.length, member.width];
+    case 'customPolygon': {
+      if (member.polygonPoints && member.polygonPoints.length >= 3) {
+        const { length, width } = computePolygonBBox(member.polygonPoints);
+        return [length, member.thickness, width];
+      }
+      return [member.length, member.thickness, member.width];
+    }
     default:
       return [member.length, member.thickness, member.width];
   }

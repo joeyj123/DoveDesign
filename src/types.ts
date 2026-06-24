@@ -399,6 +399,12 @@ export interface UIState {
   polygonDrawPoints: [number, number][];
   /** Assembly guide panel */
   assemblyGuideOpen: boolean;
+  /** Saved member poses before assembly explode (restored when leaving assembly mode). */
+  assemblyDesignSnapshot: {
+    memberId: string;
+    position: [number, number, number];
+    rotation: [number, number, number];
+  }[] | null;
 }
 
 export interface DesignSuggestion {

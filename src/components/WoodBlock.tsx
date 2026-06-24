@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useLayoutEffect } from 'react';
 import * as THREE from 'three';
 import { ThreeEvent } from '@react-three/fiber';
 import { Line } from '@react-three/drei';
@@ -11,9 +11,10 @@ import {
   pickFaceFromWorldNormal,
   worldPointToFaceOffset,
   getFacePointWorld,
+  getFaceNormal,
 } from '../lib/mating';
 import { buildEdgeTreatmentSubtractions, getBoxEdgeSegment } from '../lib/edgeTreatments';
-import { createMemberBaseGeometry } from '../lib/memberGeometry';
+import { buildCustomPolygonShape, createMemberBaseGeometry } from '../lib/memberGeometry';
 import TransformGizmo from './TransformGizmo';
 
 interface Props {
@@ -90,13 +91,22 @@ export default function WoodBlock({ member }: Props) {
   function handleClick(e: ThreeEvent<MouseEvent>) {
     e.stopPropagation();
 
-    if (activeTool === 'placeHardware' && hardwareLibraryPick && e.point) {
+    if (activeTool === 'placeHardware' && hardwareLibraryPick && e.face) {
+      const face = handleFaceFromEvent(e)!;
+      const offset = worldPointToFaceOffset(member, face, e.point.clone());
+      const snapped = getFacePointWorld(member, face, offset);
+      const normal = getFaceNormal(member, face);
+      const quat = new THREE.Quaternion().setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        normal
+      );
+      const euler = new THREE.Euler().setFromQuaternion(quat);
       addPlacedHardware({
         id: crypto.randomUUID(),
         libraryId: hardwareLibraryPick,
         memberId: member.id,
-        position: [e.point.x, e.point.y, e.point.z],
-        rotation: [...member.rotation],
+        position: [snapped.x, snapped.y, snapped.z],
+        rotation: [euler.x, euler.y, euler.z],
         scale: 1,
       });
       return;
@@ -251,7 +261,13 @@ export default function WoodBlock({ member }: Props) {
             {(member.shapeType ?? 'box') === 'hexagonalPrism' && (
               <cylinderGeometry args={[member.width / 2, member.width / 2, member.length, 6]} />
             )}
-            {(member.shapeType ?? 'box') === 'customPolygon' && (
+            {(member.shapeType ?? 'box') === 'customPolygon' &&
+              member.polygonPoints &&
+              member.polygonPoints.length >= 3 && (
+                <CustomPolygonExtrude member={member} />
+              )}
+            {(member.shapeType ?? 'box') === 'customPolygon' &&
+              (!member.polygonPoints || member.polygonPoints.length < 3) && (
               <boxGeometry args={[member.length, member.thickness, member.width]} />
             )}
           </Base>
@@ -316,4 +332,27 @@ export default function WoodBlock({ member }: Props) {
 function getWorldQuaternion(member: WoodMember): THREE.Quaternion {
   const e = new THREE.Euler(...member.rotation);
   return new THREE.Quaternion().setFromEuler(e);
+}
+
+/** CSG base primitive for custom polygon footprints (extruded along Y). */
+function CustomPolygonExtrude({ member }: { member: WoodMember }) {
+  const geoRef = useRef<THREE.ExtrudeGeometry>(null!);
+  const shape = useMemo(
+    () => buildCustomPolygonShape(member.polygonPoints!),
+    [member.polygonPoints]
+  );
+  const depth = member.thickness;
+  const config = useMemo(
+    () => ({ depth, bevelEnabled: false as const }),
+    [depth]
+  );
+
+  useLayoutEffect(() => {
+    if (!geoRef.current) return;
+    geoRef.current.rotateX(-Math.PI / 2);
+    geoRef.current.translate(0, -depth / 2, 0);
+    geoRef.current.computeVertexNormals();
+  }, [shape, depth]);
+
+  return <extrudeGeometry ref={geoRef} args={[shape, config]} />;
 }
