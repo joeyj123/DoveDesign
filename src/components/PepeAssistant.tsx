@@ -1,13 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import Fuse from 'fuse.js';
 import { useAppStore } from '../store';
-import { PEPE_KNOWLEDGE, type KnowledgeEntry } from '../lib/pepeKnowledge';
-
-const fuse = new Fuse(PEPE_KNOWLEDGE, {
-  keys: ['keywords', 'topic', 'answer'],
-  threshold: 0.45,
-  includeScore: true,
-});
+import type { KnowledgeEntry } from '../lib/pepeKnowledge';
 
 const NO_MATCH_MSG =
   "Hmm, I'm not sure about that one -- try the Tutorial tab for more detail!";
@@ -21,8 +15,8 @@ function parseNumberedSteps(text: string): string[] {
   return parts.map((p) => p.trim()).filter(Boolean);
 }
 
-function pickRandomTopics(count: number): KnowledgeEntry[] {
-  const pool = [...PEPE_KNOWLEDGE];
+function pickRandomTopics(knowledge: KnowledgeEntry[], count: number): KnowledgeEntry[] {
+  const pool = [...knowledge];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -173,6 +167,22 @@ export function PepeEmbedded() {
   const [helpful, setHelpful] = useState<'up' | 'down' | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastQueryRef = useRef('');
+  const fuseRef = useRef<Fuse<KnowledgeEntry> | null>(null);
+  const knowledgeRef = useRef<KnowledgeEntry[]>([]);
+  const knowledgeLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open || knowledgeLoadedRef.current) return;
+    knowledgeLoadedRef.current = true;
+    import('../lib/pepeKnowledge').then(({ PEPE_KNOWLEDGE }) => {
+      knowledgeRef.current = PEPE_KNOWLEDGE;
+      fuseRef.current = new Fuse(PEPE_KNOWLEDGE, {
+        keys: ['keywords', 'topic', 'answer'],
+        threshold: 0.45,
+        includeScore: true,
+      });
+    });
+  }, [open]);
 
   const runSearch = useCallback(
     (q: string) => {
@@ -188,7 +198,7 @@ export function PepeEmbedded() {
         return;
       }
 
-      const results = fuse.search(trimmed);
+      const results = fuseRef.current?.search(trimmed) ?? [];
       if (results.length > 0 && (results[0].score ?? 1) < 0.5) {
         setMatchedEntry(results[0].item);
         setNoMatch(false);
@@ -198,7 +208,7 @@ export function PepeEmbedded() {
       } else {
         setMatchedEntry(null);
         setNoMatch(true);
-        setSuggestedTopics(pickRandomTopics(3));
+        setSuggestedTopics(pickRandomTopics(knowledgeRef.current, 3));
         setHelpful(null);
         setPepeExpression('thinking');
       }

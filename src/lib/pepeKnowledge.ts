@@ -1,5 +1,19 @@
 import { PEPE_KNOWLEDGE_BOOKS } from './pepeKnowledgeBooks';
 import { PEPE_KNOWLEDGE_EXPANDED } from './pepeKnowledgeExpanded';
+import { PEPE_KNOWLEDGE_MASTER_A } from './pepeKnowledgeMasterA';
+import { PEPE_KNOWLEDGE_MASTER_B } from './pepeKnowledgeMasterB';
+import { PEPE_KNOWLEDGE_MASTER_C } from './pepeKnowledgeMasterC';
+import { PEPE_KNOWLEDGE_MASTER_D } from './pepeKnowledgeMasterD';
+import { PEPE_KNOWLEDGE_MASTER_E } from './pepeKnowledgeMasterE';
+import { PEPE_KNOWLEDGE_MASTER_F } from './pepeKnowledgeMasterF';
+import { PEPE_KNOWLEDGE_MASTER_G } from './pepeKnowledgeMasterG';
+import { PEPE_KNOWLEDGE_MASTER_H } from './pepeKnowledgeMasterH';
+import { PEPE_KNOWLEDGE_MASTER_I } from './pepeKnowledgeMasterI';
+import { PEPE_KNOWLEDGE_MASTER_J } from './pepeKnowledgeMasterJ';
+import { PEPE_KNOWLEDGE_MASTER_K } from './pepeKnowledgeMasterK';
+import { PEPE_KNOWLEDGE_MASTER_L } from './pepeKnowledgeMasterL';
+import { PEPE_KNOWLEDGE_MASTER_M } from './pepeKnowledgeMasterM';
+import { PEPE_KNOWLEDGE_MASTER_N } from './pepeKnowledgeMasterN';
 
 export interface KnowledgeEntry {
   id: string;
@@ -467,4 +481,18 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
   ...PEPE_KNOWLEDGE_APP,
   ...PEPE_KNOWLEDGE_BOOKS,
   ...PEPE_KNOWLEDGE_EXPANDED,
+  ...PEPE_KNOWLEDGE_MASTER_A,
+  ...PEPE_KNOWLEDGE_MASTER_B,
+  ...PEPE_KNOWLEDGE_MASTER_C,
+  ...PEPE_KNOWLEDGE_MASTER_D,
+  ...PEPE_KNOWLEDGE_MASTER_E,
+  ...PEPE_KNOWLEDGE_MASTER_F,
+  ...PEPE_KNOWLEDGE_MASTER_G,
+  ...PEPE_KNOWLEDGE_MASTER_H,
+  ...PEPE_KNOWLEDGE_MASTER_I,
+  ...PEPE_KNOWLEDGE_MASTER_J,
+  ...PEPE_KNOWLEDGE_MASTER_K,
+  ...PEPE_KNOWLEDGE_MASTER_L,
+  ...PEPE_KNOWLEDGE_MASTER_M,
+  ...PEPE_KNOWLEDGE_MASTER_N,
 ];
