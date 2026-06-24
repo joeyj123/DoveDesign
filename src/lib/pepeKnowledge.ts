@@ -46,7 +46,7 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
     topic: 'Radial orbital selector wheel',
     keywords: ['radial', 'wheel', 'orbital', 'selector', 'menu'],
     answer:
-      'When you select any board, a radial menu appears near it in the viewport. Segments include Quick Dimensions, Mate, Join Method, Duplicate, Mirror, Isolate, and Delete. Dimmed segments are not available yet — for example Join Method needs at least one mate. Press Escape or click outside to dismiss.',
+      'When you select a board, a compact HUD wheel appears at the top-left of its screen outline — pill buttons for Dims, Mate, Join, Edge, and more. Click ••• to collapse it without deselecting. Join Method needs at least one mate first.',
   },
   {
     id: 'join-subwheel',
@@ -292,5 +292,33 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
     keywords: ['hardware', 'hinge', 'slide', 'pull', 'bracket', 'shelf pin'],
     answer:
       'Open the Hardware tab in the right sidebar. Browse drawer slides, hinges, pulls, shelf pins, cam locks, brackets, and barrel bolts. Click an item to arm placement, then click a board face in the viewport. Placed hardware appears in the list and counts toward estimating.',
+  },
+  {
+    id: 'pepe-location',
+    topic: 'Where to find Pepe',
+    keywords: ['pepe', 'assistant', 'help', 'sidebar', 'frog'],
+    answer:
+      'Pepe lives at the bottom-right of the sidebar panel — click the green frog mascot. His panel opens upward and left, never over the viewport. Use Suggestions for live tips or Ask Pepe to search woodworking help.',
+  },
+  {
+    id: 'continuous-draw',
+    topic: 'Chaining boards while drawing',
+    keywords: ['chain', 'continuous', 'draw', 'edge', 'snap', 'connect'],
+    answer:
+      'Keep the Draw tool active after placing a board. The next stroke snaps its start to the nearest corner or edge of the last board (amber dot). Dashed amber lines show join candidates. Press Escape to end the chain.',
+  },
+  {
+    id: 'box-select',
+    topic: 'Multi-select with drag box',
+    keywords: ['select', 'multiple', 'rubber', 'band', 'box', 'shift'],
+    answer:
+      'In Select mode, click-drag on empty space to draw a selection rectangle. All boards whose outlines intersect the box are selected. Hold Shift while dragging to add to the current selection.',
+  },
+  {
+    id: 'quick-join',
+    topic: 'Multi-member quick join toolbar',
+    keywords: ['join', 'auto', 'detect', 'miter', 'butt', 'lap', 'multi'],
+    answer:
+      'Select two or more boards (drag box or Shift+click). A join toolbar appears above the selection with Auto-Detect Joints, Miter, Butt Joint, Lap Joint, and Open Radial Wheel. Auto-Detect mates flush faces within 0.1 inch.',
   },
 ];

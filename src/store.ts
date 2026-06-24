@@ -12,6 +12,8 @@ import { trimToBoundary, extendToBoundary } from './lib/trimExtend';
 import { inferMaterialKind, getMaterialByName } from './lib/materials';
 import { computeMateTransform, computePointMateTransform } from './lib/mating';
 import { createDefaultFastenersForMate } from './lib/fastenerDefaults';
+import { findCloseFacePairs, buildMateFromPair, lapJointPatch } from './lib/quickJoin';
+import { createCutOperation } from './lib/joinery';
 import { serializeWcad, parseWcad } from './lib/wcad';
 
 const DEFAULT_ESTIMATING: EstimatingSettings = {
@@ -83,6 +85,15 @@ const DEFAULT_UI: UIState = {
   polygonDrawPoints: [],
   assemblyGuideOpen: false,
   assemblyDesignSnapshot: null,
+  multiSelection: [],
+  combinedSelectionBounds: null,
+  boxSelectRect: null,
+  boxSelectPending: null,
+  radialWheelCollapsed: false,
+  lastPlacedMemberId: null,
+  drawChainLinks: [],
+  drawSnapIndicator: null,
+  quickJoinMiterAxis: null,
   drawDefaults: {
     species: 'Southern Yellow Pine',
     thickness: 1.5,
@@ -221,6 +232,20 @@ interface AppStore {
   resetAssemblyLayout: () => void;
   setAssemblyGuideOpen: (open: boolean) => void;
   setPolygonDrawPoints: (pts: [number, number][]) => void;
+  setMultiSelection: (ids: string[]) => void;
+  toggleMultiSelectionMember: (id: string) => void;
+  setCombinedSelectionBounds: (bounds: UIState['combinedSelectionBounds']) => void;
+  setBoxSelectRect: (rect: UIState['boxSelectRect']) => void;
+  setBoxSelectPending: (pending: UIState['boxSelectPending']) => void;
+  setRadialWheelCollapsed: (collapsed: boolean) => void;
+  setLastPlacedMemberId: (id: string | null) => void;
+  addDrawChainLink: (fromApId: string, toApId: string) => void;
+  setDrawSnapIndicator: (pt: UIState['drawSnapIndicator']) => void;
+  setQuickJoinMiterAxis: (axis: UIState['quickJoinMiterAxis']) => void;
+  autoDetectJoints: () => string[];
+  applyButtJoints: () => void;
+  applyLapJoints: () => void;
+  applyMiterJoints: (axis: 'x' | 'y' | 'z') => void;
   newProject: () => void;
   setRightPanelTab: (tab: UIState['rightPanelTab']) => void;
   updateProjectMeta:(patch: { name?: string; description?: string }) => void;
@@ -471,23 +496,58 @@ export const useAppStore = create<AppStore>()(
       ui: {
         ...s.ui,
         selectedMemberId: id,
+        multiSelection: id ? [id] : [],
         quickDimensionsOpen: id !== null,
         radialWheelOpen: id !== null,
         radialWheelMode: 'full',
+        radialWheelCollapsed: false,
+        quickJoinMiterAxis: null,
         suggestionHighlightIds: [],
         ...(id === null
           ? {
               quickDimensionsOpen: false,
               radialWheelOpen: false,
               mateHoverFace: null,
+              combinedSelectionBounds: null,
             }
           : {}),
       },
     }));
   },
 
+  setMultiSelection: (ids) => {
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        multiSelection: ids,
+        selectedMemberId: ids[0] ?? null,
+        quickDimensionsOpen: ids.length === 1,
+        radialWheelOpen: ids.length === 1,
+        radialWheelCollapsed: false,
+        quickJoinMiterAxis: null,
+        ...(ids.length === 0
+          ? { quickDimensionsOpen: false, radialWheelOpen: false, combinedSelectionBounds: null }
+          : {}),
+      },
+    }));
+  },
+
+  toggleMultiSelectionMember: (id) => {
+    const { multiSelection } = get().ui;
+    const next = multiSelection.includes(id)
+      ? multiSelection.filter((x) => x !== id)
+      : [...multiSelection, id];
+    get().setMultiSelection(next);
+  },
+
   setActiveTool: (tool) =>
-    set((s) => ({ ui: { ...s.ui, activeTool: tool } })),
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        activeTool: tool,
+        ...(tool !== 'drawBoard' ? { lastPlacedMemberId: null, drawSnapIndicator: null } : {}),
+      },
+    })),
 
   setTransformMode: (mode) =>
     set((s) => ({ ui: { ...s.ui, transformMode: mode } })),
@@ -539,7 +599,16 @@ export const useAppStore = create<AppStore>()(
         fastenerPlacementMode: false,
         fastenerPlacementMateId: null,
         radialWheelOpen: false,
+        radialWheelCollapsed: false,
         attachmentPointPickA: null,
+        lastPlacedMemberId: null,
+        drawChainLinks: [],
+        drawSnapIndicator: null,
+        boxSelectRect: null,
+        boxSelectPending: null,
+        quickJoinMiterAxis: null,
+        multiSelection: [],
+        selectedMemberId: null,
         drawBoardCancelNonce: s.ui.drawBoardCancelNonce + 1,
         contextMenu: { ...s.ui.contextMenu, open: false },
       },
@@ -925,6 +994,138 @@ export const useAppStore = create<AppStore>()(
 
   setAssemblyGuideOpen: (open) =>
     set((s) => ({ ui: { ...s.ui, assemblyGuideOpen: open } })),
+
+  setCombinedSelectionBounds: (bounds) =>
+    set((s) => ({ ui: { ...s.ui, combinedSelectionBounds: bounds } })),
+
+  setBoxSelectRect: (rect) =>
+    set((s) => ({ ui: { ...s.ui, boxSelectRect: rect } })),
+
+  setBoxSelectPending: (pending) =>
+    set((s) => ({ ui: { ...s.ui, boxSelectPending: pending } })),
+
+  setRadialWheelCollapsed: (collapsed) =>
+    set((s) => ({ ui: { ...s.ui, radialWheelCollapsed: collapsed } })),
+
+  setLastPlacedMemberId: (id) =>
+    set((s) => ({ ui: { ...s.ui, lastPlacedMemberId: id } })),
+
+  addDrawChainLink: (fromApId, toApId) =>
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        drawChainLinks: [...s.ui.drawChainLinks, { fromApId, toApId }],
+      },
+    })),
+
+  setDrawSnapIndicator: (pt) =>
+    set((s) => ({ ui: { ...s.ui, drawSnapIndicator: pt } })),
+
+  setQuickJoinMiterAxis: (axis) =>
+    set((s) => ({ ui: { ...s.ui, quickJoinMiterAxis: axis } })),
+
+  autoDetectJoints: () => {
+    const { members, mates } = get().project;
+    const ids = get().ui.multiSelection;
+    if (ids.length < 2) return [];
+    const pairs = findCloseFacePairs(members, ids);
+    const newMateIds: string[] = [];
+    let nextMembers = [...members];
+    let nextMates = [...mates];
+
+    for (const pair of pairs) {
+      const built = buildMateFromPair(nextMembers, pair);
+      if (!built) continue;
+      const exists = nextMates.some(
+        (m) =>
+          (m.memberAId === pair.memberAId && m.memberBId === pair.memberBId) ||
+          (m.memberAId === pair.memberBId && m.memberBId === pair.memberAId)
+      );
+      if (exists) continue;
+      nextMembers = nextMembers.map((m) =>
+        m.id === pair.memberBId ? migrateMember({ ...m, ...built.memberBPatch }) : m
+      );
+      nextMates = [...nextMates, built.mate];
+      newMateIds.push(built.mate.id);
+    }
+
+    if (newMateIds.length > 0) {
+      commitProject(set, get, { ...get().project, members: nextMembers, mates: nextMates });
+      set((s) => ({
+        ui: {
+          ...s.ui,
+          radialWheelOpen: true,
+          radialWheelMode: 'joinOnly',
+          selectedMateId: newMateIds[0],
+        },
+      }));
+    }
+    return newMateIds;
+  },
+
+  applyButtJoints: () => {
+    get().autoDetectJoints();
+  },
+
+  applyLapJoints: () => {
+    const { members, mates } = get().project;
+    const ids = get().ui.multiSelection;
+    if (ids.length < 2) return;
+    const pairs = findCloseFacePairs(members, ids);
+    let nextMembers = [...members];
+    let nextMates = [...mates];
+
+    for (const pair of pairs) {
+      const a = nextMembers.find((m) => m.id === pair.memberAId);
+      const b = nextMembers.find((m) => m.id === pair.memberBId);
+      if (!a || !b) continue;
+      const patch = lapJointPatch(a, pair.faceA, b, pair.faceB);
+      const mate: MemberMate = {
+        id: crypto.randomUUID(),
+        memberAId: a.id,
+        memberBId: b.id,
+        faceA: pair.faceA,
+        faceB: pair.faceB,
+        joinMethod: 'Unset',
+      };
+      nextMembers = nextMembers.map((m) =>
+        m.id === b.id ? migrateMember({ ...m, ...patch }) : m
+      );
+      nextMates = [...nextMates, mate];
+    }
+
+    commitProject(set, get, { ...get().project, members: nextMembers, mates: nextMates });
+  },
+
+  applyMiterJoints: (_axis) => {
+    const { members, mates } = get().project;
+    const ids = get().ui.multiSelection;
+    if (ids.length < 2) return;
+    const pairs = findCloseFacePairs(members, ids);
+    let nextMembers = [...members];
+    let nextMates = [...mates];
+
+    for (const pair of pairs) {
+      const built = buildMateFromPair(nextMembers, pair);
+      if (!built) continue;
+      const a = nextMembers.find((m) => m.id === pair.memberAId);
+      const b = nextMembers.find((m) => m.id === pair.memberBId);
+      if (!a || !b) continue;
+
+      const cutA = createCutOperation('miterCut', { end: pair.faceA.includes('Max') ? 'end' : 'start', angle: 45 });
+      const cutB = createCutOperation('miterCut', { end: pair.faceB.includes('Max') ? 'end' : 'start', angle: 45 });
+
+      nextMembers = nextMembers.map((m) => {
+        if (m.id === a.id) return migrateMember({ ...m, cuts: [...m.cuts, cutA] });
+        if (m.id === b.id) return migrateMember({ ...m, ...built.memberBPatch, cuts: [...m.cuts, cutB] });
+        return m;
+      });
+      nextMates = [...nextMates, built.mate];
+    }
+
+    commitProject(set, get, { ...get().project, members: nextMembers, mates: nextMates });
+    set((s) => ({ ui: { ...s.ui, quickJoinMiterAxis: null } }));
+  },
 
   setPolygonDrawPoints: (pts) =>
     set((s) => ({ ui: { ...s.ui, polygonDrawPoints: pts } })),

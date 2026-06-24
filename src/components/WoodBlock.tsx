@@ -38,6 +38,9 @@ export default function WoodBlock({ member }: Props) {
   const allMembers   = useAppStore((s) => s.project.members);
   const edgeTreatments = useAppStore((s) => s.project.edgeTreatments);
   const selectedId   = useAppStore((s) => s.ui.selectedMemberId);
+  const multiSelection = useAppStore((s) => s.ui.multiSelection);
+  const setBoxSelectPending = useAppStore((s) => s.setBoxSelectPending);
+  const toggleMultiSelectionMember = useAppStore((s) => s.toggleMultiSelectionMember);
   const isolatedMemberId = useAppStore((s) => s.ui.isolatedMemberId);
   const suggestionHighlightIds = useAppStore((s) => s.ui.suggestionHighlightIds);
   const mateGridOffset = useAppStore((s) => s.ui.mateGridOffset);
@@ -50,7 +53,7 @@ export default function WoodBlock({ member }: Props) {
   const hardwareLibraryPick = useAppStore((s) => s.ui.hardwareLibraryPick);
   const addPlacedHardware = useAppStore((s) => s.addPlacedHardware);
   const viewportMode = useAppStore((s) => s.ui.viewportMode);
-  const isSelected   = selectedId === member.id;
+  const isSelected   = selectedId === member.id || multiSelection.includes(member.id);
   const isHighlighted = suggestionHighlightIds.includes(member.id);
   const isHidden     = isolatedMemberId !== null && isolatedMemberId !== member.id;
   const edgeToolActive = activeTool === 'edge' && edgeToolMemberId === member.id;
@@ -90,6 +93,7 @@ export default function WoodBlock({ member }: Props) {
 
   function handleClick(e: ThreeEvent<MouseEvent>) {
     e.stopPropagation();
+    setBoxSelectPending(null);
 
     if (activeTool === 'placeHardware' && hardwareLibraryPick && e.face) {
       const face = handleFaceFromEvent(e)!;
@@ -131,7 +135,16 @@ export default function WoodBlock({ member }: Props) {
       return;
     }
 
+    if (activeTool === 'select' && e.shiftKey) {
+      toggleMultiSelectionMember(member.id);
+      return;
+    }
+
     selectMember(member.id);
+  }
+
+  function handlePointerDown(e: ThreeEvent<PointerEvent>) {
+    if (e.button === 0) setBoxSelectPending(null);
   }
 
   function handlePointerMove(e: ThreeEvent<PointerEvent>) {
@@ -222,6 +235,7 @@ export default function WoodBlock({ member }: Props) {
         position={member.position}
         rotation={member.rotation}
         onClick={handleClick}
+        onPointerDown={handlePointerDown}
         onDoubleClick={handleDoubleClick}
         onPointerMove={handlePointerMove}
         onPointerOut={handlePointerOut}

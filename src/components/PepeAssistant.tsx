@@ -9,29 +9,78 @@ const fuse = new Fuse(PEPE_KNOWLEDGE, {
   includeScore: true,
 });
 
-function PepeSvg({ expression }: { expression: 'neutral' | 'thinking' | 'happy' }) {
+function PepeSvg({
+  expression,
+  size = 48,
+}: {
+  expression: 'neutral' | 'thinking' | 'happy';
+  size?: number;
+}) {
+  const blush =
+    expression === 'happy' ? (
+      <>
+        <circle cx="14" cy="28" r="3" fill="#F48FB1" opacity="0.55" />
+        <circle cx="34" cy="28" r="3" fill="#F48FB1" opacity="0.55" />
+      </>
+    ) : null;
+
+  const eyes =
+    expression === 'thinking' ? (
+      <>
+        <ellipse cx="17" cy="20" rx="5" ry="5.5" fill="#fff" />
+        <ellipse cx="31" cy="18" rx="5" ry="5.5" fill="#fff" />
+        <circle cx="18" cy="21" r="2.2" fill="#1a1a1a" />
+        <circle cx="29" cy="19" r="2.2" fill="#1a1a1a" />
+        <path d="M 12 14 Q 17 11 22 14" fill="none" stroke="#388E3C" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M 26 13 L 34 13" fill="none" stroke="#388E3C" strokeWidth="1.5" strokeLinecap="round" />
+      </>
+    ) : expression === 'happy' ? (
+      <>
+        <ellipse cx="17" cy="20" rx="6" ry="6.5" fill="#fff" />
+        <ellipse cx="31" cy="20" rx="6" ry="6.5" fill="#fff" />
+        <circle cx="17" cy="21" r="2.8" fill="#1a1a1a" />
+        <circle cx="31" cy="21" r="2.8" fill="#1a1a1a" />
+        <circle cx="18.5" cy="19" r="0.9" fill="#fff" />
+        <circle cx="32.5" cy="19" r="0.9" fill="#fff" />
+      </>
+    ) : (
+      <>
+        <ellipse cx="17" cy="21" rx="5" ry="5.5" fill="#fff" />
+        <ellipse cx="31" cy="21" rx="5" ry="5.5" fill="#fff" />
+        <circle cx="17" cy="22" r="2.2" fill="#1a1a1a" />
+        <circle cx="31" cy="22" r="2.2" fill="#1a1a1a" />
+      </>
+    );
+
   const mouth =
-    expression === 'happy'
-      ? 'M 14 20 Q 20 26 26 20'
-      : expression === 'thinking'
-        ? 'M 14 22 L 26 22'
-        : 'M 14 21 Q 20 24 26 21';
-  const eyeY = expression === 'happy' ? 14 : 15;
+    expression === 'happy' ? (
+      <path d="M 14 30 Q 24 38 34 30" fill="none" stroke="#388E3C" strokeWidth="2" strokeLinecap="round" />
+    ) : expression === 'thinking' ? (
+      <path d="M 16 32 L 28 32" fill="none" stroke="#388E3C" strokeWidth="1.8" strokeLinecap="round" />
+    ) : (
+      <path d="M 16 31 Q 24 35 32 31" fill="none" stroke="#388E3C" strokeWidth="1.8" strokeLinecap="round" />
+    );
+
   return (
-    <svg viewBox="0 0 40 40" className={`w-14 h-14 pepe-${expression}`} aria-hidden>
-      <ellipse cx="20" cy="22" rx="16" ry="14" fill="#5a9e3e" stroke="#3d6b2a" strokeWidth="1.5" />
-      <ellipse cx="12" cy="12" rx="5" ry="7" fill="#5a9e3e" stroke="#3d6b2a" strokeWidth="1" />
-      <ellipse cx="28" cy="12" rx="5" ry="7" fill="#5a9e3e" stroke="#3d6b2a" strokeWidth="1" />
-      <circle cx="15" cy={eyeY} r="2.5" fill="#1a1a1a" />
-      <circle cx="25" cy={eyeY} r="2.5" fill="#1a1a1a" />
-      <path d={mouth} fill="none" stroke="#1a1a1a" strokeWidth="1.5" strokeLinecap="round" />
-      {expression === 'thinking' && (
-        <text x="32" y="8" fontSize="8" fill="#a1a1aa">...</text>
-      )}
+    <svg
+      viewBox="0 0 48 48"
+      width={size}
+      height={size}
+      className="drop-shadow-md"
+      aria-hidden
+    >
+      <circle cx="24" cy="26" r="20" fill="#4CAF50" stroke="#388E3C" strokeWidth="2" />
+      <ellipse cx="24" cy="30" rx="11" ry="9" fill="#A5D6A7" opacity="0.85" />
+      {eyes}
+      <circle cx="21" cy="27" r="1.1" fill="#388E3C" />
+      <circle cx="27" cy="27" r="1.1" fill="#388E3C" />
+      {mouth}
+      {blush}
     </svg>
   );
 }
 
+/** Pepe lives in the sidebar — never over the viewport gizmo. */
 export default function PepeAssistant() {
   const open = useAppStore((s) => s.ui.pepePanelOpen);
   const tab = useAppStore((s) => s.ui.pepeTab);
@@ -70,14 +119,20 @@ export default function PepeAssistant() {
   );
 
   return (
-    <div className="absolute bottom-4 right-4 z-40 flex flex-col items-end gap-2 pointer-events-none">
+    <div
+      className="absolute z-50 flex flex-col items-end pointer-events-none"
+      style={{
+        bottom: 16,
+        right: 16,
+        maxWidth: 'calc(100% - 1rem)',
+      }}
+    >
       {open && (
         <div
-          className="pointer-events-auto bg-zinc-950/95 border-2 border-green-600 rounded-2xl p-4 w-[min(360px,calc(100vw-2rem))] shadow-xl relative mb-2"
-          style={{ marginRight: 8 }}
+          className="pointer-events-auto bg-zinc-950/95 border-2 border-green-600 rounded-2xl p-4 w-[min(320px,calc(100vw-28rem))] shadow-xl relative mb-3 mr-1"
         >
           <div
-            className="absolute -bottom-2 right-8 w-4 h-4 bg-zinc-950 border-r-2 border-b-2 border-green-600 rotate-45"
+            className="absolute -bottom-2 right-6 w-4 h-4 bg-zinc-950 border-r-2 border-b-2 border-green-600 rotate-45"
             aria-hidden
           />
           <h2 className="text-base font-bold text-green-300 mb-3">Pepe&apos;s Workshop</h2>
@@ -100,7 +155,7 @@ export default function PepeAssistant() {
           </div>
 
           {tab === 'suggestions' && (
-            <ul className="space-y-2 max-h-64 overflow-y-auto">
+            <ul className="space-y-2 max-h-52 overflow-y-auto">
               {suggestions.length === 0 ? (
                 <li className="text-base text-zinc-400">Looking good! No suggestions right now.</li>
               ) : (
@@ -161,11 +216,15 @@ export default function PepeAssistant() {
       <button
         type="button"
         onClick={() => setPepePanelOpen(!open)}
-        className="pointer-events-auto rounded-full border-2 border-green-600 bg-zinc-950/90 p-1 hover:border-green-400 transition-colors"
+        className={[
+          'pointer-events-auto rounded-full border-2 border-green-600 bg-zinc-900/95 p-1.5',
+          'hover:border-green-400 transition-all shadow-lg',
+          open ? 'scale-105' : 'scale-100',
+        ].join(' ')}
         aria-label="Talk to Pepe"
         title="Pepe — design assistant"
       >
-        <PepeSvg expression={open ? expression : 'neutral'} />
+        <PepeSvg expression={open ? expression : 'neutral'} size={open ? 52 : 48} />
       </button>
     </div>
   );

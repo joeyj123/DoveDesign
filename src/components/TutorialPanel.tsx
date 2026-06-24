@@ -60,16 +60,17 @@ export default function TutorialPanel() {
 
       <Section title="Radial Orbital Selector">
         <p className="text-base text-zinc-400 mb-2">
-          Appears when you select a board. Segments (clockwise from top):
+          Appears at the top-left of the selected board&apos;s screen outline as a compact HUD arc of pill buttons.
+          Click <strong className="text-zinc-300">•••</strong> to collapse the wheel without deselecting.
         </p>
         <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
-          <li><strong className="text-zinc-300">Quick Dimensions</strong> — Opens the floating size editor.</li>
+          <li><strong className="text-zinc-300">Dims</strong> — Opens the floating size editor.</li>
           <li><strong className="text-zinc-300">Mate</strong> — Starts face-pick mating for this board.</li>
-          <li><strong className="text-zinc-300">Join Method</strong> — Sub-menu for screws, nails, glue, pocket holes, etc. (requires a mate).</li>
-          <li><strong className="text-zinc-300">Chamfer / Edge</strong> — Opens the edge treatment tool on the selected board (radial wheel or Edge tool in ribbon).</li>
-          <li><strong className="text-zinc-300">Duplicate / Mirror / Isolate / Delete</strong> — Common board actions.</li>
+          <li><strong className="text-zinc-300">Join</strong> — Sub-menu for screws, nails, glue, pocket holes, etc. (requires a mate).</li>
+          <li><strong className="text-zinc-300">Edge</strong> — Opens the edge treatment tool on the selected board.</li>
+          <li><strong className="text-zinc-300">Copy / Mirror / Solo / Delete</strong> — Common board actions.</li>
         </ul>
-        <p className="text-base text-zinc-500 mt-2">Press Escape or click outside to close. Right-click a mate marker to open join methods only.</p>
+        <p className="text-base text-zinc-500 mt-2">Press Escape or click outside to close join sub-menu. Right-click a mate marker to open join methods only.</p>
       </Section>
 
       <Section title="Join Method Sub-Wheel">
@@ -88,9 +89,31 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
+      <Section title="Continuous Edge Drawing">
+        <p className="text-base text-zinc-400 mb-2">
+          With the Draw tool active, each new board can chain from the last one — the start point snaps to the nearest corner or edge (amber dot).
+          Dashed amber lines mark join candidates between chained boards. Press Escape or switch tools to end the chain.
+        </p>
+      </Section>
+
+      <Section title="Drag Box Selection">
+        <p className="text-base text-zinc-400 mb-2">
+          In Select mode, click-drag on empty viewport space to rubber-band select multiple boards.
+          Shift+drag adds to the selection. A join toolbar appears when two or more boards are selected.
+        </p>
+      </Section>
+
+      <Section title="Multi-Member Quick Join">
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
+          <li><strong className="text-zinc-300">Auto-Detect Joints</strong> — Finds flush faces within 0.1&quot; and creates mates.</li>
+          <li><strong className="text-zinc-300">Miter / Butt / Lap</strong> — Quick joint presets; miter adds 45° CSG cuts.</li>
+          <li><strong className="text-zinc-300">Open Radial Wheel</strong> — Assign join methods after mating.</li>
+        </ul>
+      </Section>
+
       <Section title="Pepe — Design Assistant">
         <p className="text-base text-zinc-400 mb-2">
-          Pepe sits in the bottom-right corner of the viewport. Click him to open <strong className="text-zinc-300">Pepe&apos;s Workshop</strong> — fully offline, no internet needed.
+          Pepe sits at the bottom-right of the sidebar panel — never over the viewport gizmo. Click him to open <strong className="text-zinc-300">Pepe&apos;s Workshop</strong> — fully offline, no internet needed.
         </p>
         <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
           <li><strong className="text-zinc-300">Suggestions</strong> — Live project tips (span warnings, missing prices, overlaps, etc.). Click a suggestion to highlight related boards.</li>

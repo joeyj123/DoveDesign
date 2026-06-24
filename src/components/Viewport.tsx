@@ -16,7 +16,8 @@ import QuickDimensionsPanel from './QuickDimensionsPanel';
 import RadialOrbitalSelector from './RadialOrbitalSelector';
 import FastenerPlacementBar from './FastenerPlacementBar';
 import FastenerInfoPanel from './FastenerInfoPanel';
-import PepeAssistant from './PepeAssistant';
+import QuickJoinToolbar from './QuickJoinToolbar';
+import BoxSelectionHandler from './BoxSelectionHandler';
 import DesignSuggestionsBridge from './DesignSuggestionsBridge';
 import PlacedHardwareMeshes from './PlacedHardwareMeshes';
 import AttachmentPointLinks, { PolygonDrawTool } from './AttachmentPointLinks';
@@ -51,8 +52,7 @@ function AdaptiveCamera() {
 
 export default function Viewport() {
   const members      = useAppStore((s) => s.project.members);
-  const selectMember = useAppStore((s) => s.selectMember);
-  const commitDimensionEdit = useAppStore((s) => s.commitDimensionEdit);
+  const setBoxSelectPending = useAppStore((s) => s.setBoxSelectPending);
   const activeTool   = useAppStore((s) => s.ui.activeTool);
   const gridVisible  = useAppStore((s) => s.ui.gridVisible);
   const showWelcome  = members.length === 0;
@@ -65,7 +65,8 @@ export default function Viewport() {
       <RadialOrbitalSelector />
       <FastenerPlacementBar />
       <FastenerInfoPanel />
-      <PepeAssistant />
+      <QuickJoinToolbar />
+      <BoxSelectionHandler />
       <DesignSuggestionsBridge />
       <Canvas
         style={{ width: '100%', height: '100%' }}
@@ -74,10 +75,13 @@ export default function Viewport() {
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
           gl.setClearColor('#09090b');
         }}
-        onPointerMissed={() => {
+        onPointerMissed={(e) => {
           if (activeTool === 'select') {
-            commitDimensionEdit();
-            selectMember(null);
+            setBoxSelectPending({
+              x: e.clientX,
+              y: e.clientY,
+              shiftKey: e.shiftKey,
+            });
           }
         }}
       >

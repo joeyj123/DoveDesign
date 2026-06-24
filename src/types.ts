@@ -405,6 +405,24 @@ export interface UIState {
     position: [number, number, number];
     rotation: [number, number, number];
   }[] | null;
+  /** Rubber-band multi-select member ids */
+  multiSelection: string[];
+  /** Combined screen bounds of current selection (single or multi) */
+  combinedSelectionBounds: { left: number; top: number; right: number; bottom: number } | null;
+  /** Active box-select drag in viewport pixels */
+  boxSelectRect: { left: number; top: number; right: number; bottom: number } | null;
+  /** Pointer-down on empty space — starts rubber-band */
+  boxSelectPending: { x: number; y: number; shiftKey: boolean } | null;
+  /** Radial wheel collapsed but selection retained */
+  radialWheelCollapsed: boolean;
+  /** Continuous draw: last placed board for edge chaining */
+  lastPlacedMemberId: string | null;
+  /** Candidate join links from chained draw (attachment point pairs) */
+  drawChainLinks: { fromApId: string; toApId: string }[];
+  /** Snap indicator during chained draw */
+  drawSnapIndicator: { x: number; z: number } | null;
+  /** Quick join miter axis picker */
+  quickJoinMiterAxis: 'x' | 'y' | 'z' | null;
 }
 
 export interface DesignSuggestion {

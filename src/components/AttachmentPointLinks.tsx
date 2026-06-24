@@ -21,6 +21,7 @@ export default function AttachmentPointLinks() {
   const points = useAppStore((s) => s.project.attachmentPoints);
   const members = useAppStore((s) => s.project.members);
   const mates = useAppStore((s) => s.project.mates);
+  const drawChainLinks = useAppStore((s) => s.ui.drawChainLinks);
 
   const pairs: { a: THREE.Vector3; b: THREE.Vector3; color: string }[] = [];
   const seen = new Set<string>();
@@ -45,6 +46,20 @@ export default function AttachmentPointLinks() {
       a: pa,
       b: pb,
       color: JOIN_COLORS[mate?.joinMethod ?? 'Unset'] ?? '#52525b',
+    });
+  }
+
+  for (const link of drawChainLinks) {
+    const ptA = points.find((p) => p.id === link.fromApId);
+    const ptB = points.find((p) => p.id === link.toApId);
+    if (!ptA || !ptB) continue;
+    const ma = members.find((m) => m.id === ptA.memberId);
+    const mb = members.find((m) => m.id === ptB.memberId);
+    if (!ma || !mb) continue;
+    pairs.push({
+      a: getFacePointWorld(ma, ptA.faceIndex, ptA.offset),
+      b: getFacePointWorld(mb, ptB.faceIndex, ptB.offset),
+      color: '#f59e0b',
     });
   }
 
