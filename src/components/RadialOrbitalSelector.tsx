@@ -98,6 +98,9 @@ function SegmentIcon({ id }: { id: SegId }) {
   }
 }
 
+const WHEEL_OFFSET = 120;
+const HINT_STORAGE_KEY = 'dovedesign-radial-wheel-hint-v1';
+
 function clampWheelPosition(cx: number, cy: number) {
   const half = WHEEL_SIZE / 2;
   const margin = 12;
@@ -109,9 +112,39 @@ function clampWheelPosition(cx: number, cy: number) {
   };
 }
 
+function computeWheelPosition(
+  clickX: number,
+  clickY: number,
+  viewportEl: HTMLElement | null
+) {
+  if (!viewportEl) {
+    return clampWheelPosition(clickX, clickY);
+  }
+
+  const rect = viewportEl.getBoundingClientRect();
+  const vcx = rect.left + rect.width / 2;
+  const vcy = rect.top + rect.height / 2;
+
+  let dx = clickX - vcx;
+  let dy = clickY - vcy;
+  const len = Math.hypot(dx, dy);
+  if (len < 1) {
+    dx = 0;
+    dy = -1;
+  } else {
+    dx /= len;
+    dy /= len;
+  }
+
+  const wheelCx = clickX + dx * WHEEL_OFFSET;
+  const wheelCy = clickY + dy * WHEEL_OFFSET;
+  return clampWheelPosition(wheelCx, wheelCy);
+}
+
 export default function RadialOrbitalSelector() {
   const open = useAppStore((s) => s.ui.radialWheelOpen);
   const bounds = useAppStore((s) => s.ui.memberScreenBounds);
+  const anchor = useAppStore((s) => s.ui.radialWheelAnchor);
   const selectedId = useAppStore((s) => s.ui.selectedMemberId);
   const members = useAppStore((s) => s.project.members);
 
@@ -127,6 +160,7 @@ export default function RadialOrbitalSelector() {
 
   const [hovered, setHovered] = useState<SegId | null>(null);
   const [deleteArmed, setDeleteArmed] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const wheelRef = useRef<HTMLDivElement>(null);
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -136,6 +170,15 @@ export default function RadialOrbitalSelector() {
     if (!open) {
       setDeleteArmed(false);
       setHovered(null);
+      return;
+    }
+    try {
+      if (!localStorage.getItem(HINT_STORAGE_KEY)) {
+        setShowHint(true);
+        localStorage.setItem(HINT_STORAGE_KEY, '1');
+      }
+    } catch {
+      /* ignore storage errors */
     }
   }, [open, selectedId]);
 
@@ -147,14 +190,21 @@ export default function RadialOrbitalSelector() {
       }
     }
     document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, [open]);
+    const hintTimer = showHint
+      ? window.setTimeout(() => setShowHint(false), 4000)
+      : undefined;
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      if (hintTimer) window.clearTimeout(hintTimer);
+    };
+  }, [open, showHint]);
 
   if (!open || !bounds || !selectedId) return null;
 
-  const cx = (bounds.left + bounds.right) / 2;
-  const cy = (bounds.top + bounds.bottom) / 2;
-  const pos = clampWheelPosition(cx, cy);
+  const clickX = anchor?.x ?? (bounds.left + bounds.right) / 2;
+  const clickY = anchor?.y ?? (bounds.top + bounds.bottom) / 2;
+  const viewportEl = document.querySelector('[data-viewport-root]') as HTMLElement | null;
+  const pos = computeWheelPosition(clickX, clickY, viewportEl);
 
   function flipLongestAxis(memberId: string) {
     const m = members.find((mem) => mem.id === memberId);
@@ -213,11 +263,20 @@ export default function RadialOrbitalSelector() {
   const centerLabel = selectedMember?.label ?? 'Board';
 
   return (
-    <div
-      ref={wheelRef}
-      className="absolute z-40 pointer-events-auto"
-      style={{ left: pos.left, top: pos.top, width: WHEEL_SIZE, height: WHEEL_SIZE }}
-    >
+    <>
+      {showHint && (
+        <div
+          className="absolute z-50 left-1/2 top-20 -translate-x-1/2 px-4 py-2 rounded-lg border border-amber-500/40 bg-zinc-900/95 text-base text-amber-100 shadow-lg pointer-events-none"
+          role="status"
+        >
+          Click any board to open tools
+        </div>
+      )}
+      <div
+        ref={wheelRef}
+        className="absolute z-40 pointer-events-auto"
+        style={{ left: pos.left, top: pos.top, width: WHEEL_SIZE, height: WHEEL_SIZE }}
+      >
       <svg
         width={WHEEL_SIZE}
         height={WHEEL_SIZE}
@@ -302,6 +361,7 @@ export default function RadialOrbitalSelector() {
           {centerLabel.length > 14 ? `${centerLabel.slice(0, 12)}…` : centerLabel}
         </text>
       </svg>
-    </div>
+      </div>
+    </>
   );
 }

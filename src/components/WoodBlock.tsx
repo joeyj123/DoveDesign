@@ -146,14 +146,12 @@ export default function WoodBlock({ member }: Props) {
     }
 
     if (activeTool === 'select') {
-      if (selectedId === member.id && multiSelection.length === 1) {
-        return;
-      }
-      selectMember(member.id);
+      const anchor = { x: e.clientX, y: e.clientY };
+      selectMember(member.id, { openWheel: true, wheelAnchor: anchor });
       return;
     }
 
-    selectMember(member.id);
+    selectMember(member.id, { openWheel: false });
   }
 
   function handlePointerDown(e: ThreeEvent<PointerEvent>) {

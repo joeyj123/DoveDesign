@@ -6,6 +6,7 @@ import { useAppStore } from '../store';
 export default function ContextMenuHandler() {
   const { gl, camera, scene } = useThree();
   const openContextMenu = useAppStore((s) => s.openContextMenu);
+  const selectMember = useAppStore((s) => s.selectMember);
   const raycaster = useThree((s) => s.raycaster);
 
   useEffect(() => {
@@ -36,12 +37,19 @@ export default function ContextMenuHandler() {
         if (memberId) break;
       }
 
+      if (memberId) {
+        selectMember(memberId, {
+          openWheel: true,
+          wheelAnchor: { x: e.clientX, y: e.clientY },
+        });
+      }
+
       openContextMenu(e.clientX, e.clientY, memberId);
     }
 
     canvas.addEventListener('contextmenu', onContextMenu);
     return () => canvas.removeEventListener('contextmenu', onContextMenu);
-  }, [gl, camera, scene, raycaster, openContextMenu]);
+  }, [gl, camera, scene, raycaster, openContextMenu, selectMember]);
 
   return null;
 }

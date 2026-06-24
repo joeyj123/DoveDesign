@@ -54,12 +54,17 @@ export default function Viewport() {
   const members      = useAppStore((s) => s.project.members);
   const setBoxSelectPending = useAppStore((s) => s.setBoxSelectPending);
   const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
+  const setRadialWheelOpen = useAppStore((s) => s.setRadialWheelOpen);
   const activeTool   = useAppStore((s) => s.ui.activeTool);
   const gridVisible  = useAppStore((s) => s.ui.gridVisible);
   const showWelcome  = members.length === 0;
 
   return (
-    <div className="flex-1 relative bg-zinc-950 min-w-0" style={{ minHeight: 0 }}>
+    <div
+      className="flex-1 relative bg-zinc-950 min-w-0"
+      style={{ minHeight: 0 }}
+      data-viewport-root
+    >
       <ViewportContextMenu />
       {showWelcome && <ViewportWelcome />}
       <QuickDimensionsPanel />
@@ -77,8 +82,12 @@ export default function Viewport() {
           gl.setClearColor('#09090b');
         }}
         onPointerMissed={(e) => {
+          const ui = useAppStore.getState().ui;
+          if (ui.radialWheelOpen) {
+            setRadialWheelOpen(false);
+          }
           if (activeTool !== 'select') return;
-          if (useAppStore.getState().ui.boxSelectRect) return;
+          if (ui.boxSelectRect) return;
           setOrbitControlsEnabled(false);
           setBoxSelectPending({
             x: e.clientX,

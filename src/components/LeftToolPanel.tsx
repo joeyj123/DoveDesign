@@ -5,14 +5,14 @@ import { PepeEmbedded } from './PepeAssistant';
 
 type ToolTab = 'model' | 'modify' | 'joinery' | 'shapes';
 
-const TAB_WIDTH = 36;
-const PANEL_WIDTH = 180;
+const TAB_WIDTH = 48;
+const PANEL_WIDTH = 220;
 
 const TABS: { id: ToolTab; short: string; label: string }[] = [
-  { id: 'model', short: 'M', label: 'Model' },
-  { id: 'modify', short: 'D', label: 'Modify' },
-  { id: 'joinery', short: 'J', label: 'Joinery' },
-  { id: 'shapes', short: 'S', label: 'Shapes' },
+  { id: 'model', short: 'Modl', label: 'Model' },
+  { id: 'modify', short: 'Mody', label: 'Modify' },
+  { id: 'joinery', short: 'Join', label: 'Joinery' },
+  { id: 'shapes', short: 'Shap', label: 'Shapes' },
 ];
 
 const MODEL_TOOLS: { id: ActiveTool; label: string }[] = [
@@ -188,18 +188,15 @@ export default function LeftToolPanel() {
             }}
             title={tab.label}
             className={[
-              'h-10 flex flex-col items-center justify-center text-xs border-l-2 transition-colors',
+              'min-h-10 flex flex-col items-center justify-center text-xs border-l-2 transition-colors px-0.5 py-1',
               activeTab === tab.id
                 ? 'font-bold text-amber-200 border-l-amber-500 bg-zinc-900/60'
                 : 'font-medium text-zinc-500 border-l-transparent hover:text-zinc-200 hover:bg-zinc-900/40',
             ].join(' ')}
           >
-            <span className="text-sm font-bold leading-none">{tab.short}</span>
-            {!collapsed && (
-              <span className="text-[9px] mt-0.5 leading-none truncate max-w-full px-0.5">
-                {tab.label.slice(0, 4)}
-              </span>
-            )}
+            <span className="text-[11px] font-bold leading-tight text-center whitespace-normal">
+              {collapsed ? tab.short : tab.label}
+            </span>
           </button>
         ))}
       </nav>
@@ -232,13 +229,13 @@ function ToolButton({
       type="button"
       onClick={onClick}
       className={[
-        'w-full h-10 flex items-center px-2 text-base text-left transition-colors',
+        'w-full min-h-10 flex items-center px-2 py-1.5 text-base text-left transition-colors',
         active
           ? 'bg-amber-500/25 text-amber-100 border border-amber-500/70'
           : 'text-zinc-300 border border-transparent hover:bg-zinc-900 hover:text-zinc-100',
       ].join(' ')}
     >
-      <span className="truncate">{label}</span>
+      <span className="whitespace-normal leading-snug">{label}</span>
     </button>
   );
 }

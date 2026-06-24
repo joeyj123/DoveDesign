@@ -63,6 +63,7 @@ const DEFAULT_UI: UIState = {
   quickDimensionsOpen: false,
   radialWheelOpen: false,
   radialWheelMode: 'full',
+  radialWheelAnchor: null,
   mateHoverFace: null,
   mateGridOffset: null,
   fastenerPlacementMode: false,
@@ -175,7 +176,10 @@ interface AppStore {
   updateStructural: (patch: Partial<StructuralAnalysis>) => void;
 
   // UI actions
-  selectMember:     (id: string | null) => void;
+  selectMember: (
+    id: string | null,
+    opts?: { openWheel?: boolean; wheelAnchor?: { x: number; y: number } }
+  ) => void;
   setActiveTool:    (tool: ActiveTool) => void;
   setTransformMode: (mode: TransformMode) => void;
   setTrimBoundary:  (id: string | null) => void;
@@ -488,32 +492,45 @@ export const useAppStore = create<AppStore>()(
       },
     })),
 
-  selectMember: (id) => {
+  selectMember: (id, opts) => {
     const { ui } = get();
     if (ui.dimensionEditPending && ui.selectedMemberId) {
       get().commitDimensionEdit();
     }
-    set((s) => ({
-      ui: {
-        ...s.ui,
-        selectedMemberId: id,
-        multiSelection: id ? [id] : [],
-        quickDimensionsOpen: false,
-        radialWheelOpen: id !== null,
-        radialWheelMode: 'full',
-        radialWheelCollapsed: false,
-        quickJoinMiterAxis: null,
-        suggestionHighlightIds: [],
-        ...(id === null
-          ? {
-              quickDimensionsOpen: false,
-              radialWheelOpen: false,
-              mateHoverFace: null,
-              combinedSelectionBounds: null,
-            }
-          : {}),
-      },
-    }));
+    const openWheel = opts?.openWheel ?? id !== null;
+    set((s) => {
+      let anchor: { x: number; y: number } | null = null;
+      if (id !== null) {
+        if (opts?.wheelAnchor) {
+          anchor = opts.wheelAnchor;
+        } else if (openWheel) {
+          anchor = s.ui.radialWheelAnchor;
+        }
+      }
+      return {
+        ui: {
+          ...s.ui,
+          selectedMemberId: id,
+          multiSelection: id ? [id] : [],
+          quickDimensionsOpen: false,
+          radialWheelOpen: id !== null && openWheel,
+          radialWheelMode: 'full',
+          radialWheelCollapsed: false,
+          radialWheelAnchor: anchor,
+          quickJoinMiterAxis: null,
+          suggestionHighlightIds: [],
+          ...(id === null
+            ? {
+                quickDimensionsOpen: false,
+                radialWheelOpen: false,
+                radialWheelAnchor: null,
+                mateHoverFace: null,
+                combinedSelectionBounds: null,
+              }
+            : {}),
+        },
+      };
+    });
   },
 
   setMultiSelection: (ids) => {
@@ -525,9 +542,15 @@ export const useAppStore = create<AppStore>()(
         quickDimensionsOpen: false,
         radialWheelOpen: ids.length === 1,
         radialWheelCollapsed: false,
+        radialWheelAnchor: ids.length === 1 ? s.ui.radialWheelAnchor : null,
         quickJoinMiterAxis: null,
         ...(ids.length === 0
-          ? { quickDimensionsOpen: false, radialWheelOpen: false, combinedSelectionBounds: null }
+          ? {
+              quickDimensionsOpen: false,
+              radialWheelOpen: false,
+              radialWheelAnchor: null,
+              combinedSelectionBounds: null,
+            }
           : {}),
       },
     }));
@@ -601,6 +624,7 @@ export const useAppStore = create<AppStore>()(
         fastenerPlacementMateId: null,
         radialWheelOpen: false,
         radialWheelCollapsed: false,
+        radialWheelAnchor: null,
         attachmentPointPickA: null,
         lastPlacedMemberId: null,
         drawChainLinks: [],
@@ -710,6 +734,7 @@ export const useAppStore = create<AppStore>()(
         ...s.ui,
         radialWheelOpen: open,
         radialWheelMode: mode ?? s.ui.radialWheelMode,
+        ...(open ? {} : { radialWheelAnchor: null }),
       },
     })),
 

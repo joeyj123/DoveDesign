@@ -366,6 +366,8 @@ export interface UIState {
   /** Radial orbital selector visibility. */
   radialWheelOpen: boolean;
   radialWheelMode: 'full' | 'joinOnly';
+  /** Screen position where the radial wheel was opened (viewport client coords). */
+  radialWheelAnchor: { x: number; y: number } | null;
   /** Hovered face for mate grid overlay. */
   mateHoverFace: { memberId: string; face: FaceId } | null;
   /** Confirmed grid snap offset on a face. */
