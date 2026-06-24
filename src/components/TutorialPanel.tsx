@@ -3,7 +3,7 @@ import { BRAND_TAGLINE } from '../lib/brand';
 
 export default function TutorialPanel() {
   return (
-    <div className="space-y-5 text-sm text-zinc-300">
+    <div className="space-y-5 text-base text-zinc-300">
       <div>
         <BrandLogo size="md" className="mb-1 block" />
         <h2 className="text-base font-semibold text-zinc-100 mb-1">
@@ -41,11 +41,68 @@ export default function TutorialPanel() {
         </ul>
       </Section>
 
+      <Section title="Quick Dimensions Panel">
+        <p className="text-base text-zinc-400">
+          Select any board to see the floating Quick Dimensions panel at the top-right of its screen outline.
+          Edit L (length), W (width), and H (thickness) in actual inches. Nominal size (like 2×4) shows when applicable.
+          Changes apply immediately; undo history records when you leave a field or deselect. Click outside to dismiss.
+        </p>
+      </Section>
+
+      <Section title="Mate Tool — Full Flow">
+        <ul className="space-y-1.5 list-disc pl-4 text-base text-zinc-400">
+          <li><strong className="text-zinc-300">Step 1</strong> — Activate Mate from the tool ribbon or radial wheel. Click a face on the first board (highlighted).</li>
+          <li><strong className="text-zinc-300">Step 2</strong> — Click a face on a <em>different</em> board. They snap flush and a mate record is created.</li>
+          <li><strong className="text-zinc-300">Face grid</strong> — While hovering a face, a ¼&quot; snap grid appears. Click to set the joint origin offset.</li>
+          <li><strong className="text-zinc-300">Attachment points</strong> — Double-click a face to place a named point. Double-click a second point on another board to connect them point-to-point.</li>
+        </ul>
+      </Section>
+
+      <Section title="Radial Orbital Selector">
+        <p className="text-base text-zinc-400 mb-2">
+          Appears when you select a board. Segments (clockwise from top):
+        </p>
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
+          <li><strong className="text-zinc-300">Quick Dimensions</strong> — Opens the floating size editor.</li>
+          <li><strong className="text-zinc-300">Mate</strong> — Starts face-pick mating for this board.</li>
+          <li><strong className="text-zinc-300">Join Method</strong> — Sub-menu for screws, nails, glue, pocket holes, etc. (requires a mate).</li>
+          <li><strong className="text-zinc-300">Chamfer / Edge</strong> — Opens the edge treatment tool on the selected board (radial wheel or Edge tool in ribbon).</li>
+          <li><strong className="text-zinc-300">Duplicate / Mirror / Isolate / Delete</strong> — Common board actions.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">Press Escape or click outside to close. Right-click a mate marker to open join methods only.</p>
+      </Section>
+
+      <Section title="Join Method Sub-Wheel">
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
+          <li>Screws, Nails, Glue, Pocket Holes, Biscuit, Dowel, Bracket / Hardware, Mortise &amp; Tenon</li>
+          <li>Glue and Mortise &amp; Tenon skip fastener placement; others enter placement mode on the joint face.</li>
+          <li>A small label appears at the mate marker showing the chosen method.</li>
+        </ul>
+      </Section>
+
+      <Section title="Physical Fastener Placement">
+        <p className="text-base text-zinc-400">
+          After choosing a join method, click joint faces on the ¼&quot; grid to place 3D fastener geometry.
+          Press Escape or <strong className="text-zinc-300">Done Placing</strong> to exit. Click a fastener to inspect or remove it.
+          Counts appear in the Cut List tab.
+        </p>
+      </Section>
+
+      <Section title="Pepe — Design Assistant">
+        <p className="text-base text-zinc-400 mb-2">
+          Pepe sits in the bottom-right corner of the viewport. Click him to open <strong className="text-zinc-300">Pepe&apos;s Workshop</strong> — fully offline, no internet needed.
+        </p>
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
+          <li><strong className="text-zinc-300">Suggestions</strong> — Live project tips (span warnings, missing prices, overlaps, etc.). Click a suggestion to highlight related boards.</li>
+          <li><strong className="text-zinc-300">Ask Pepe</strong> — Type a woodworking or app question. Try: &quot;How do I use pocket holes?&quot;, &quot;What is kerf?&quot;, &quot;How do I save my project?&quot;</li>
+        </ul>
+      </Section>
+
       <Section title="Joinery & Mating">
-        <ul className="space-y-1 list-disc pl-4 text-zinc-400">
-          <li><strong className="text-zinc-300">Pocket Holes</strong> — Dual-sided CSG drills pilot holes on both boards.</li>
-          <li><strong className="text-zinc-300">Box / Finger / Dovetail</strong> — Complementary slots cut on mating members.</li>
-          <li><strong className="text-zinc-300">Mate Tool</strong> — Pick face A and face B, then Apply Mate for flush alignment.</li>
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
+          <li><strong className="text-zinc-300">Pocket Holes</strong> — Dual-sided CSG drills angled pilot holes on both boards. Choose Pocket Holes as a join method or use the Joinery tool in the Inspector.</li>
+          <li><strong className="text-zinc-300">Box / Finger / Dovetail</strong> — Complementary slots cut on mating members. Finger joints use square fingers; dovetails taper for drawer strength.</li>
+          <li><strong className="text-zinc-300">Mate Tool</strong> — See Mate Tool section above for the full face-pick and grid workflow.</li>
         </ul>
       </Section>
 
@@ -78,6 +135,43 @@ export default function TutorialPanel() {
         </ol>
       </Section>
 
+      <Section title="Edge Treatments">
+        <p className="text-base text-zinc-400">
+          Use the radial wheel Chamfer / Edge segment or the Edge tool in the ribbon. Hover edges (amber highlight),
+          click to select, choose treatment type and depth/radius, then Apply. Options include chamfer, fillet,
+          cove, ogee, rabbet, and beading. Edge treatments appear in the Cut List tab.
+        </p>
+      </Section>
+
+      <Section title="Complex Shapes">
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
+          <li><strong className="text-zinc-300">Rectangle</strong> — Draw tool (unchanged).</li>
+          <li><strong className="text-zinc-300">Cylinder / Sphere / Cone</strong> — Shapes group in the tool ribbon.</li>
+          <li><strong className="text-zinc-300">Triangle / Hexagonal prism</strong> — Structural gussets or columns.</li>
+          <li><strong className="text-zinc-300">Custom polygon</strong> — Click vertices on ¼&quot; grid, close shape, set height.</li>
+        </ul>
+      </Section>
+
+      <Section title="Assembly Mode">
+        <p className="text-base text-zinc-400">
+          Toggle Assembly Mode in the top ribbon. Boards explode flat with spacing. Mate them in build order;
+          steps record in the Assembly Guide. Export prints a plain-text checklist. Reset Assembly re-spreads the layout.
+        </p>
+      </Section>
+
+      <Section title="Display Modes">
+        <p className="text-base text-zinc-400">
+          Top ribbon Display selector: Shaded, Wireframe, Shaded + Edges, or X-Ray (semi-transparent members).
+        </p>
+      </Section>
+
+      <Section title="Hardware Library">
+        <p className="text-base text-zinc-400">
+          Hardware tab — browse labeled items with inline previews. Click to place on a board face.
+          Includes slides, hinges, pulls, pins, cam locks, brackets, and barrel bolts.
+        </p>
+      </Section>
+
       <Section title="Viewport Navigation">
         <ul className="space-y-1 list-disc pl-4 text-zinc-400">
           <li><strong className="text-zinc-300">Left-click + drag</strong> — Orbit / rotate the camera around the focal point.</li>
@@ -88,7 +182,7 @@ export default function TutorialPanel() {
       </Section>
 
       <Section title="Keyboard Shortcuts">
-        <ul className="space-y-1 list-disc pl-4 text-zinc-400 font-mono text-xs">
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400 font-mono">
           <li>Esc — Cancel tool / clear draw preview</li>
           <li>Ctrl+Z — Undo</li>
           <li>Ctrl+Y — Redo</li>

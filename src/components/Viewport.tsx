@@ -8,6 +8,19 @@ import SceneOrbitControls from './SceneOrbitControls';
 import ContextMenuHandler from './ContextMenuHandler';
 import ViewportContextMenu from './ViewportContextMenu';
 import ViewportWelcome from './ViewportWelcome';
+import MemberScreenBoundsTracker from './MemberScreenBoundsTracker';
+import FaceGridOverlay from './FaceGridOverlay';
+import FastenerMeshes, { MateMarkers } from './FastenerMeshes';
+import FastenerPlacementTool from './FastenerPlacementTool';
+import QuickDimensionsPanel from './QuickDimensionsPanel';
+import RadialOrbitalSelector from './RadialOrbitalSelector';
+import FastenerPlacementBar from './FastenerPlacementBar';
+import FastenerInfoPanel from './FastenerInfoPanel';
+import PepeAssistant from './PepeAssistant';
+import DesignSuggestionsBridge from './DesignSuggestionsBridge';
+import PlacedHardwareMeshes from './PlacedHardwareMeshes';
+import AttachmentPointLinks, { PolygonDrawTool } from './AttachmentPointLinks';
+import AttachmentPointHandles from './AttachmentPointHandles';
 
 function ShadowFloor() {
   return (
@@ -39,6 +52,7 @@ function AdaptiveCamera() {
 export default function Viewport() {
   const members      = useAppStore((s) => s.project.members);
   const selectMember = useAppStore((s) => s.selectMember);
+  const commitDimensionEdit = useAppStore((s) => s.commitDimensionEdit);
   const activeTool   = useAppStore((s) => s.ui.activeTool);
   const gridVisible  = useAppStore((s) => s.ui.gridVisible);
   const showWelcome  = members.length === 0;
@@ -47,6 +61,12 @@ export default function Viewport() {
     <div className="flex-1 relative bg-zinc-950 min-w-0" style={{ minHeight: 0 }}>
       <ViewportContextMenu />
       {showWelcome && <ViewportWelcome />}
+      <QuickDimensionsPanel />
+      <RadialOrbitalSelector />
+      <FastenerPlacementBar />
+      <FastenerInfoPanel />
+      <PepeAssistant />
+      <DesignSuggestionsBridge />
       <Canvas
         style={{ width: '100%', height: '100%' }}
         shadows
@@ -55,10 +75,14 @@ export default function Viewport() {
           gl.setClearColor('#09090b');
         }}
         onPointerMissed={() => {
-          if (activeTool === 'select') selectMember(null);
+          if (activeTool === 'select') {
+            commitDimensionEdit();
+            selectMember(null);
+          }
         }}
       >
         <AdaptiveCamera />
+        <MemberScreenBoundsTracker />
         <ambientLight intensity={0.4} />
         <directionalLight
           position={[100, 180, 80]}
@@ -95,10 +119,19 @@ export default function Viewport() {
         <ShadowFloor />
         <DrawBoardTool />
         <ContextMenuHandler />
+        <FaceGridOverlay />
+        <FastenerPlacementTool />
+        <PolygonDrawTool />
+        <AttachmentPointLinks />
 
         {members.map((m) => (
           <WoodBlock key={m.id} member={m} />
         ))}
+
+        <AttachmentPointHandles />
+        <FastenerMeshes />
+        <MateMarkers />
+        <PlacedHardwareMeshes />
 
         <SceneOrbitControls />
         <GizmoHelper alignment="bottom-right" margin={[60, 60]}>

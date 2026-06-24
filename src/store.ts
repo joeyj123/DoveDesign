@@ -4,11 +4,13 @@ import type {
   Project, WoodMember, HardwareItem, FinishItem,
   UIState, ActiveTool, StructuralAnalysis, CutOperation,
   EstimatingSettings, MaterialPriceEntry, TransformMode,
-  MemberMate,
+  MemberMate, AttachmentPoint, Fastener, JoinMethod,
+  DesignSuggestion, EdgeTreatment, PlacedHardwareItem, AssemblyStep,
+  HardwareLibraryId, DisplayMode, ViewportMode,
 } from './types';
 import { trimToBoundary, extendToBoundary } from './lib/trimExtend';
 import { inferMaterialKind, getMaterialByName } from './lib/materials';
-import { computeMateTransform } from './lib/mating';
+import { computeMateTransform, computePointMateTransform } from './lib/mating';
 import { serializeWcad, parseWcad } from './lib/wcad';
 
 const DEFAULT_ESTIMATING: EstimatingSettings = {
@@ -29,6 +31,11 @@ const DEFAULT_PROJECT: Project = {
   structural: {},
   estimating: DEFAULT_ESTIMATING,
   mates: [],
+  attachmentPoints: [],
+  fasteners: [],
+  edgeTreatments: [],
+  placedHardware: [],
+  assemblySteps: [],
 };
 
 const DEFAULT_UI: UIState = {
@@ -49,6 +56,31 @@ const DEFAULT_UI: UIState = {
   mateFaceA: null,
   mateFaceB: null,
   matePickTarget: 'A',
+  memberScreenBounds: null,
+  quickDimensionsOpen: false,
+  radialWheelOpen: false,
+  radialWheelMode: 'full',
+  mateHoverFace: null,
+  mateGridOffset: null,
+  fastenerPlacementMode: false,
+  fastenerPlacementMateId: null,
+  selectedFastenerId: null,
+  selectedMateId: null,
+  pepePanelOpen: false,
+  pepeTab: 'suggestions',
+  pepeExpression: 'neutral',
+  designSuggestions: [],
+  suggestionHighlightIds: [],
+  dimensionEditPending: false,
+  attachmentPointPickA: null,
+  edgeToolMemberId: null,
+  edgeHoverIndex: null,
+  edgeSelectedIndex: null,
+  viewportMode: 'design',
+  displayMode: 'shaded',
+  hardwareLibraryPick: null,
+  polygonDrawPoints: [],
+  assemblyGuideOpen: false,
   drawDefaults: {
     species: 'Southern Yellow Pine',
     thickness: 1.5,
@@ -68,6 +100,7 @@ function migrateMember(m: WoodMember): WoodMember {
     loadLbs: m.loadLbs ?? 0,
     materialKind: m.materialKind ?? inferMaterialKind(m.species, m.category),
     color: m.color ?? mat?.color ?? '#d4a96a',
+    shapeType: m.shapeType ?? 'box',
   };
 }
 
@@ -75,9 +108,18 @@ function migrateProject(p: Project): Project {
   return {
     ...p,
     estimating: p.estimating ?? { ...DEFAULT_ESTIMATING },
-    mates: p.mates ?? [],
+    mates: (p.mates ?? []).map(migrateMate),
+    attachmentPoints: p.attachmentPoints ?? [],
+    fasteners: p.fasteners ?? [],
+    edgeTreatments: p.edgeTreatments ?? [],
+    placedHardware: p.placedHardware ?? [],
+    assemblySteps: p.assemblySteps ?? [],
     members: p.members.map(migrateMember),
   };
+}
+
+function migrateMate(m: MemberMate): MemberMate {
+  return { ...m, joinMethod: m.joinMethod ?? 'Unset' };
 }
 
 interface AppStore {
@@ -137,7 +179,46 @@ interface AppStore {
   setMateFaceA: (sel: UIState['mateFaceA']) => void;
   setMateFaceB: (sel: UIState['mateFaceB']) => void;
   setMatePickTarget: (target: UIState['matePickTarget']) => void;
-  applyMate: () => void;
+  applyMate: () => string | null;
+  setMemberScreenBounds: (bounds: UIState['memberScreenBounds']) => void;
+  setQuickDimensionsOpen: (open: boolean) => void;
+  setRadialWheelOpen: (open: boolean, mode?: UIState['radialWheelMode']) => void;
+  setMateHoverFace: (face: UIState['mateHoverFace']) => void;
+  setMateGridOffset: (offset: UIState['mateGridOffset']) => void;
+  setMateJoinMethod: (mateId: string, method: JoinMethod) => void;
+  addAttachmentPoint: (point: AttachmentPoint) => void;
+  updateAttachmentPoint: (id: string, patch: Partial<AttachmentPoint>, skipHistory?: boolean) => void;
+  removeAttachmentPoint: (id: string) => void;
+  connectAttachmentPoints: (idA: string, idB: string) => void;
+  setAttachmentPointPickA: (id: string | null) => void;
+  addFastener: (fastener: Fastener) => void;
+  removeFastener: (id: string) => void;
+  setFastenerPlacementMode: (active: boolean, mateId?: string | null) => void;
+  setSelectedFastenerId: (id: string | null) => void;
+  setSelectedMateId: (id: string | null) => void;
+  setPepePanelOpen: (open: boolean) => void;
+  setPepeTab: (tab: UIState['pepeTab']) => void;
+  setPepeExpression: (expr: UIState['pepeExpression']) => void;
+  setDesignSuggestions: (suggestions: DesignSuggestion[]) => void;
+  setSuggestionHighlightIds: (ids: string[]) => void;
+  setDimensionEditPending: (pending: boolean) => void;
+  commitDimensionEdit: () => void;
+  commitCurrentProject: () => void;
+  addEdgeTreatment: (t: EdgeTreatment) => void;
+  removeEdgeTreatment: (id: string) => void;
+  setEdgeToolMemberId: (id: string | null) => void;
+  setEdgeHoverIndex: (idx: number | null) => void;
+  setEdgeSelectedIndex: (idx: number | null) => void;
+  setViewportMode: (mode: ViewportMode) => void;
+  setDisplayMode: (mode: DisplayMode) => void;
+  setHardwareLibraryPick: (id: HardwareLibraryId | null) => void;
+  addPlacedHardware: (item: PlacedHardwareItem) => void;
+  removePlacedHardware: (id: string) => void;
+  updatePlacedHardware: (id: string, patch: Partial<PlacedHardwareItem>) => void;
+  addAssemblyStep: (step: AssemblyStep) => void;
+  resetAssemblyLayout: () => void;
+  setAssemblyGuideOpen: (open: boolean) => void;
+  setPolygonDrawPoints: (pts: [number, number][]) => void;
   newProject: () => void;
   setRightPanelTab: (tab: UIState['rightPanelTab']) => void;
   updateProjectMeta:(patch: { name?: string; description?: string }) => void;
@@ -216,9 +297,28 @@ export const useAppStore = create<AppStore>()(
   },
 
   removeMember: (id) => {
+    const p = get().project;
+    const removedMateIds = p.mates
+      .filter((m) => m.memberAId === id || m.memberBId === id)
+      .map((m) => m.id);
+    const removedApIds = new Set(
+      p.attachmentPoints.filter((ap) => ap.memberId === id).map((ap) => ap.id)
+    );
+
     commitProject(set, get, {
-      ...get().project,
-      members: get().project.members.filter((m) => m.id !== id),
+      ...p,
+      members: p.members.filter((m) => m.id !== id),
+      mates: p.mates.filter((m) => m.memberAId !== id && m.memberBId !== id),
+      fasteners: p.fasteners.filter((f) => !removedMateIds.includes(f.mateId)),
+      attachmentPoints: p.attachmentPoints
+        .filter((ap) => ap.memberId !== id)
+        .map((ap) =>
+          ap.connectedToId && removedApIds.has(ap.connectedToId)
+            ? { ...ap, connectedToId: undefined }
+            : ap
+        ),
+      edgeTreatments: p.edgeTreatments.filter((e) => e.memberId !== id),
+      placedHardware: p.placedHardware.filter((h) => h.memberId !== id),
     });
     set((s) => ({
       ui: {
@@ -226,6 +326,7 @@ export const useAppStore = create<AppStore>()(
         selectedMemberId: s.ui.selectedMemberId === id ? null : s.ui.selectedMemberId,
         trimBoundaryId: s.ui.trimBoundaryId === id ? null : s.ui.trimBoundaryId,
         isolatedMemberId: s.ui.isolatedMemberId === id ? null : s.ui.isolatedMemberId,
+        edgeToolMemberId: s.ui.edgeToolMemberId === id ? null : s.ui.edgeToolMemberId,
       },
     }));
   },
@@ -359,8 +460,29 @@ export const useAppStore = create<AppStore>()(
       },
     })),
 
-  selectMember: (id) =>
-    set((s) => ({ ui: { ...s.ui, selectedMemberId: id } })),
+  selectMember: (id) => {
+    const { ui } = get();
+    if (ui.dimensionEditPending && ui.selectedMemberId) {
+      get().commitDimensionEdit();
+    }
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        selectedMemberId: id,
+        quickDimensionsOpen: id !== null,
+        radialWheelOpen: id !== null,
+        radialWheelMode: 'full',
+        suggestionHighlightIds: [],
+        ...(id === null
+          ? {
+              quickDimensionsOpen: false,
+              radialWheelOpen: false,
+              mateHoverFace: null,
+            }
+          : {}),
+      },
+    }));
+  },
 
   setActiveTool: (tool) =>
     set((s) => ({ ui: { ...s.ui, activeTool: tool } })),
@@ -410,6 +532,12 @@ export const useAppStore = create<AppStore>()(
         mateFaceA: null,
         mateFaceB: null,
         matePickTarget: 'A',
+        mateHoverFace: null,
+        mateGridOffset: null,
+        fastenerPlacementMode: false,
+        fastenerPlacementMateId: null,
+        radialWheelOpen: false,
+        attachmentPointPickA: null,
         drawBoardCancelNonce: s.ui.drawBoardCancelNonce + 1,
         contextMenu: { ...s.ui.contextMenu, open: false },
       },
@@ -432,18 +560,31 @@ export const useAppStore = create<AppStore>()(
 
   applyMate: () => {
     const { mateFaceA, mateFaceB } = get().ui;
-    if (!mateFaceA || !mateFaceB) return;
+    if (!mateFaceA || !mateFaceB) return null;
     const a = get().project.members.find((m) => m.id === mateFaceA.memberId);
     const b = get().project.members.find((m) => m.id === mateFaceB.memberId);
-    if (!a || !b) return;
+    if (!a || !b) return null;
 
-    const patch = computeMateTransform(a, mateFaceA.face, b, mateFaceB.face);
+    const patch = computeMateTransform(
+      a,
+      mateFaceA.face,
+      b,
+      mateFaceB.face,
+      mateFaceA.offset ?? [0, 0, 0],
+      mateFaceB.offset ?? [0, 0, 0]
+    );
+    const offsetA = mateFaceA.offset;
+    const offsetB = mateFaceB.offset;
+
     const mate: MemberMate = {
       id: crypto.randomUUID(),
       memberAId: a.id,
       memberBId: b.id,
       faceA: mateFaceA.face,
       faceB: mateFaceB.face,
+      joinMethod: 'Unset',
+      offsetA,
+      offsetB,
     };
 
     commitProject(set, get, {
@@ -454,9 +595,282 @@ export const useAppStore = create<AppStore>()(
       mates: [...get().project.mates, mate],
     });
     set((s) => ({
-      ui: { ...s.ui, mateFaceA: null, mateFaceB: null, activeTool: 'select' },
+      ui: {
+        ...s.ui,
+        mateFaceA: null,
+        mateFaceB: null,
+        mateGridOffset: null,
+        mateHoverFace: null,
+        activeTool: 'select',
+        radialWheelOpen: true,
+        radialWheelMode: 'joinOnly',
+        selectedMateId: mate.id,
+      },
     }));
+
+    if (get().ui.viewportMode === 'assembly') {
+      const labelA = a.label;
+      const labelB = b.label;
+      const steps = get().project.assemblySteps;
+      commitProject(set, get, {
+        ...get().project,
+        assemblySteps: [
+          ...steps,
+          {
+            stepIndex: steps.length + 1,
+            mateId: mate.id,
+            description: `Mate ${labelB} to ${labelA} (${mate.faceA} ↔ ${mate.faceB})`,
+          },
+        ],
+      });
+    }
+
+    return mate.id;
   },
+
+  setMemberScreenBounds: (bounds) =>
+    set((s) => ({ ui: { ...s.ui, memberScreenBounds: bounds } })),
+
+  setQuickDimensionsOpen: (open) =>
+    set((s) => ({ ui: { ...s.ui, quickDimensionsOpen: open } })),
+
+  setRadialWheelOpen: (open, mode) =>
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        radialWheelOpen: open,
+        radialWheelMode: mode ?? s.ui.radialWheelMode,
+      },
+    })),
+
+  setMateHoverFace: (face) =>
+    set((s) => ({ ui: { ...s.ui, mateHoverFace: face } })),
+
+  setMateGridOffset: (offset) =>
+    set((s) => ({ ui: { ...s.ui, mateGridOffset: offset } })),
+
+  setMateJoinMethod: (mateId, method) => {
+    commitProject(set, get, {
+      ...get().project,
+      mates: get().project.mates.map((m) =>
+        m.id === mateId ? { ...m, joinMethod: method } : m
+      ),
+    });
+    if (method !== 'Unset' && method !== 'Glue' && method !== 'Mortise & Tenon') {
+      set((s) => ({
+        ui: {
+          ...s.ui,
+          fastenerPlacementMode: true,
+          fastenerPlacementMateId: mateId,
+          radialWheelOpen: false,
+        },
+      }));
+    } else {
+      set((s) => ({
+        ui: { ...s.ui, radialWheelOpen: false },
+      }));
+    }
+  },
+
+  addAttachmentPoint: (point) =>
+    commitProject(set, get, {
+      ...get().project,
+      attachmentPoints: [...get().project.attachmentPoints, point],
+    }),
+
+  updateAttachmentPoint: (id, patch, skipHistory) => {
+    const next = {
+      ...get().project,
+      attachmentPoints: get().project.attachmentPoints.map((p) =>
+        p.id === id ? { ...p, ...patch } : p
+      ),
+    };
+    if (skipHistory) {
+      set({ project: next });
+    } else {
+      commitProject(set, get, next);
+    }
+  },
+
+  removeAttachmentPoint: (id) =>
+    commitProject(set, get, {
+      ...get().project,
+      attachmentPoints: get().project.attachmentPoints.filter((p) => p.id !== id),
+    }),
+
+  connectAttachmentPoints: (idA, idB) => {
+    const pts = get().project.attachmentPoints;
+    const ptA = pts.find((p) => p.id === idA);
+    const ptB = pts.find((p) => p.id === idB);
+    if (!ptA || !ptB) return;
+    const memberA = get().project.members.find((m) => m.id === ptA.memberId);
+    const memberB = get().project.members.find((m) => m.id === ptB.memberId);
+    if (!memberA || !memberB) return;
+
+    const patch = computePointMateTransform(memberA, ptA, memberB, ptB);
+
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) =>
+        m.id === memberB.id ? migrateMember({ ...m, ...patch }) : m
+      ),
+      attachmentPoints: pts.map((p) => {
+        if (p.id === idA) return { ...p, connectedToId: idB };
+        if (p.id === idB) return { ...p, connectedToId: idA };
+        return p;
+      }),
+    });
+  },
+
+  setAttachmentPointPickA: (id) =>
+    set((s) => ({ ui: { ...s.ui, attachmentPointPickA: id } })),
+
+  addFastener: (fastener) =>
+    commitProject(set, get, {
+      ...get().project,
+      fasteners: [...get().project.fasteners, fastener],
+    }),
+
+  removeFastener: (id) =>
+    commitProject(set, get, {
+      ...get().project,
+      fasteners: get().project.fasteners.filter((f) => f.id !== id),
+    }),
+
+  setFastenerPlacementMode: (active, mateId) =>
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        fastenerPlacementMode: active,
+        fastenerPlacementMateId: mateId ?? null,
+      },
+    })),
+
+  setSelectedFastenerId: (id) =>
+    set((s) => ({ ui: { ...s.ui, selectedFastenerId: id } })),
+
+  setSelectedMateId: (id) =>
+    set((s) => ({ ui: { ...s.ui, selectedMateId: id } })),
+
+  setPepePanelOpen: (open) =>
+    set((s) => ({ ui: { ...s.ui, pepePanelOpen: open } })),
+
+  setPepeTab: (tab) =>
+    set((s) => ({ ui: { ...s.ui, pepeTab: tab } })),
+
+  setPepeExpression: (expr) =>
+    set((s) => ({ ui: { ...s.ui, pepeExpression: expr } })),
+
+  setDesignSuggestions: (suggestions) =>
+    set((s) => ({ ui: { ...s.ui, designSuggestions: suggestions } })),
+
+  setSuggestionHighlightIds: (ids) =>
+    set((s) => ({ ui: { ...s.ui, suggestionHighlightIds: ids } })),
+
+  setDimensionEditPending: (pending) =>
+    set((s) => ({ ui: { ...s.ui, dimensionEditPending: pending } })),
+
+  commitDimensionEdit: () => {
+    const { ui, project } = get();
+    if (!ui.dimensionEditPending || !ui.selectedMemberId) return;
+    const member = project.members.find((m) => m.id === ui.selectedMemberId);
+    if (!member) return;
+    commitProject(set, get, { ...project });
+    set((s) => ({ ui: { ...s.ui, dimensionEditPending: false } }));
+  },
+
+  commitCurrentProject: () => {
+    commitProject(set, get, { ...get().project });
+  },
+
+  addEdgeTreatment: (t) =>
+    commitProject(set, get, {
+      ...get().project,
+      edgeTreatments: [...get().project.edgeTreatments, t],
+    }),
+
+  removeEdgeTreatment: (id) =>
+    commitProject(set, get, {
+      ...get().project,
+      edgeTreatments: get().project.edgeTreatments.filter((e) => e.id !== id),
+    }),
+
+  setEdgeToolMemberId: (id) =>
+    set((s) => ({ ui: { ...s.ui, edgeToolMemberId: id, edgeSelectedIndex: null } })),
+
+  setEdgeHoverIndex: (idx) =>
+    set((s) => ({ ui: { ...s.ui, edgeHoverIndex: idx } })),
+
+  setEdgeSelectedIndex: (idx) =>
+    set((s) => ({ ui: { ...s.ui, edgeSelectedIndex: idx } })),
+
+  setViewportMode: (mode) => {
+    if (mode === 'assembly') {
+      const { members } = get().project;
+      const spacing = 8;
+      const updated = members.map((m, i) => ({
+        ...m,
+        position: [i * spacing, m.thickness / 2, 0] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number],
+      }));
+      commitProject(set, get, { ...get().project, members: updated });
+    }
+    set((s) => ({ ui: { ...s.ui, viewportMode: mode, assemblyGuideOpen: mode === 'assembly' } }));
+  },
+
+  setDisplayMode: (mode) =>
+    set((s) => ({ ui: { ...s.ui, displayMode: mode } })),
+
+  setHardwareLibraryPick: (id) =>
+    set((s) => ({
+      ui: { ...s.ui, hardwareLibraryPick: id, activeTool: id ? 'placeHardware' : s.ui.activeTool },
+    })),
+
+  addPlacedHardware: (item) =>
+    commitProject(set, get, {
+      ...get().project,
+      placedHardware: [...get().project.placedHardware, item],
+    }),
+
+  removePlacedHardware: (id) =>
+    commitProject(set, get, {
+      ...get().project,
+      placedHardware: get().project.placedHardware.filter((h) => h.id !== id),
+    }),
+
+  updatePlacedHardware: (id, patch) =>
+    commitProject(set, get, {
+      ...get().project,
+      placedHardware: get().project.placedHardware.map((h) =>
+        h.id === id ? { ...h, ...patch } : h
+      ),
+    }),
+
+  addAssemblyStep: (step) =>
+    commitProject(set, get, {
+      ...get().project,
+      assemblySteps: [...get().project.assemblySteps, step],
+    }),
+
+  resetAssemblyLayout: () => {
+    const { members } = get().project;
+    const spacing = 8;
+    commitProject(set, get, {
+      ...get().project,
+      members: members.map((m, i) => ({
+        ...m,
+        position: [i * spacing, m.thickness / 2, 0] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number],
+      })),
+      assemblySteps: [],
+    });
+  },
+
+  setAssemblyGuideOpen: (open) =>
+    set((s) => ({ ui: { ...s.ui, assemblyGuideOpen: open } })),
+
+  setPolygonDrawPoints: (pts) =>
+    set((s) => ({ ui: { ...s.ui, polygonDrawPoints: pts } })),
 
   newProject: () => {
     set({
@@ -474,6 +888,12 @@ export const useAppStore = create<AppStore>()(
         trimBoundaryId: null,
         mateFaceA: null,
         mateFaceB: null,
+        mateHoverFace: null,
+        mateGridOffset: null,
+        quickDimensionsOpen: false,
+        radialWheelOpen: false,
+        fastenerPlacementMode: false,
+        attachmentPointPickA: null,
         activeTool: 'select',
       },
     });

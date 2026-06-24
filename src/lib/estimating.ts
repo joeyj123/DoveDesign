@@ -1,6 +1,7 @@
 import type { WoodMember, EstimatingSettings, MaterialLedgerGroup, Project } from '../types';
 import { calcBoardFeet } from './boardFeet';
 import { inferMaterialKind } from './materials';
+import { HARDWARE_LIBRARY_COSTS } from './hardwareLibrary';
 
 export function materialGroupKey(m: WoodMember): string {
   const kind = m.materialKind ?? inferMaterialKind(m.species, m.category);
@@ -79,9 +80,12 @@ export function calcEstimateTotals(
 ): EstimateTotals {
   const groups = buildMaterialLedger(project.members, settings);
   const materialSubtotal = groups.reduce((s, g) => s + g.subtotal, 0);
-  const hardwareSubtotal = project.hardware.reduce(
-    (s, h) => s + h.quantity * h.unitCost, 0
-  );
+  const hardwareSubtotal =
+    project.hardware.reduce((s, h) => s + h.quantity * h.unitCost, 0) +
+    project.placedHardware.reduce(
+      (s, h) => s + (HARDWARE_LIBRARY_COSTS[h.libraryId] ?? 0),
+      0
+    );
   const finishSubtotal = project.finishes.reduce(
     (s, f) => s + f.quantity * f.unitCost, 0
   );

@@ -24,6 +24,10 @@ export default function SystemRibbon() {
   const redo = useAppStore((s) => s.redo);
   const canUndo = useAppStore((s) => s.past.length > 0);
   const canRedo = useAppStore((s) => s.future.length > 0);
+  const viewportMode = useAppStore((s) => s.ui.viewportMode);
+  const displayMode = useAppStore((s) => s.ui.displayMode);
+  const setViewportMode = useAppStore((s) => s.setViewportMode);
+  const setDisplayMode = useAppStore((s) => s.setDisplayMode);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -92,9 +96,34 @@ export default function SystemRibbon() {
         />
       </RibbonMenu>
 
-      <div className="flex-1" />
+      <div className="flex-1 flex items-center gap-2 px-2">
+        <label className="flex items-center gap-2 text-base text-zinc-400">
+          Mode
+          <select
+            className="input-field text-base py-1 w-auto"
+            value={viewportMode}
+            onChange={(e) => setViewportMode(e.target.value as 'design' | 'assembly')}
+          >
+            <option value="design">Design</option>
+            <option value="assembly">Assembly</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-base text-zinc-400">
+          Display
+          <select
+            className="input-field text-base py-1 w-auto"
+            value={displayMode}
+            onChange={(e) => setDisplayMode(e.target.value as import('../types').DisplayMode)}
+          >
+            <option value="shaded">Shaded</option>
+            <option value="wireframe">Wireframe</option>
+            <option value="shadedEdges">Shaded + Edges</option>
+            <option value="xray">X-Ray</option>
+          </select>
+        </label>
+      </div>
 
-      <span className="text-xs text-zinc-500 font-mono truncate max-w-[10rem] hidden md:inline">
+      <span className="text-base text-zinc-500 font-mono truncate max-w-[10rem] hidden md:inline">
         {projectName}
       </span>
 

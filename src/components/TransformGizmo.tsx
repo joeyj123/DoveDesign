@@ -5,6 +5,11 @@ import { useThree } from '@react-three/fiber';
 import { useAppStore } from '../store';
 import type { WoodMember } from '../types';
 import { snapMemberPosition } from '../lib/bounds';
+import { snapToGrid } from '../lib/mating';
+
+function snapAssemblyPos(pos: [number, number, number]): [number, number, number] {
+  return [snapToGrid(pos[0]), Math.max(pos[1], 0.25), snapToGrid(pos[2])];
+}
 import { snapEuler } from '../lib/angles';
 
 interface Props {
@@ -19,6 +24,7 @@ export default function TransformGizmo({ member, objectRef }: Props) {
   const angleSnapIncrement = useAppStore((s) => s.ui.angleSnapIncrement);
   const updateMember = useAppStore((s) => s.updateMember);
   const allMembers = useAppStore((s) => s.project.members);
+  const viewportMode = useAppStore((s) => s.ui.viewportMode);
   const controls = useThree((s) => s.controls) as { enabled?: boolean } | null;
   const tcRef = useRef<{ addEventListener: (e: string, h: (v: { value: boolean }) => void) => void; removeEventListener: (e: string, h: (v: { value: boolean }) => void) => void } | null>(null);
   const [attached, setAttached] = useState(false);
@@ -43,11 +49,15 @@ export default function TransformGizmo({ member, objectRef }: Props) {
         let rot: [number, number, number] = [obj.rotation.x, obj.rotation.y, obj.rotation.z];
 
         if (transformMode === 'translate') {
-          pos = snapMemberPosition(
-            member,
-            pos,
-            allMembers.filter((m) => m.id !== member.id)
-          );
+          if (viewportMode === 'assembly') {
+            pos = snapAssemblyPos(pos);
+          } else {
+            pos = snapMemberPosition(
+              member,
+              pos,
+              allMembers.filter((m) => m.id !== member.id)
+            );
+          }
           obj.position.set(pos[0], pos[1], pos[2]);
         }
 
@@ -70,7 +80,7 @@ export default function TransformGizmo({ member, objectRef }: Props) {
     };
     tc.addEventListener('dragging-changed', handler);
     return () => tc.removeEventListener('dragging-changed', handler);
-  }, [controls, member, objectRef, transformMode, allMembers, updateMember, angleSnapEnabled, angleSnapIncrement]);
+  }, [controls, member, objectRef, transformMode, allMembers, updateMember, angleSnapEnabled, angleSnapIncrement, viewportMode]);
 
   if (activeTool !== 'select' || !attached || !objectRef.current) return null;
 

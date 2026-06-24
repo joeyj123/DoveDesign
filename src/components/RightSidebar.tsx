@@ -5,6 +5,7 @@ import EstimatingPanel from './EstimatingPanel';
 import MemberInspector from './MemberInspector';
 import TutorialPanel from './TutorialPanel';
 import EngineeringPanel from './EngineeringPanel';
+import HardwarePanel from './HardwarePanel';
 import type { RightPanelTab } from '../types';
 
 const TABS: { id: RightPanelTab; label: string }[] = [
@@ -12,6 +13,7 @@ const TABS: { id: RightPanelTab; label: string }[] = [
   { id: 'estimating', label: 'Estimating' },
   { id: 'cutlist', label: 'Cut List' },
   { id: 'engineering', label: 'Engineering' },
+  { id: 'hardware', label: 'Hardware' },
   { id: 'tutorial', label: 'Tutorial' },
 ];
 
@@ -34,14 +36,14 @@ export default function RightSidebar() {
         </label>
       </div>
 
-      <div className="flex border-b border-zinc-800 shrink-0">
+      <div className="flex flex-wrap border-b border-zinc-800 shrink-0">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setRightPanelTab(tab.id)}
             className={[
-              'flex-1 min-w-0 px-1 py-2 text-xs font-medium whitespace-nowrap transition-colors',
+              'flex-1 min-w-[4.5rem] px-1 py-2 text-xs font-medium whitespace-nowrap transition-colors',
               activeTab === tab.id
                 ? 'text-amber-400 border-b-2 border-amber-500 bg-zinc-900'
                 : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent',
@@ -62,6 +64,7 @@ export default function RightSidebar() {
         {activeTab === 'estimating' && <EstimatingPanel />}
         {activeTab === 'cutlist' && <CutListPanel />}
         {activeTab === 'engineering' && <EngineeringPanel />}
+        {activeTab === 'hardware' && <HardwarePanel />}
         {activeTab === 'tutorial' && <TutorialPanel />}
       </div>
     </aside>

@@ -3,6 +3,8 @@ import SystemRibbon from './components/SystemRibbon';
 import ToolRibbon from './components/ToolRibbon';
 import Viewport from './components/Viewport';
 import RightSidebar from './components/RightSidebar';
+import AssemblyGuidePanel from './components/AssemblyGuidePanel';
+import EdgeTreatmentPanel from './components/EdgeTreatmentPanel';
 
 export default function App() {
   return (
@@ -12,6 +14,8 @@ export default function App() {
       <div className="flex flex-1 min-h-0">
         <ToolRibbon />
         <Viewport />
+        <AssemblyGuidePanel />
+        <EdgeTreatmentPanel />
         <RightSidebar />
       </div>
     </div>

@@ -81,6 +81,15 @@ export type BeamOrientation = 'flat' | 'onEdge';
 export type MaterialKind = 'dimensional' | 'sheet';
 export type PriceUnit = 'LF' | 'BF' | 'SF';
 
+export type WoodShapeType =
+  | 'box'
+  | 'cylinder'
+  | 'sphere'
+  | 'cone'
+  | 'triangularPrism'
+  | 'hexagonalPrism'
+  | 'customPolygon';
+
 export interface WoodMember {
   id: string;
   label: string;
@@ -105,11 +114,28 @@ export interface WoodMember {
   materialKind: MaterialKind;
   /** Permanent structural mates linking this member to others. */
   mateIds?: string[];
+  /** Primitive shape type — box is default dimensional lumber. */
+  shapeType?: WoodShapeType;
+  /** Footprint vertices for custom polygon extrusions (x,z in inches). */
+  polygonPoints?: [number, number][];
+  /** Radius for cylinder, sphere, cone. */
+  radius?: number;
 }
 
 // ─── Assembly Mates ─────────────────────────────────────────────────────────
 
 export type FaceId = 'xMin' | 'xMax' | 'yMin' | 'yMax' | 'zMin' | 'zMax';
+
+export type JoinMethod =
+  | 'Unset'
+  | 'Screws'
+  | 'Nails'
+  | 'Glue'
+  | 'Pocket Holes'
+  | 'Biscuit'
+  | 'Dowel'
+  | 'Bracket / Hardware'
+  | 'Mortise & Tenon';
 
 export interface MemberMate {
   id: string;
@@ -117,6 +143,29 @@ export interface MemberMate {
   memberBId: string;
   faceA: FaceId;
   faceB: FaceId;
+  joinMethod: JoinMethod;
+  /** Offset from face center on member A (inches, face-local). */
+  offsetA?: [number, number, number];
+  /** Offset from face center on member B (inches, face-local). */
+  offsetB?: [number, number, number];
+}
+
+export interface AttachmentPoint {
+  id: string;
+  memberId: string;
+  faceIndex: FaceId;
+  offset: [number, number, number];
+  name: string;
+  /** Connected attachment point id for point-to-point mating. */
+  connectedToId?: string;
+}
+
+export interface Fastener {
+  id: string;
+  mateId: string;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  type: JoinMethod;
 }
 
 // ─── Estimating ────────────────────────────────────────────────────────────
@@ -154,6 +203,48 @@ export interface MaterialLedgerGroup {
 export type HardwareCategory =
   | 'Screw' | 'Nail' | 'Bolt' | 'Dowel'
   | 'Bracket' | 'Hinge' | 'Glue' | 'Other';
+
+export type EdgeTreatmentType =
+  | 'none'
+  | 'chamfer'
+  | 'fillet'
+  | 'cove'
+  | 'ogee'
+  | 'rabbet'
+  | 'beading';
+
+export interface EdgeTreatment {
+  id: string;
+  memberId: string;
+  edgeIndex: number;
+  type: EdgeTreatmentType;
+  depth: number;
+  radius: number;
+}
+
+export type HardwareLibraryId =
+  | 'drawer-slide'
+  | 'cabinet-hinge'
+  | 'drawer-pull'
+  | 'shelf-pin'
+  | 'cam-lock'
+  | 'corner-bracket'
+  | 'barrel-bolt';
+
+export interface PlacedHardwareItem {
+  id: string;
+  libraryId: HardwareLibraryId;
+  memberId: string;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: number;
+}
+
+export interface AssemblyStep {
+  stepIndex: number;
+  mateId: string;
+  description: string;
+}
 
 export interface HardwareItem {
   id: string;
@@ -200,6 +291,11 @@ export interface Project {
   structural: StructuralAnalysis; // physics hook always present, fields optional
   estimating: EstimatingSettings;
   mates: MemberMate[];
+  attachmentPoints: AttachmentPoint[];
+  fasteners: Fastener[];
+  edgeTreatments: EdgeTreatment[];
+  placedHardware: PlacedHardwareItem[];
+  assemblySteps: AssemblyStep[];
 }
 
 // ─── UI State (not persisted to disk) ─────────────────────────────────────
@@ -207,10 +303,17 @@ export interface Project {
 export type ActiveTool =
   | 'select' | 'addBoard' | 'drawBoard'
   | 'cut' | 'rip' | 'miter' | 'joinery'
-  | 'trimExtend' | 'mate';
+  | 'trimExtend' | 'mate' | 'edge'
+  | 'shapeCylinder' | 'shapeSphere' | 'shapeCone'
+  | 'shapeTriPrism' | 'shapeHexPrism' | 'shapePolygon'
+  | 'placeHardware';
+
+export type ViewportMode = 'design' | 'assembly';
+
+export type DisplayMode = 'shaded' | 'wireframe' | 'shadedEdges' | 'xray';
 
 export type RightPanelTab =
-  | 'inspector' | 'estimating' | 'cutlist' | 'engineering' | 'tutorial';
+  | 'inspector' | 'estimating' | 'cutlist' | 'engineering' | 'tutorial' | 'hardware';
 
 export type TransformMode = 'translate' | 'rotate' | 'scale';
 
@@ -252,10 +355,58 @@ export interface UIState {
   gridVisible: boolean;
   orthographic: boolean;
   /** Face-mate tool selections */
-  mateFaceA: { memberId: string; face: FaceId } | null;
-  mateFaceB: { memberId: string; face: FaceId } | null;
+  mateFaceA: { memberId: string; face: FaceId; offset?: [number, number, number] } | null;
+  mateFaceB: { memberId: string; face: FaceId; offset?: [number, number, number] } | null;
   /** Which mate slot viewport clicks assign to */
   matePickTarget: 'A' | 'B';
+  /** Screen-space bounds of selected member (viewport pixels). */
+  memberScreenBounds: { left: number; top: number; right: number; bottom: number } | null;
+  /** Show floating quick-dimensions panel. */
+  quickDimensionsOpen: boolean;
+  /** Radial orbital selector visibility. */
+  radialWheelOpen: boolean;
+  radialWheelMode: 'full' | 'joinOnly';
+  /** Hovered face for mate grid overlay. */
+  mateHoverFace: { memberId: string; face: FaceId } | null;
+  /** Confirmed grid snap offset on a face. */
+  mateGridOffset: { memberId: string; face: FaceId; offset: [number, number, number] } | null;
+  /** Fastener placement mode after join method selected. */
+  fastenerPlacementMode: boolean;
+  fastenerPlacementMateId: string | null;
+  selectedFastenerId: string | null;
+  selectedMateId: string | null;
+  /** Pepe assistant UI */
+  pepePanelOpen: boolean;
+  pepeTab: 'suggestions' | 'ask';
+  pepeExpression: 'neutral' | 'thinking' | 'happy';
+  /** Ephemeral design suggestions (not persisted). */
+  designSuggestions: DesignSuggestion[];
+  suggestionHighlightIds: string[];
+  /** Pending dimension edits awaiting history commit. */
+  dimensionEditPending: boolean;
+  /** Attachment point being connected (first pick). */
+  attachmentPointPickA: string | null;
+  /** Edge treatment tool */
+  edgeToolMemberId: string | null;
+  edgeHoverIndex: number | null;
+  edgeSelectedIndex: number | null;
+  /** Viewport and display modes */
+  viewportMode: ViewportMode;
+  displayMode: DisplayMode;
+  /** Hardware library placement */
+  hardwareLibraryPick: HardwareLibraryId | null;
+  /** Custom polygon drawing vertices */
+  polygonDrawPoints: [number, number][];
+  /** Assembly guide panel */
+  assemblyGuideOpen: boolean;
+}
+
+export interface DesignSuggestion {
+  id: string;
+  category: string;
+  severity: 'info' | 'warning' | 'error';
+  message: string;
+  relatedMemberIds?: string[];
 }
 
 // ─── Nesting output types ──────────────────────────────────────────────────

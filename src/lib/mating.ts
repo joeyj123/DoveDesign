@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { WoodMember, FaceId } from '../types';
+import type { WoodMember, FaceId, AttachmentPoint } from '../types';
 
 const FACE_NORMALS: Record<FaceId, THREE.Vector3> = {
   xMin: new THREE.Vector3(-1, 0, 0),
@@ -50,12 +50,14 @@ export function computeMateTransform(
   memberA: WoodMember,
   faceA: FaceId,
   memberB: WoodMember,
-  faceB: FaceId
+  faceB: FaceId,
+  offsetA: [number, number, number] = [0, 0, 0],
+  offsetB: [number, number, number] = [0, 0, 0]
 ): Partial<WoodMember> {
   const nA = getFaceNormal(memberA, faceA);
   const nB = getFaceNormal(memberB, faceB);
-  const cA = getFaceCenter(memberA, faceA);
-  const cB = getFaceCenter(memberB, faceB);
+  const worldA = getFacePointWorld(memberA, faceA, offsetA);
+  const worldB = getFacePointWorld(memberB, faceB, offsetB);
 
   const qAlign = new THREE.Quaternion().setFromUnitVectors(nB, nA.clone().negate());
   const qB = getWorldQuaternion(memberB);
@@ -63,9 +65,9 @@ export function computeMateTransform(
   const eNew = new THREE.Euler().setFromQuaternion(qNew);
 
   const posB = new THREE.Vector3(...memberB.position);
-  const offset = cB.clone().sub(posB);
-  offset.applyQuaternion(qAlign);
-  const newPos = cA.clone().sub(offset);
+  const attachOffset = worldB.clone().sub(posB);
+  attachOffset.applyQuaternion(qAlign);
+  const newPos = worldA.clone().sub(attachOffset);
 
   return {
     position: [newPos.x, newPos.y, newPos.z],
@@ -100,3 +102,104 @@ export const FACE_LABELS: Record<FaceId, string> = {
 };
 
 export const ALL_FACES: FaceId[] = ['xMin', 'xMax', 'yMin', 'yMax', 'zMin', 'zMax'];
+
+const GRID_SNAP = 0.25;
+
+export function snapToGrid(value: number): number {
+  return Math.round(value / GRID_SNAP) * GRID_SNAP;
+}
+
+/** Face-local tangent axes (u along width, v along thickness for x faces, etc.). */
+export function getFaceTangentAxes(
+  member: WoodMember,
+  face: FaceId
+): { u: THREE.Vector3; v: THREE.Vector3; normal: THREE.Vector3 } {
+  const normal = getFaceNormal(member, face);
+  const q = getWorldQuaternion(member);
+  let uLocal: THREE.Vector3;
+  let vLocal: THREE.Vector3;
+  switch (face) {
+    case 'xMin':
+    case 'xMax':
+      uLocal = new THREE.Vector3(0, 0, 1);
+      vLocal = new THREE.Vector3(0, 1, 0);
+      break;
+    case 'yMin':
+    case 'yMax':
+      uLocal = new THREE.Vector3(1, 0, 0);
+      vLocal = new THREE.Vector3(0, 0, 1);
+      break;
+    case 'zMin':
+    case 'zMax':
+      uLocal = new THREE.Vector3(1, 0, 0);
+      vLocal = new THREE.Vector3(0, 1, 0);
+      break;
+  }
+  return {
+    u: uLocal.applyQuaternion(q).normalize(),
+    v: vLocal.applyQuaternion(q).normalize(),
+    normal,
+  };
+}
+
+/** Face half-extents for grid sizing. */
+export function getFaceHalfExtents(member: WoodMember, face: FaceId): { halfU: number; halfV: number } {
+  switch (face) {
+    case 'xMin':
+    case 'xMax':
+      return { halfU: member.width / 2, halfV: member.thickness / 2 };
+    case 'yMin':
+    case 'yMax':
+      return { halfU: member.length / 2, halfV: member.width / 2 };
+    case 'zMin':
+    case 'zMax':
+      return { halfU: member.length / 2, halfV: member.thickness / 2 };
+  }
+}
+
+/** World position from face center + snapped offset in face plane. */
+export function getFacePointWorld(
+  member: WoodMember,
+  face: FaceId,
+  offset: [number, number, number]
+): THREE.Vector3 {
+  const center = getFaceCenter(member, face);
+  const { u, v } = getFaceTangentAxes(member, face);
+  return center
+    .clone()
+    .add(u.clone().multiplyScalar(offset[0]))
+    .add(v.clone().multiplyScalar(offset[1]));
+}
+
+/** Convert world hit point on face to snapped face-local offset from center. */
+export function worldPointToFaceOffset(
+  member: WoodMember,
+  face: FaceId,
+  worldPoint: THREE.Vector3
+): [number, number, number] {
+  const center = getFaceCenter(member, face);
+  const { u, v } = getFaceTangentAxes(member, face);
+  const delta = worldPoint.clone().sub(center);
+  const uOff = snapToGrid(delta.dot(u));
+  const vOff = snapToGrid(delta.dot(v));
+  const { halfU, halfV } = getFaceHalfExtents(member, face);
+  return [
+    Math.max(-halfU, Math.min(halfU, uOff)),
+    Math.max(-halfV, Math.min(halfV, vOff)),
+    0,
+  ];
+}
+
+/** Align memberB so attachment point B meets attachment point A. */
+export function computePointMateTransform(
+  memberA: WoodMember,
+  ptA: AttachmentPoint,
+  memberB: WoodMember,
+  ptB: AttachmentPoint
+): Partial<WoodMember> {
+  const worldA = getFacePointWorld(memberA, ptA.faceIndex, ptA.offset);
+  const worldB = getFacePointWorld(memberB, ptB.faceIndex, ptB.offset);
+  const delta = worldA.clone().sub(worldB);
+  const posB = new THREE.Vector3(...memberB.position).add(delta);
+  return { position: [posB.x, posB.y, posB.z] };
+}

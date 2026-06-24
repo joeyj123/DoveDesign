@@ -84,8 +84,15 @@ function SheetCanvas({ plan }: { plan: ReturnType<typeof optimizeSheetNesting> }
 
 export default function CutListPanel() {
   const members = useAppStore((s) => s.project.members);
+  const fasteners = useAppStore((s) => s.project.fasteners);
+  const edgeTreatments = useAppStore((s) => s.project.edgeTreatments);
   const lumberPlan = optimizeCutList(members);
   const sheetPlan = optimizeSheetNesting(members);
+
+  const fastenerCounts = fasteners.reduce<Record<string, number>>((acc, f) => {
+    acc[f.type] = (acc[f.type] ?? 0) + 1;
+    return acc;
+  }, {});
 
   if (members.length === 0) {
     return (
@@ -155,6 +162,39 @@ export default function CutListPanel() {
               ))}
             </ul>
           ))}
+        </section>
+      )}
+
+      {edgeTreatments.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Edge Treatments
+          </h3>
+          <ul className="text-base text-zinc-300 space-y-1">
+            {edgeTreatments.map((e) => {
+              const m = members.find((mem) => mem.id === e.memberId);
+              return (
+                <li key={e.id}>
+                  {m?.label ?? 'Board'} — edge {e.edgeIndex + 1}: {e.type}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {Object.keys(fastenerCounts).length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Fasteners
+          </h3>
+          <ul className="text-base text-zinc-300 space-y-1">
+            {Object.entries(fastenerCounts).map(([type, count]) => (
+              <li key={type}>
+                {type} × {count}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </div>
