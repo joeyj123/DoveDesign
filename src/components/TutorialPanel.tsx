@@ -10,189 +10,388 @@ export default function TutorialPanel() {
           Interactive Shop Tutorial
         </h2>
         <p className="text-zinc-400">
-          {BRAND_TAGLINE} — reference guide for tools, cuts, and a workbench quick-start blueprint.
+          {BRAND_TAGLINE} — a plain-language guide to every tool, panel, and workflow in DoveDesign.
         </p>
       </div>
 
+      <Section title="Left Tool Panel — Model, Modify, Joinery, Shapes">
+        <p className="text-base text-zinc-400 mb-2">
+          The vertical panel on the left side of the screen is organized into four tabs. Click a tab name to switch groups.
+          Use the « / » button at the top to collapse the panel to a narrow strip (abbreviated tab labels) or expand it for full tool names.
+        </p>
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li><strong className="text-zinc-300">Model</strong> — Select, Draw, and Add boards.</li>
+          <li><strong className="text-zinc-300">Modify</strong> — Cross Cut, Rip Cut, Miter, Trim, and Join tools.</li>
+          <li><strong className="text-zinc-300">Joinery</strong> — Mate, Edge Treatment, and Attach Point.</li>
+          <li><strong className="text-zinc-300">Shapes</strong> — Cylinder, Sphere, Cone, Triangle, Hexagon, and Custom Polygon.</li>
+        </ol>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What tools are in the left panel?&quot; · &quot;Where is the Draw tool?&quot; · &quot;How do I add a cylinder?&quot;
+        </p>
+      </Section>
+
       <Section title="Shop Tools">
+        <p className="text-base text-zinc-400 mb-2">
+          These are the core tools in the <strong className="text-zinc-300">Model</strong> and <strong className="text-zinc-300">Modify</strong> tabs:
+        </p>
         <ul className="space-y-1.5 list-disc pl-4 text-zinc-400">
-          <li><strong className="text-zinc-300">Select</strong> — Move, rotate, or scale boards with the gizmo.</li>
-          <li><strong className="text-zinc-300">Draw</strong> — Click-drag on the grid to extrude a board footprint.</li>
-          <li><strong className="text-zinc-300">Add</strong> — Form-based entry with nominal sizes and species.</li>
-          <li><strong className="text-zinc-300">Cross / Rip / Miter / Join / Trim / Mate</strong> — See sections below.</li>
+          <li><strong className="text-zinc-300">Select</strong> — Click a board to select it and open the radial wheel. Drag the gizmo to move, rotate, or scale.</li>
+          <li><strong className="text-zinc-300">Draw</strong> — Click and drag on the grid to sketch a rectangle footprint; release to create a board. See Continuous Edge Drawing below for chaining.</li>
+          <li><strong className="text-zinc-300">Add</strong> — Place a board with exact dimensions; finish details in the Inspector tab on the right.</li>
+          <li><strong className="text-zinc-300">Cross Cut / Rip Cut / Miter / Trim / Join</strong> — Select a board first, pick the tool, then apply settings from the Inspector panel.</li>
         </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I draw a board?&quot; · &quot;How do I move a board?&quot; · &quot;What is the difference between cross cut and rip cut?&quot;
+        </p>
       </Section>
 
       <Section title="Cross-Cuts & Rip Cuts">
-        <p className="text-zinc-400 mb-1">
-          Select a board, choose the tool, then apply from the Inspector panel.
-        </p>
-        <ul className="space-y-1 list-disc pl-4 text-zinc-400">
-          <li><strong className="text-zinc-300">Cross-Cut</strong> — Vertical chop across the board width.</li>
-          <li><strong className="text-zinc-300">Rip Cut</strong> — Enter a target width; waste strip is removed via CSG.</li>
+        <ol className="space-y-1.5 list-decimal pl-4 text-zinc-400">
+          <li>Select the board you want to cut.</li>
+          <li>Open the <strong className="text-zinc-300">Modify</strong> tab and click <strong className="text-zinc-300">Cross Cut</strong> or <strong className="text-zinc-300">Rip Cut</strong>.</li>
+          <li>In the <strong className="text-zinc-300">Inspector</strong> tab (right sidebar), set the cut position or target width.</li>
+          <li>The cut appears immediately in the 3D view as a CSG subtraction.</li>
+        </ol>
+        <ul className="space-y-1 list-disc pl-4 text-zinc-400 mt-2">
+          <li><strong className="text-zinc-300">Cross-Cut</strong> — A vertical chop across the board width (like a chop saw).</li>
+          <li><strong className="text-zinc-300">Rip Cut</strong> — Enter a target width; the waste strip is removed automatically.</li>
         </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I make a cross cut?&quot; · &quot;What is a rip cut?&quot;
+        </p>
       </Section>
 
       <Section title="Miter & Bevel Guides">
-        <ul className="space-y-1 list-disc pl-4 text-zinc-400">
+        <ol className="space-y-1.5 list-decimal pl-4 text-zinc-400">
+          <li>Select the board and choose <strong className="text-zinc-300">Miter</strong> from the Modify tab.</li>
+          <li>Use the Inspector to set the angle (45° for standard corners, 30° for bevels).</li>
+          <li>For runners on edge, use rotation presets in the Inspector before mitering.</li>
+        </ol>
+        <ul className="space-y-1 list-disc pl-4 text-zinc-400 mt-2">
           <li><strong className="text-zinc-300">45° Miter</strong> — Standard corner joints for frames and trim.</li>
           <li><strong className="text-zinc-300">30° Bevel</strong> — Angled end cuts for roof pitches or decorative edges.</li>
-          <li>Use Inspector rotation presets to orient runners on-edge before mitering.</li>
         </ul>
       </Section>
 
       <Section title="Quick Dimensions Panel">
-        <p className="text-base text-zinc-400">
-          Select any board to see the floating Quick Dimensions panel at the top-right of its screen outline.
-          Edit L (length), W (width), and H (thickness) in actual inches. Nominal size (like 2×4) shows when applicable.
-          Changes apply immediately; undo history records when you leave a field or deselect. Click outside to dismiss.
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Select a board (left-click with the Select tool, or right-click any board).</li>
+          <li>Click the <strong className="text-zinc-300">Dims</strong> segment on the radial wheel, or open it when the wheel first appears.</li>
+          <li>A floating panel appears near the board showing <strong className="text-zinc-300">L</strong> (length), <strong className="text-zinc-300">W</strong> (width), and <strong className="text-zinc-300">H</strong> (thickness) in actual inches.</li>
+          <li>Type new values — changes apply live in the viewport.</li>
+          <li>Press Tab or click outside to finish; undo history records when you leave a field or deselect.</li>
+        </ol>
+        <p className="text-base text-zinc-400 mt-2">
+          Nominal size (like 2×4) displays when your board matches a standard lumber size. Press Escape to close the panel.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I change board size?&quot; · &quot;What is the Quick Dimensions panel?&quot; · &quot;What is nominal vs actual size?&quot;
         </p>
       </Section>
 
       <Section title="Mate Tool — Full Flow">
-        <ul className="space-y-1.5 list-disc pl-4 text-base text-zinc-400">
-          <li><strong className="text-zinc-300">Step 1</strong> — Activate Mate from the tool ribbon or radial wheel. Click a face on the first board (highlighted).</li>
-          <li><strong className="text-zinc-300">Step 2</strong> — Click a face on a <em>different</em> board. They snap flush and a mate record is created.</li>
-          <li><strong className="text-zinc-300">Face grid</strong> — While hovering a face, a ¼&quot; snap grid appears. Click to set the joint origin offset.</li>
-          <li><strong className="text-zinc-300">Attachment points</strong> — Double-click a face to place a named point. Double-click a second point on another board to connect them point-to-point.</li>
-        </ul>
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li><strong className="text-zinc-300">Step 1</strong> — Open the <strong className="text-zinc-300">Joinery</strong> tab and click <strong className="text-zinc-300">Mate</strong>, or click <strong className="text-zinc-300">Mate</strong> on the radial wheel.</li>
+          <li><strong className="text-zinc-300">Step 2</strong> — Click a face on the first board. It highlights and a ¼&quot; grid overlay appears on hover.</li>
+          <li><strong className="text-zinc-300">Step 3</strong> — Optionally click a grid intersection to set where the joint origin sits (amber marker).</li>
+          <li><strong className="text-zinc-300">Step 4</strong> — Click a face on a <em>different</em> board. The second board snaps flush to the first and a mate record is created.</li>
+          <li><strong className="text-zinc-300">Step 5</strong> — Choose a join method from the sub-wheel (see Join Method Sub-Wheel below).</li>
+        </ol>
+        <p className="text-base text-zinc-400 mt-2">
+          <strong className="text-zinc-300">Attachment points</strong> — With Mate active, double-click a face to place a named point (cyan marker).
+          Double-click a second point on another board to connect them point-to-point. Drag a point to reposition it on its face.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I mate two boards?&quot; · &quot;What is the face grid?&quot; · &quot;How do attachment points work?&quot;
+        </p>
       </Section>
 
-      <Section title="Radial Orbital Selector">
-        <p className="text-base text-zinc-400 mb-2">
-          Appears at the top-left of the selected board&apos;s screen outline as a compact HUD arc of pill buttons.
-          Click <strong className="text-zinc-300">•••</strong> to collapse the wheel without deselecting.
+      <Section title="Attachment Points & Face Grid">
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Activate the <strong className="text-zinc-300">Mate</strong> tool from the Joinery tab or radial wheel.</li>
+          <li>Hover any board face — a yellow ¼&quot; snap grid appears on the face.</li>
+          <li>Click a grid intersection to set the joint origin offset (amber sphere marker).</li>
+          <li>Double-click a face to drop a named attachment point (cyan labeled marker).</li>
+          <li>Double-click a second point on another board — the boards snap so the two points meet.</li>
+          <li>Click and drag an attachment point to slide it along its face; connected pairs show a dashed line between them.</li>
+        </ol>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I place an attachment point?&quot; · &quot;Can I move an attachment point?&quot; · &quot;What does the face grid do?&quot;
         </p>
+      </Section>
+
+      <Section title="Radial Orbital Wheel">
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>With the <strong className="text-zinc-300">Select</strong> tool active, left-click any board — the wheel opens every time.</li>
+          <li>Or right-click any board with any tool active — the wheel opens and the context menu appears.</li>
+          <li>The wheel positions itself offset from your click, away from the center of the screen, so it does not cover the board under your cursor.</li>
+          <li>Click a segment to run that action. Click empty space, press Escape, or pick an action to close the wheel.</li>
+          <li>Clicking the same board again keeps the wheel open — it does not toggle off.</li>
+        </ol>
+        <p className="text-base text-zinc-400 mt-2">Five segments:</p>
         <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
-          <li><strong className="text-zinc-300">Dims</strong> — Opens the floating size editor.</li>
+          <li><strong className="text-zinc-300">Dims</strong> — Opens the floating Quick Dimensions editor.</li>
           <li><strong className="text-zinc-300">Mate</strong> — Starts face-pick mating for this board.</li>
-          <li><strong className="text-zinc-300">Join</strong> — Sub-menu for screws, nails, glue, pocket holes, etc. (requires a mate).</li>
           <li><strong className="text-zinc-300">Edge</strong> — Opens the edge treatment tool on the selected board.</li>
-          <li><strong className="text-zinc-300">Copy / Mirror / Solo / Delete</strong> — Common board actions.</li>
+          <li><strong className="text-zinc-300">Flip</strong> — Flips the board 180° across its longest axis.</li>
+          <li><strong className="text-zinc-300">Delete</strong> — Click once to arm, click again within a few seconds to confirm deletion.</li>
         </ul>
-        <p className="text-base text-zinc-500 mt-2">Press Escape or click outside to close join sub-menu. Right-click a mate marker to open join methods only.</p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I open the radial wheel?&quot; · &quot;What does Flip do?&quot; · &quot;How do I delete a board?&quot;
+        </p>
       </Section>
 
       <Section title="Join Method Sub-Wheel">
-        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
-          <li>Screws, Nails, Glue, Pocket Holes, Biscuit, Dowel, Bracket / Hardware, Mortise &amp; Tenon</li>
-          <li>Glue and Mortise &amp; Tenon skip fastener placement; others enter placement mode on the joint face.</li>
-          <li>A small label appears at the mate marker showing the chosen method.</li>
-        </ul>
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Mate two boards first (see Mate Tool section).</li>
+          <li>After the mate is confirmed, the join method sub-wheel opens automatically.</li>
+          <li>Or right-click an existing mate marker in the viewport to reopen join methods for that joint.</li>
+          <li>Pick a method: Screws, Nails, Glue, Pocket Holes, Biscuit, Dowel, Bracket / Hardware, or Mortise &amp; Tenon.</li>
+          <li>Glue and Mortise &amp; Tenon skip fastener placement. All other methods enter placement mode on the joint face.</li>
+        </ol>
+        <p className="text-base text-zinc-400 mt-2">
+          A small label appears at the mate marker showing the chosen method. Use the Multi-Member Quick Join toolbar to mate first, then assign methods.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I choose a join method?&quot; · &quot;When should I use screws vs nails?&quot; · &quot;What are pocket holes?&quot;
+        </p>
       </Section>
 
       <Section title="Physical Fastener Placement">
-        <p className="text-base text-zinc-400">
-          After choosing a join method, click joint faces on the ¼&quot; grid to place 3D fastener geometry.
-          Press Escape or <strong className="text-zinc-300">Done Placing</strong> to exit. Click a fastener to inspect or remove it.
-          Counts appear in the Cut List tab.
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Choose a join method that requires fasteners (Screws, Nails, Pocket Holes, Biscuit, Dowel, or Bracket).</li>
+          <li>Placement mode activates — the joint face shows a ¼&quot; snap grid.</li>
+          <li>Click grid intersections to place 3D fastener meshes on the joint.</li>
+          <li>Click <strong className="text-zinc-300">Done Placing</strong> in the bar at the bottom of the viewport, or press Escape.</li>
+          <li>Click an existing fastener to inspect it or remove it from the info panel.</li>
+        </ol>
+        <p className="text-base text-zinc-400 mt-2">
+          Fastener counts appear in the Cut List tab. Glue and Mortise &amp; Tenon joints do not use this placement step.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I place screws?&quot; · &quot;How do I exit fastener placement?&quot; · &quot;Where do fastener counts show up?&quot;
         </p>
       </Section>
 
       <Section title="Continuous Edge Drawing">
-        <p className="text-base text-zinc-400 mb-2">
-          With the Draw tool active, each new board can chain from the last one — the start point snaps to the nearest corner or edge (amber dot).
-          Dashed amber lines mark join candidates between chained boards. Press Escape or switch tools to end the chain.
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Select the <strong className="text-zinc-300">Draw</strong> tool from the Model tab.</li>
+          <li>Click and drag on the grid to place your first board.</li>
+          <li>Keep Draw active — the next stroke snaps its start to the nearest corner or edge of the last board (amber dot).</li>
+          <li>Dashed amber lines mark join candidates between chained boards.</li>
+          <li>Press <strong className="text-zinc-300">Escape</strong> or switch to another tool to end the chain.</li>
+        </ol>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I chain boards while drawing?&quot; · &quot;What is the amber snap dot?&quot;
         </p>
       </Section>
 
       <Section title="Drag Box Selection">
-        <p className="text-base text-zinc-400 mb-2">
-          In Select mode, click-drag on empty viewport space to rubber-band select multiple boards.
-          Shift+drag adds to the selection. A join toolbar appears when two or more boards are selected.
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Make sure the <strong className="text-zinc-300">Select</strong> tool is active.</li>
+          <li>Click and drag on empty viewport space (not on a board).</li>
+          <li>A dashed amber rectangle appears — release to select every board inside it.</li>
+          <li>Hold <strong className="text-zinc-300">Shift</strong> while dragging to add boards to the current selection instead of replacing it.</li>
+        </ol>
+        <p className="text-base text-zinc-400 mt-2">
+          When two or more boards are selected, the Multi-Member Quick Join toolbar appears automatically.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I select multiple boards?&quot; · &quot;What is box selection?&quot;
         </p>
       </Section>
 
-      <Section title="Multi-Member Quick Join">
-        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
-          <li><strong className="text-zinc-300">Auto-Detect Joints</strong> — Finds flush faces within 0.1&quot; and creates mates.</li>
-          <li><strong className="text-zinc-300">Miter / Butt / Lap</strong> — Quick joint presets; miter adds 45° CSG cuts.</li>
-          <li><strong className="text-zinc-300">Open Radial Wheel</strong> — Assign join methods after mating.</li>
+      <Section title="Multi-Member Quick Join Toolbar">
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Select two or more boards (drag box or Shift+click).</li>
+          <li>A toolbar appears above the selection with these actions:</li>
+        </ol>
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400 mt-1">
+          <li><strong className="text-zinc-300">Auto-Detect Joints</strong> — Finds flush faces within 0.1&quot; and creates mates automatically.</li>
+          <li><strong className="text-zinc-300">Miter</strong> — Adds 45° miter cuts at detected joints.</li>
+          <li><strong className="text-zinc-300">Butt Joint</strong> — Mates boards face-to-face without angle cuts.</li>
+          <li><strong className="text-zinc-300">Lap Joint</strong> — Overlapping joint preset with CSG overlap cuts.</li>
+          <li><strong className="text-zinc-300">Open Radial Wheel</strong> — Opens the wheel on the primary selection to assign join methods.</li>
         </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How does auto-detect joints work?&quot; · &quot;What is a lap joint?&quot; · &quot;How do I join multiple boards at once?&quot;
+        </p>
       </Section>
 
       <Section title="Pepe — Design Assistant">
-        <p className="text-base text-zinc-400 mb-2">
-          Pepe sits at the bottom-right of the sidebar panel — never over the viewport gizmo. Click him to open <strong className="text-zinc-300">Pepe&apos;s Workshop</strong> — fully offline, no internet needed.
-        </p>
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Find Pepe the frog at the <strong className="text-zinc-300">bottom of the left tool panel</strong> (below the tool buttons).</li>
+          <li>Click Pepe to open <strong className="text-zinc-300">Pepe&apos;s Workshop</strong> — fully offline, no internet needed.</li>
+          <li>Switch between two tabs:</li>
+        </ol>
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400 mt-1">
+          <li><strong className="text-zinc-300">Suggestions</strong> — Live rule-based analysis of your project (span warnings, missing prices, overlaps, unset join methods). Click a suggestion to highlight related boards.</li>
+          <li><strong className="text-zinc-300">Ask Pepe</strong> — Type any woodworking or app question. Fuzzy search matches your words to Pepe&apos;s built-in knowledge base.</li>
+        </ul>
+        <p className="text-base text-zinc-400 mt-2">Example questions:</p>
         <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
-          <li><strong className="text-zinc-300">Suggestions</strong> — Live project tips (span warnings, missing prices, overlaps, etc.). Click a suggestion to highlight related boards.</li>
-          <li><strong className="text-zinc-300">Ask Pepe</strong> — Type a woodworking or app question. Try: &quot;How do I use pocket holes?&quot;, &quot;What is kerf?&quot;, &quot;How do I save my project?&quot;</li>
+          <li>&quot;How do I use pocket holes?&quot;</li>
+          <li>&quot;What is kerf?&quot;</li>
+          <li>&quot;How do I save my project?&quot;</li>
+          <li>&quot;How do I open the radial wheel?&quot;</li>
+          <li>&quot;What is assembly mode?&quot;</li>
         </ul>
       </Section>
 
       <Section title="Joinery & Mating">
         <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
-          <li><strong className="text-zinc-300">Pocket Holes</strong> — Dual-sided CSG drills angled pilot holes on both boards. Choose Pocket Holes as a join method or use the Joinery tool in the Inspector.</li>
+          <li><strong className="text-zinc-300">Pocket Holes</strong> — Dual-sided CSG drills angled pilot holes on both boards. Choose Pocket Holes as a join method after mating, or use the Join tool in the Inspector.</li>
           <li><strong className="text-zinc-300">Box / Finger / Dovetail</strong> — Complementary slots cut on mating members. Finger joints use square fingers; dovetails taper for drawer strength.</li>
-          <li><strong className="text-zinc-300">Mate Tool</strong> — See Mate Tool section above for the full face-pick and grid workflow.</li>
+          <li><strong className="text-zinc-300">Mate Tool</strong> — See Mate Tool and Attachment Points sections above for the full face-pick and grid workflow.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What is a dovetail joint?&quot; · &quot;How do pocket holes work in DoveDesign?&quot;
+        </p>
+      </Section>
+
+      <Section title="Edge Treatments">
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Select a board and click <strong className="text-zinc-300">Edge</strong> on the radial wheel, or choose <strong className="text-zinc-300">Edge Treatment</strong> from the Joinery tab.</li>
+          <li>Hover board edges — they highlight amber.</li>
+          <li>Click an edge to select it.</li>
+          <li>Choose a treatment type and set depth or radius in the Inspector.</li>
+          <li>Click <strong className="text-zinc-300">Apply</strong>. Use &quot;Apply to all parallel edges&quot; for uniform profiles.</li>
+        </ol>
+        <p className="text-base text-zinc-400 mt-2">
+          Available types: chamfer, fillet (round-over), cove, ogee, rabbet, and beading. Edge treatments appear in the Cut List tab.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I chamfer an edge?&quot; · &quot;What edge treatments are available?&quot;
+        </p>
+      </Section>
+
+      <Section title="Complex Shapes">
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Open the <strong className="text-zinc-300">Shapes</strong> tab in the left panel.</li>
+          <li>Click a shape button to add it to the scene:</li>
+        </ol>
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400 mt-1">
+          <li><strong className="text-zinc-300">Cylinder</strong> — Round column or dowel stock.</li>
+          <li><strong className="text-zinc-300">Sphere</strong> — Ball or knob form.</li>
+          <li><strong className="text-zinc-300">Cone</strong> — Tapered form.</li>
+          <li><strong className="text-zinc-300">Triangle Prism</strong> — Three-sided structural gusset or column.</li>
+          <li><strong className="text-zinc-300">Hexagon Prism</strong> — Six-sided column.</li>
+          <li><strong className="text-zinc-300">Custom Polygon</strong> — Click vertices on the ¼&quot; grid to outline a footprint, close the shape, then set extrusion height. Drag vertex handles to adjust.</li>
+        </ul>
+        <p className="text-base text-zinc-400 mt-2">
+          Rectangle boards still use the <strong className="text-zinc-300">Draw</strong> tool in the Model tab.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I add a cylinder?&quot; · &quot;How does custom polygon work?&quot;
+        </p>
+      </Section>
+
+      <Section title="Assembly Mode">
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Click <strong className="text-zinc-300">Mode</strong> in the top ribbon and choose <strong className="text-zinc-300">Assembly</strong>.</li>
+          <li>Boards explode and spread flat on the grid with spacing between them.</li>
+          <li>Drag boards together and mate joints one at a time in build order.</li>
+          <li>Each mate records a step in the <strong className="text-zinc-300">Assembly Guide</strong> panel.</li>
+          <li>Use <strong className="text-zinc-300">Reset Assembly</strong> to re-spread the flat layout.</li>
+          <li>Use <strong className="text-zinc-300">Export Assembly Guide</strong> to download a plain-text build checklist.</li>
+        </ol>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What is assembly mode?&quot; · &quot;How do I export an assembly guide?&quot;
+        </p>
+      </Section>
+
+      <Section title="Display Modes">
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Find the <strong className="text-zinc-300">Display</strong> dropdown in the top ribbon.</li>
+          <li>Choose a mode:</li>
+        </ol>
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400 mt-1">
+          <li><strong className="text-zinc-300">Shaded</strong> — Default solid wood appearance with grain texture.</li>
+          <li><strong className="text-zinc-300">Wireframe</strong> — Structure outline only, no fill.</li>
+          <li><strong className="text-zinc-300">Shaded + Edges</strong> — Solid fill with orange edge lines.</li>
+          <li><strong className="text-zinc-300">X-Ray</strong> — Semi-transparent boards so internal joinery and fasteners stay visible.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I see inside my project?&quot; · &quot;What is X-Ray mode?&quot;
+        </p>
+      </Section>
+
+      <Section title="Hardware Library">
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Open the <strong className="text-zinc-300">Hardware</strong> tab in the right sidebar.</li>
+          <li>Browse labeled items with inline previews: drawer slides, hinges, pulls, shelf pins, cam locks, brackets, and barrel bolts.</li>
+          <li>Click an item to arm placement mode.</li>
+          <li>Click a board face in the viewport to place the hardware at that location.</li>
+        </ol>
+        <p className="text-base text-zinc-400 mt-2">
+          Placed hardware appears in the Hardware list and counts toward estimating.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I place a hinge?&quot; · &quot;Where is the hardware library?&quot;
+        </p>
+      </Section>
+
+      <Section title="Top Ribbon & Right Sidebar">
+        <p className="text-base text-zinc-400 mb-2">
+          <strong className="text-zinc-300">Top ribbon</strong> — File (save, open, new), View (grid, camera, orthographic), Help, Mode (Design / Assembly),
+          Display dropdown (Shaded, Wireframe, Shaded + Edges, X-Ray), and Undo / Redo.
+        </p>
+        <p className="text-base text-zinc-400">
+          <strong className="text-zinc-300">Right sidebar tabs</strong> — Inspector (selected board properties), Estimating (cost ledger),
+          Cut List (lumber nesting and fastener counts), Engineering (beam deflection), Hardware (library and placed items), and Tutorial (this guide).
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I save my project?&quot; · &quot;Where is the cut list?&quot; · &quot;How do I switch to assembly mode?&quot;
+        </p>
+      </Section>
+
+      <Section title="Right-Click Context Menu">
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li>Right-click any board to open the context menu and the radial wheel at the same time.</li>
+          <li>Right-click empty space for viewport actions.</li>
+        </ol>
+        <p className="text-base text-zinc-400 mt-2">On a board:</p>
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
+          <li><strong className="text-zinc-300">Delete Member</strong> — Remove the board.</li>
+          <li><strong className="text-zinc-300">Duplicate / Copy</strong> — Make a copy offset from the original.</li>
+          <li><strong className="text-zinc-300">Mirror</strong> — Mirror across an axis.</li>
+          <li><strong className="text-zinc-300">Open Joinery Menu</strong> — Jump to joinery tools for this board.</li>
+          <li><strong className="text-zinc-300">Solo</strong> — Hide all other boards to focus on this one. Choose Show All Boards to restore.</li>
+        </ul>
+        <p className="text-base text-zinc-400 mt-2">On empty space:</p>
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
+          <li><strong className="text-zinc-300">Reset Camera</strong> — Return to the default view.</li>
+          <li><strong className="text-zinc-300">Clear Selection</strong> — Deselect all boards.</li>
+          <li><strong className="text-zinc-300">Undo Last Action</strong> — Step back one change.</li>
         </ul>
       </Section>
 
       <Section title="Workbench Quick-Start Blueprint">
         <ol className="space-y-2 list-decimal pl-4 text-zinc-400">
           <li>
-            <strong className="text-zinc-300">Top slab</strong> — Draw a 48" × 24" plywood sheet on the grid
+            <strong className="text-zinc-300">Top slab</strong> — Draw a 48&quot; × 24&quot; plywood sheet on the grid
             (material: Baltic Birch or CDX Plywood).
           </li>
           <li>
-            <strong className="text-zinc-300">Four legs</strong> — Add four 4×4×29" members (nominal 4×4, length 29").
+            <strong className="text-zinc-300">Four legs</strong> — Add four 4×4×29&quot; members (nominal 4×4, length 29&quot;).
             Use rotation preset <em>Vertical leg (90° Z)</em> on each leg.
           </li>
           <li>
             <strong className="text-zinc-300">Position legs</strong> — Move each leg to a corner under the top using
-            the translate gizmo; face snapping engages within 0.5".
+            the translate gizmo; use the Mate tool for precise face alignment.
           </li>
           <li>
-            <strong className="text-zinc-300">Apron framing</strong> — Add 2×4×18" stretchers between legs.
+            <strong className="text-zinc-300">Apron framing</strong> — Add 2×4×18&quot; stretchers between legs.
             Orient on-edge (90° X) and mate faces flush to leg tops.
           </li>
           <li>
-            <strong className="text-zinc-300">Joinery</strong> — Apply pocket holes between aprons and legs,
-            or use the Mate tool for precise face alignment.
+            <strong className="text-zinc-300">Joinery</strong> — Mate aprons to legs, then choose Pocket Holes as the join method and place fasteners.
           </li>
           <li>
             <strong className="text-zinc-300">Review</strong> — Check the Estimating tab for cost ledger and
             Cut List for optimized lumber and sheet layouts.
           </li>
         </ol>
-      </Section>
-
-      <Section title="Edge Treatments">
-        <p className="text-base text-zinc-400">
-          Use the radial wheel Chamfer / Edge segment or the Edge tool in the ribbon. Hover edges (amber highlight),
-          click to select, choose treatment type and depth/radius, then Apply. Options include chamfer, fillet,
-          cove, ogee, rabbet, and beading. Edge treatments appear in the Cut List tab.
-        </p>
-      </Section>
-
-      <Section title="Complex Shapes">
-        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
-          <li><strong className="text-zinc-300">Rectangle</strong> — Draw tool (unchanged).</li>
-          <li><strong className="text-zinc-300">Cylinder / Sphere / Cone</strong> — Shapes group in the tool ribbon.</li>
-          <li><strong className="text-zinc-300">Triangle / Hexagonal prism</strong> — Structural gussets or columns.</li>
-          <li><strong className="text-zinc-300">Custom polygon</strong> — Click vertices on ¼&quot; grid, close shape, set height.</li>
-        </ul>
-      </Section>
-
-      <Section title="Assembly Mode">
-        <p className="text-base text-zinc-400">
-          Toggle Assembly Mode in the top ribbon. Boards explode flat with spacing. Mate them in build order;
-          steps record in the Assembly Guide. Export prints a plain-text checklist. Reset Assembly re-spreads the layout.
-        </p>
-      </Section>
-
-      <Section title="Display Modes">
-        <p className="text-base text-zinc-400">
-          Top ribbon Display selector: Shaded, Wireframe, Shaded + Edges, or X-Ray (semi-transparent members).
-        </p>
-      </Section>
-
-      <Section title="Hardware Library">
-        <p className="text-base text-zinc-400">
-          Hardware tab — browse labeled items with inline previews. Click to place on a board face.
-          Includes slides, hinges, pulls, pins, cam locks, brackets, and barrel bolts.
-        </p>
       </Section>
 
       <Section title="Viewport Navigation">
@@ -204,12 +403,22 @@ export default function TutorialPanel() {
         </ul>
       </Section>
 
-      <Section title="Keyboard Shortcuts">
-        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400 font-mono">
-          <li>Esc — Cancel tool / clear draw preview</li>
-          <li>Ctrl+Z — Undo</li>
-          <li>Ctrl+Y — Redo</li>
-          <li>Right-click — Context menu (Delete, Duplicate, Joinery, Isolate)</li>
+      <Section title="Keyboard Shortcuts & Escape Priority">
+        <p className="text-base text-zinc-400 mb-2">
+          Press <strong className="text-zinc-300">Escape</strong> repeatedly to step through open UI in this order:
+        </p>
+        <ol className="space-y-1 list-decimal pl-4 text-base text-zinc-400">
+          <li>Close the right-click context menu (if open).</li>
+          <li>Exit fastener placement mode.</li>
+          <li>Cancel the Draw tool / end a draw chain.</li>
+          <li>Close the Quick Dimensions panel.</li>
+          <li>Close the radial wheel.</li>
+          <li>Deselect all boards.</li>
+        </ol>
+        <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400 mt-3 font-mono">
+          <li><span className="font-sans text-zinc-400">Ctrl+Z</span> — Undo</li>
+          <li><span className="font-sans text-zinc-400">Ctrl+Y</span> — Redo</li>
+          <li><span className="font-sans text-zinc-400">Right-click</span> — Context menu + radial wheel on boards</li>
         </ul>
       </Section>
     </div>
