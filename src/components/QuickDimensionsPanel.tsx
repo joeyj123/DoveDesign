@@ -69,7 +69,7 @@ export default function QuickDimensionsPanel() {
 
   const inputCls = (field: string) =>
     [
-      'w-full rounded border px-2 py-1.5 text-base bg-zinc-900 text-zinc-100',
+      'w-full rounded border px-2 text-sm bg-zinc-900 text-zinc-100 h-8',
       focused === field
         ? 'border-amber-500 ring-2 ring-amber-500/40'
         : 'border-zinc-600',
@@ -78,15 +78,15 @@ export default function QuickDimensionsPanel() {
   return (
     <div
       ref={panelRef}
-      className="absolute z-30 pointer-events-auto rounded-xl border-2 border-amber-500/50 bg-zinc-950/95 shadow-xl p-3 space-y-2"
+      className="floating-panel absolute z-30 pointer-events-auto p-3 space-y-2 max-w-[220px]"
       style={{ left, top, width: panelW }}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <p className="text-base font-semibold text-amber-200">Quick Dimensions</p>
+      <p className="text-sm font-semibold text-amber-200">Quick Dimensions</p>
       {nom && (
-        <p className="text-base text-zinc-400">Nominal: {nom}</p>
+        <p className="text-sm text-zinc-400">Nominal: {nom}</p>
       )}
-      <label className="flex flex-col gap-1 text-base text-zinc-300">
+      <label className="flex flex-col gap-1 text-sm text-zinc-300">
         L (length)
         <input
           type="text"
@@ -103,7 +103,7 @@ export default function QuickDimensionsPanel() {
           }}
         />
       </label>
-      <label className="flex flex-col gap-1 text-base text-zinc-300">
+      <label className="flex flex-col gap-1 text-sm text-zinc-300">
         W (width)
         <input
           type="text"
@@ -120,7 +120,7 @@ export default function QuickDimensionsPanel() {
           }}
         />
       </label>
-      <label className="flex flex-col gap-1 text-base text-zinc-300">
+      <label className="flex flex-col gap-1 text-sm text-zinc-300">
         H (thickness)
         <input
           type="text"

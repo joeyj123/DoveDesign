@@ -40,13 +40,14 @@ export default function BoxSelectionHandler() {
     function onPointerUp(e: PointerEvent) {
       const d = pendingRef.current;
       if (!d) return;
+      const dragged = Math.hypot(e.clientX - d.x, e.clientY - d.y) >= DRAG_THRESHOLD;
       setBoxSelectPending(null);
       setOrbitControlsEnabled(true);
 
       const rect = useAppStore.getState().ui.boxSelectRect;
       setBoxSelectRect(null);
 
-      if (!rect || Math.hypot(e.clientX - d.x, e.clientY - d.y) < DRAG_THRESHOLD) {
+      if (!rect || !dragged) {
         if (!d.shiftKey) selectMember(null);
         return;
       }

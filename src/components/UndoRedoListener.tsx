@@ -6,13 +6,55 @@ export function UndoRedoListener() {
   const redo = useAppStore((s) => s.redo);
   const resetToolState = useAppStore((s) => s.resetToolState);
   const closeContextMenu = useAppStore((s) => s.closeContextMenu);
+  const selectMember = useAppStore((s) => s.selectMember);
+  const setRadialWheelOpen = useAppStore((s) => s.setRadialWheelOpen);
+  const setRadialWheelCollapsed = useAppStore((s) => s.setRadialWheelCollapsed);
+  const setQuickDimensionsOpen = useAppStore((s) => s.setQuickDimensionsOpen);
+  const setFastenerPlacementMode = useAppStore((s) => s.setFastenerPlacementMode);
+  const cancelDrawBoard = useAppStore((s) => s.cancelDrawBoard);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault();
+        const ui = useAppStore.getState().ui;
+
+        if (ui.contextMenu.open) {
+          closeContextMenu();
+          return;
+        }
+
+        if (ui.fastenerPlacementMode) {
+          setFastenerPlacementMode(false, null);
+          return;
+        }
+
+        if (ui.activeTool === 'drawBoard') {
+          cancelDrawBoard();
+          return;
+        }
+
+        if (ui.quickDimensionsOpen) {
+          setQuickDimensionsOpen(false);
+          return;
+        }
+
+        if (ui.radialWheelOpen && !ui.radialWheelCollapsed) {
+          setRadialWheelCollapsed(true);
+          return;
+        }
+
+        if (ui.radialWheelOpen && ui.radialWheelCollapsed) {
+          setRadialWheelOpen(false);
+          return;
+        }
+
+        if (ui.selectedMemberId || ui.multiSelection.length > 0) {
+          selectMember(null);
+          return;
+        }
+
         resetToolState();
-        closeContextMenu();
         return;
       }
 
@@ -28,7 +70,18 @@ export function UndoRedoListener() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [undo, redo, resetToolState, closeContextMenu]);
+  }, [
+    undo,
+    redo,
+    resetToolState,
+    closeContextMenu,
+    selectMember,
+    setRadialWheelOpen,
+    setRadialWheelCollapsed,
+    setQuickDimensionsOpen,
+    setFastenerPlacementMode,
+    cancelDrawBoard,
+  ]);
 
   return null;
 }

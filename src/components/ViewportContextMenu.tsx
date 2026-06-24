@@ -55,7 +55,8 @@ export default function ViewportContextMenu() {
         <>
           <MenuItem label="Delete Member" onClick={() => run(() => removeMember(memberId))} danger />
           <MenuItem label="Duplicate" onClick={() => run(() => duplicateMember(memberId))} />
-          <MenuItem label="Mirror (X)" onClick={() => run(() => mirrorMember(memberId, 'x'))} />
+          <MenuItem label="Copy" onClick={() => run(() => duplicateMember(memberId))} />
+          <MenuItem label="Mirror" onClick={() => run(() => mirrorMember(memberId, 'x'))} />
           <MenuItem
             label="Open Joinery Menu"
             onClick={() => run(() => {
@@ -65,7 +66,7 @@ export default function ViewportContextMenu() {
             })}
           />
           <MenuItem
-            label={isolatedMemberId === memberId ? 'Show All Boards' : 'Isolate Selection'}
+            label={isolatedMemberId === memberId ? 'Show All Boards' : 'Solo'}
             onClick={() => run(() =>
               setIsolatedMember(isolatedMemberId === memberId ? null : memberId)
             )}

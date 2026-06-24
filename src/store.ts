@@ -241,6 +241,7 @@ interface AppStore {
   setLastPlacedMemberId: (id: string | null) => void;
   addDrawChainLink: (fromApId: string, toApId: string) => void;
   setDrawSnapIndicator: (pt: UIState['drawSnapIndicator']) => void;
+  cancelDrawBoard: () => void;
   setQuickJoinMiterAxis: (axis: UIState['quickJoinMiterAxis']) => void;
   autoDetectJoints: () => string[];
   applyButtJoints: () => void;
@@ -497,7 +498,7 @@ export const useAppStore = create<AppStore>()(
         ...s.ui,
         selectedMemberId: id,
         multiSelection: id ? [id] : [],
-        quickDimensionsOpen: id !== null,
+        quickDimensionsOpen: false,
         radialWheelOpen: id !== null,
         radialWheelMode: 'full',
         radialWheelCollapsed: false,
@@ -521,7 +522,7 @@ export const useAppStore = create<AppStore>()(
         ...s.ui,
         multiSelection: ids,
         selectedMemberId: ids[0] ?? null,
-        quickDimensionsOpen: ids.length === 1,
+        quickDimensionsOpen: false,
         radialWheelOpen: ids.length === 1,
         radialWheelCollapsed: false,
         quickJoinMiterAxis: null,
@@ -1020,6 +1021,16 @@ export const useAppStore = create<AppStore>()(
 
   setDrawSnapIndicator: (pt) =>
     set((s) => ({ ui: { ...s.ui, drawSnapIndicator: pt } })),
+
+  cancelDrawBoard: () =>
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        drawBoardCancelNonce: s.ui.drawBoardCancelNonce + 1,
+        drawSnapIndicator: null,
+        orbitControlsEnabled: true,
+      },
+    })),
 
   setQuickJoinMiterAxis: (axis) =>
     set((s) => ({ ui: { ...s.ui, quickJoinMiterAxis: axis } })),

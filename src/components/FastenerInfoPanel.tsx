@@ -11,15 +11,15 @@ export default function FastenerInfoPanel() {
   if (!selectedId || !fastener) return null;
 
   return (
-    <div className="absolute bottom-4 left-4 z-40 bg-zinc-950/95 border-2 border-amber-500/50 rounded-xl p-4 space-y-2 pointer-events-auto min-w-[220px]">
-      <p className="text-base font-semibold text-amber-200">Fastener</p>
-      <p className="text-base text-zinc-300">Type: {fastener.type}</p>
-      <p className="text-base text-zinc-400 font-mono text-sm">
+    <div className="floating-panel absolute bottom-4 left-4 z-40 p-3 space-y-2 pointer-events-auto max-w-[200px]">
+      <p className="text-sm font-semibold text-amber-200">Fastener</p>
+      <p className="text-sm text-zinc-300">Type: {fastener.type}</p>
+      <p className="text-sm text-zinc-400 font-mono">
         ({fastener.position.map((n) => n.toFixed(2)).join(', ')})
       </p>
       <button
         type="button"
-        className="btn-secondary w-full text-base py-2"
+        className="btn-secondary w-full text-sm py-1.5"
         onClick={() => {
           removeFastener(fastener.id);
           setSelectedFastenerId(null);

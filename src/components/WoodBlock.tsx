@@ -93,6 +93,11 @@ export default function WoodBlock({ member }: Props) {
 
   function handleClick(e: ThreeEvent<MouseEvent>) {
     e.stopPropagation();
+
+    const ui = useAppStore.getState().ui;
+    if (ui.boxSelectRect) return;
+    if (activeTool === 'drawBoard') return;
+
     setBoxSelectPending(null);
 
     if (activeTool === 'placeHardware' && hardwareLibraryPick && e.face) {
@@ -140,11 +145,22 @@ export default function WoodBlock({ member }: Props) {
       return;
     }
 
+    if (activeTool === 'select') {
+      if (selectedId === member.id && multiSelection.length === 1) {
+        return;
+      }
+      selectMember(member.id);
+      return;
+    }
+
     selectMember(member.id);
   }
 
   function handlePointerDown(e: ThreeEvent<PointerEvent>) {
-    if (e.button === 0) setBoxSelectPending(null);
+    if (e.button !== 0) return;
+    if (activeTool === 'drawBoard') return;
+    const ui = useAppStore.getState().ui;
+    if (ui.boxSelectRect) return;
   }
 
   function handlePointerMove(e: ThreeEvent<PointerEvent>) {

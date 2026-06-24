@@ -115,8 +115,8 @@ function PepeSvg({
   );
 }
 
-/** Floats on the viewport's left edge, just right of the tool ribbon. */
-export default function PepeAssistant() {
+/** Pepe assistant embedded at the bottom of the left tool panel. */
+export function PepeEmbedded() {
   const open = useAppStore((s) => s.ui.pepePanelOpen);
   const tab = useAppStore((s) => s.ui.pepeTab);
   const expression = useAppStore((s) => s.ui.pepeExpression);
@@ -129,7 +129,6 @@ export default function PepeAssistant() {
 
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState('');
-  const [hovered, setHovered] = useState(false);
 
   const search = useCallback(
     (q: string) => {
@@ -154,39 +153,31 @@ export default function PepeAssistant() {
     [setPepeExpression]
   );
 
-  const iconSize = hovered || open ? 48 : 40;
-
   return (
-    <div className="absolute bottom-4 left-3 z-40 flex flex-col items-start pointer-events-none">
+    <div className="flex flex-col items-center">
       {open && (
-        <div
-          className="absolute left-full bottom-0 ml-2 pointer-events-auto bg-zinc-950/95 border-2 border-green-600 rounded-2xl p-4 w-[min(300px,calc(100vw-6rem))] shadow-xl z-50"
-        >
-          <div
-            className="absolute left-0 top-auto bottom-4 -translate-x-1/2 w-4 h-4 bg-zinc-950 border-l-2 border-b-2 border-green-600 rotate-45"
-            aria-hidden
-          />
-          <h2 className="text-base font-bold text-green-300 mb-3">Pepe&apos;s Workshop</h2>
-          <div className="flex gap-2 mb-3">
+        <div className="w-full mb-2 pointer-events-auto bg-zinc-950/95 border-2 border-green-600 rounded-xl p-3 shadow-lg max-h-64 overflow-y-auto sidebar-scroll">
+          <h2 className="text-base font-bold text-green-300 mb-2">Pepe&apos;s Workshop</h2>
+          <div className="flex gap-1 mb-2">
             {(['suggestions', 'ask'] as const).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setPepeTab(t)}
                 className={[
-                  'text-base px-3 py-2 rounded-lg border-2 font-medium',
+                  'text-base px-2 py-1 rounded-lg border-2 font-medium flex-1',
                   tab === t
                     ? 'border-green-500 bg-green-950/50 text-green-200'
                     : 'border-zinc-700 text-zinc-400 hover:border-zinc-600',
                 ].join(' ')}
               >
-                {t === 'suggestions' ? 'Suggestions' : 'Ask Pepe'}
+                {t === 'suggestions' ? 'Tips' : 'Ask'}
               </button>
             ))}
           </div>
 
           {tab === 'suggestions' && (
-            <ul className="space-y-2 max-h-52 overflow-y-auto">
+            <ul className="space-y-1.5">
               {suggestions.length === 0 ? (
                 <li className="text-base text-zinc-400">Looking good! No suggestions right now.</li>
               ) : (
@@ -195,7 +186,7 @@ export default function PepeAssistant() {
                     <button
                       type="button"
                       className={[
-                        'w-full text-left text-base p-3 rounded-lg border-2',
+                        'w-full text-left text-base p-2 rounded-lg border-2',
                         s.severity === 'warning'
                           ? 'border-amber-600/60 bg-amber-950/30 text-amber-100'
                           : s.severity === 'error'
@@ -218,7 +209,7 @@ export default function PepeAssistant() {
           )}
 
           {tab === 'ask' && (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <label className="flex flex-col gap-1 text-base text-zinc-300">
                 Your question
                 <input
@@ -226,7 +217,7 @@ export default function PepeAssistant() {
                   className="input-field text-base"
                   value={query}
                   onChange={(e) => search(e.target.value)}
-                  placeholder="e.g. How do I use pocket holes?"
+                  placeholder="e.g. pocket holes?"
                 />
               </label>
               {answer && (
@@ -247,20 +238,17 @@ export default function PepeAssistant() {
       <button
         type="button"
         onClick={() => setPepePanelOpen(!open)}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
         className={[
-          'pointer-events-auto flex items-center justify-center rounded-xl border-2 border-green-600/80',
-          'bg-zinc-900/95 hover:border-green-400 transition-all shadow-md mx-1',
+          'flex items-center justify-center rounded-xl border-2 border-green-600/80 w-10 h-10',
+          'bg-zinc-900/95 hover:border-green-400 transition-all shadow-md',
           open ? 'border-green-400' : '',
         ].join(' ')}
-        style={{ width: iconSize, height: iconSize }}
         aria-label="Talk to Pepe"
         title="Pepe — design assistant"
       >
-        <PepeSvg expression={open ? expression : 'neutral'} size={iconSize - 4} />
+        <PepeSvg expression={open ? expression : 'neutral'} size={32} />
       </button>
-      <span className="pointer-events-none text-[9px] font-semibold text-zinc-500 mt-1">Pepe</span>
+      <span className="text-[10px] font-semibold text-zinc-500 mt-1">Pepe</span>
     </div>
   );
 }

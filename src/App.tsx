@@ -1,6 +1,6 @@
 import { UndoRedoListener } from './components/UndoRedoListener';
 import SystemRibbon from './components/SystemRibbon';
-import ToolRibbon from './components/ToolRibbon';
+import LeftToolPanel from './components/LeftToolPanel';
 import Viewport from './components/Viewport';
 import RightSidebar from './components/RightSidebar';
 import AssemblyGuidePanel from './components/AssemblyGuidePanel';
@@ -12,7 +12,7 @@ export default function App() {
       <UndoRedoListener />
       <SystemRibbon />
       <div className="flex flex-1 min-h-0">
-        <ToolRibbon />
+        <LeftToolPanel />
         <Viewport />
         <AssemblyGuidePanel />
         <EdgeTreatmentPanel />

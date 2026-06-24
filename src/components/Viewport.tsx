@@ -18,7 +18,6 @@ import FastenerPlacementBar from './FastenerPlacementBar';
 import FastenerInfoPanel from './FastenerInfoPanel';
 import QuickJoinToolbar from './QuickJoinToolbar';
 import BoxSelectionHandler from './BoxSelectionHandler';
-import PepeAssistant from './PepeAssistant';
 import DesignSuggestionsBridge from './DesignSuggestionsBridge';
 import PlacedHardwareMeshes from './PlacedHardwareMeshes';
 import AttachmentPointLinks, { PolygonDrawTool } from './AttachmentPointLinks';
@@ -68,7 +67,6 @@ export default function Viewport() {
       <FastenerInfoPanel />
       <QuickJoinToolbar />
       <BoxSelectionHandler />
-      <PepeAssistant />
       <DesignSuggestionsBridge />
       <Canvas
         style={{ width: '100%', height: '100%' }}
@@ -78,13 +76,13 @@ export default function Viewport() {
           gl.setClearColor('#09090b');
         }}
         onPointerMissed={(e) => {
-          if (activeTool === 'select') {
-            setBoxSelectPending({
+          if (activeTool !== 'select') return;
+          if (useAppStore.getState().ui.boxSelectRect) return;
+          setBoxSelectPending({
               x: e.clientX,
               y: e.clientY,
               shiftKey: e.shiftKey,
             });
-          }
         }}
       >
         <AdaptiveCamera />
