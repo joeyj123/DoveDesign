@@ -57,6 +57,7 @@ export default function Viewport() {
   const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
   const setRadialWheelOpen = useAppStore((s) => s.setRadialWheelOpen);
   const activeTool   = useAppStore((s) => s.ui.activeTool);
+  const mateFaceA    = useAppStore((s) => s.ui.mateFaceA);
   const gridVisible  = useAppStore((s) => s.ui.gridVisible);
   const showWelcome  = members.length === 0;
 
@@ -68,6 +69,11 @@ export default function Viewport() {
     >
       <KeyboardShortcuts />
       <ViewportContextMenu />
+      {activeTool === 'mate' && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg bg-zinc-900/90 border border-amber-500/40 text-base text-amber-100 pointer-events-none">
+          {mateFaceA ? 'Now click a face on the second board' : 'Click a face on the first board — it will glow'}
+        </div>
+      )}
       {showWelcome && <ViewportWelcome />}
       <QuickDimensionsPanel />
       <RadialOrbitalSelector />

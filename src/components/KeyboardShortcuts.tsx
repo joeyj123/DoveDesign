@@ -113,10 +113,30 @@ export default function KeyboardShortcuts() {
           if (store.ui.selectedMemberId) {
             const m = store.project.members.find((mem) => mem.id === store.ui.selectedMemberId);
             if (m) {
+              const currentRy = m.rotation[1];
+              const normalized = ((currentRy % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+              const isFlipped = normalized > 0.1 && Math.abs(normalized - Math.PI) < 0.5;
               store.updateMember(store.ui.selectedMemberId, {
-                rotation: [m.rotation[0], m.rotation[1] + Math.PI, m.rotation[2]],
+                rotation: [m.rotation[0], isFlipped ? 0 : Math.PI, m.rotation[2]],
               });
             }
+          }
+          break;
+
+        case 'c':
+        case 'C':
+          if (!e.ctrlKey) {
+            store.setActiveTool('cut');
+          }
+          break;
+
+        case 'Tab':
+          e.preventDefault();
+          if (store.ui.selectedMemberId && store.ui.transformGizmoActive) {
+            const modes = ['translate', 'rotate', 'scale'] as const;
+            const current = store.ui.transformMode;
+            const nextIdx = (modes.indexOf(current) + 1) % modes.length;
+            store.setTransformMode(modes[nextIdx]);
           }
           break;
       }

@@ -28,8 +28,10 @@ export default function TutorialPanel() {
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">R</kbd> — Switch to Rip Cut tool</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">D</kbd> — Duplicate selected board</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">G</kbd> — Toggle grid on / off</li>
-          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">J</kbd> — Activate Mate tool (Join boards)</li>
-          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">F</kbd> — Flip selected board 180°</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">C</kbd> — Cross Cut tool</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">J</kbd> — Mate / Join tool (join boards face to face)</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">F</kbd> — Flip board (toggles between normal and flipped — press again to flip back)</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Tab</kbd> — Cycle through Move / Rotate / Scale when move arrows are active</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Delete</kbd> — Delete selected board</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Z</kbd> — Undo</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Y</kbd> — Redo</li>
@@ -64,7 +66,8 @@ export default function TutorialPanel() {
           <li><strong className="text-zinc-300">Select</strong> — Click a board to highlight it. Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Space</kbd> to open the radial wheel. Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">M</kbd> to activate move arrows. Shift+click to multi-select.</li>
           <li><strong className="text-zinc-300">Draw</strong> — Click and drag on the grid to sketch a rectangle footprint; release to create a board. See Continuous Edge Drawing below for chaining.</li>
           <li><strong className="text-zinc-300">Add</strong> — Place a board with exact dimensions; finish details in the Inspector tab on the right.</li>
-          <li><strong className="text-zinc-300">Cross Cut / Rip Cut / Miter / Trim / Join</strong> — Select a board first, pick the tool, then apply settings from the Inspector panel.</li>
+          <li><strong className="text-zinc-300">Cross Cut (C)</strong> — Select a board, press C, then set the cut position in the Inspector panel on the right.</li>
+          <li><strong className="text-zinc-300">Rip Cut / Miter / Trim / Join</strong> — Select a board first, pick the tool, then apply settings from the Inspector panel.</li>
         </ul>
         <p className="text-base text-zinc-500 mt-2">
           <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I draw a board?&quot; · &quot;How do I move a board?&quot; · &quot;What is the difference between cross cut and rip cut?&quot;
@@ -123,6 +126,9 @@ export default function TutorialPanel() {
           <li><strong className="text-zinc-300">Step 4</strong> — Click a face on a <em>different</em> board. The second board snaps flush to the first and a mate record is created.</li>
           <li><strong className="text-zinc-300">Step 5</strong> — Choose a join method from the sub-wheel (see Join Method Sub-Wheel below).</li>
         </ol>
+        <p className="text-base text-zinc-400 mt-2">
+          <strong className="text-zinc-300">Controlling where boards attach:</strong> When you click a face, click near the EDGE of the face to attach there, or near the CENTER to attach at the center. The ¼&quot; snap grid on the face helps you place the joint precisely. The board will snap so that exact point on face B meets that exact point on face A.
+        </p>
         <p className="text-base text-zinc-400 mt-2">
           <strong className="text-zinc-300">Attachment points</strong> — With Mate active, double-click a face to place a named point (cyan marker).
           Double-click a second point on another board to connect them point-to-point. Drag a point to reposition it on its face.

@@ -28,7 +28,7 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     topic: 'Keyboard shortcuts',
     keywords: ['keyboard', 'shortcut', 'hotkey', 'key', 'shortcuts', 'ctrl', 'escape', 'delete', 'undo', 'redo', 'space'],
     answer:
-      'DoveDesign shortcuts: Space = open radial wheel on selected board, Escape = cancel/deselect, S = select tool, B = draw board, M = move selected board (shows transform arrows), R = rip cut, D = duplicate, G = toggle grid, Delete = delete board, Ctrl+Z = undo, Ctrl+Y = redo, Shift+drag = box select.',
+      'DoveDesign shortcuts: Space = open radial wheel, Escape = cancel/deselect, S = select tool, B = draw board, C = cross cut, M = move (shows transform arrows), Tab = cycle Move/Rotate/Scale, R = rip cut, J = mate/join boards, F = flip board (toggle), D = duplicate, G = toggle grid, Delete = delete board, Ctrl+Z = undo, Ctrl+Y = redo, Shift+drag = box select.',
   },
   {
     id: 'how-move-board',
@@ -78,6 +78,41 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     keywords: ['mate', 'not working', 'wont snap', 'attach fail', 'boards wont connect', 'join broken'],
     answer:
       'Make sure you click two DIFFERENT boards. Click a face on board A first (other boards turn blue), then click any face on board B. They snap together. Press J to start the Mate tool.',
+  },
+  {
+    id: 'how-control-attach-offset',
+    topic: 'How to control where boards attach',
+    keywords: ['attach', 'offset', 'where', 'edge', 'center', 'mate offset', 'joint position', 'control where'],
+    answer:
+      'When using the Mate tool (J), click near the edge of a face to attach there, or near the center to attach at the center. The grid on the face helps you pick exactly where the joint sits.',
+  },
+  {
+    id: 'how-crosscut',
+    topic: 'How to cross cut a board',
+    keywords: ['crosscut', 'cross cut', 'chop', 'c key', 'cut shortcut', 'cut length'],
+    answer:
+      'Select the board, press C to activate the Cross Cut tool, then set the cut position in the Inspector panel on the right.',
+  },
+  {
+    id: 'tab-cycle-transform',
+    topic: 'Tab key cycles Move Rotate Scale',
+    keywords: ['tab', 'cycle', 'transform mode', 'rotate mode', 'scale mode', 'switch mode'],
+    answer:
+      'When move arrows are active (press M first), pressing Tab cycles between Move, Rotate, and Scale transform modes.',
+  },
+  {
+    id: 'how-cycle-transform',
+    topic: 'How to cycle between move rotate and scale',
+    keywords: ['cycle', 'between', 'move rotate scale', 'transform modes', 'how do i switch'],
+    answer:
+      'First press M to activate move arrows, then press Tab to cycle through Move, Rotate, and Scale modes.',
+  },
+  {
+    id: 'flip-toggle',
+    topic: 'How to flip a board back',
+    keywords: ['flip back', 'undo flip', 'toggle flip', 'f key flip'],
+    answer:
+      'Press F again to flip it back. F toggles between normal and flipped — it won\'t keep spinning.',
   },
   {
     id: 'how-flip-board',
