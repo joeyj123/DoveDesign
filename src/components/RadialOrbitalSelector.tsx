@@ -101,44 +101,43 @@ function SegmentIcon({ id }: { id: SegId }) {
 const WHEEL_OFFSET = 120;
 const HINT_STORAGE_KEY = 'dovedesign-radial-wheel-hint-v1';
 
-function clampWheelPosition(cx: number, cy: number) {
-  const half = WHEEL_SIZE / 2;
-  const margin = 12;
-  const maxW = typeof window !== 'undefined' ? window.innerWidth : 1920;
-  const maxH = typeof window !== 'undefined' ? window.innerHeight : 1080;
-  return {
-    left: Math.max(margin, Math.min(maxW - WHEEL_SIZE - margin, cx - half)),
-    top: Math.max(margin, Math.min(maxH - WHEEL_SIZE - margin, cy - half - 48)),
-  };
-}
-
 function computeWheelPosition(
   clickX: number,
   clickY: number,
   viewportEl: HTMLElement | null
 ) {
+  const half = WHEEL_SIZE / 2;
+  const margin = 12;
+
   if (!viewportEl) {
-    return clampWheelPosition(clickX, clickY);
+    return {
+      left: Math.max(margin, Math.min(window.innerWidth - WHEEL_SIZE - margin, clickX - half)),
+      top: Math.max(margin, Math.min(window.innerHeight - WHEEL_SIZE - margin, clickY - half)),
+    };
   }
 
   const rect = viewportEl.getBoundingClientRect();
-  const vcx = rect.left + rect.width / 2;
-  const vcy = rect.top + rect.height / 2;
+  // Convert client coords to viewport-local coords for position: absolute inside viewport div
+  const localX = clickX - rect.left;
+  const localY = clickY - rect.top;
 
-  let dx = clickX - vcx;
-  let dy = clickY - vcy;
+  // Push wheel offset from click, away from the viewport center
+  const vcx = rect.width / 2;
+  const vcy = rect.height / 2;
+  let dx = localX - vcx;
+  let dy = localY - vcy;
   const len = Math.hypot(dx, dy);
-  if (len < 1) {
-    dx = 0;
-    dy = -1;
-  } else {
-    dx /= len;
-    dy /= len;
-  }
+  if (len < 1) { dx = 0; dy = -1; }
+  else { dx /= len; dy /= len; }
 
-  const wheelCx = clickX + dx * WHEEL_OFFSET;
-  const wheelCy = clickY + dy * WHEEL_OFFSET;
-  return clampWheelPosition(wheelCx, wheelCy);
+  const wheelLocalX = localX + dx * WHEEL_OFFSET;
+  const wheelLocalY = localY + dy * WHEEL_OFFSET;
+
+  // Clamp fully within the viewport bounds
+  return {
+    left: Math.max(margin, Math.min(rect.width - WHEEL_SIZE - margin, wheelLocalX - half)),
+    top: Math.max(margin, Math.min(rect.height - WHEEL_SIZE - margin, wheelLocalY - half)),
+  };
 }
 
 export default function RadialOrbitalSelector() {
@@ -187,6 +186,7 @@ export default function RadialOrbitalSelector() {
     function onClickOutside(e: MouseEvent) {
       if (wheelRef.current && !wheelRef.current.contains(e.target as Node)) {
         setDeleteArmed(false);
+        setRadialWheelOpen(false);
       }
     }
     document.addEventListener('mousedown', onClickOutside);

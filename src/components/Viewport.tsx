@@ -88,6 +88,7 @@ export default function Viewport() {
           }
           if (activeTool !== 'select') return;
           if (ui.boxSelectRect) return;
+          if (!e.shiftKey) return; // non-shift left-drag goes to orbit; shift+drag = box-select
           setOrbitControlsEnabled(false);
           setBoxSelectPending({
             x: e.clientX,

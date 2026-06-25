@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '../store';
 import type { ActiveTool } from '../types';
 import { PepeEmbedded } from './PepeAssistant';
@@ -56,6 +56,18 @@ export default function LeftToolPanel() {
   const setMateFaceB = useAppStore((s) => s.setMateFaceB);
   const setEdgeToolMemberId = useAppStore((s) => s.setEdgeToolMemberId);
   const setAttachmentPointPickA = useAppStore((s) => s.setAttachmentPointPickA);
+
+  useEffect(() => {
+    if (['cut', 'rip', 'miter', 'trimExtend', 'joinery'].includes(activeTool)) {
+      setActiveTab('modify');
+    } else if (['mate', 'edge'].includes(activeTool)) {
+      setActiveTab('joinery');
+    } else if (activeTool.startsWith('shape')) {
+      setActiveTab('shapes');
+    } else if (['select', 'drawBoard', 'addBoard'].includes(activeTool)) {
+      setActiveTab('model');
+    }
+  }, [activeTool]);
 
   function pickTool(id: ActiveTool) {
     setActiveTool(id);

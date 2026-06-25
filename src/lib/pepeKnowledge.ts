@@ -62,7 +62,8 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     topic: 'Using the Mate tool',
     keywords: [
       'mate', 'face', 'flush', 'align', 'snap', 'join', 'connect', 'how',
-      'pick', 'board', 'two',
+      'pick', 'board', 'two', 'members', 'together', 'attach', 'boards',
+      'fasten', 'link', 'couple', 'affix',
     ],
     answer:
       'Open the Joinery tab and click Mate, or click Mate on the radial wheel. Step 1: click a face on the first board — it highlights. Step 2: optionally click a point on the ¼" face grid to set the joint origin. Step 3: click a face on a different board — the second board snaps flush and a mate record is created. After mating, the join method sub-wheel opens so you can pick screws, glue, pocket holes, and more.',
@@ -127,7 +128,8 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     keywords: [
       'join', 'method', 'screws', 'nails', 'glue', 'dowel', 'biscuit',
       'pocket', 'bracket', 'hardware', 'mortise', 'tenon', 'sub', 'wheel',
-      'what is', 'how',
+      'what is', 'how', 'connect', 'attach', 'members', 'together', 'boards',
+      'fasten', 'link', 'two',
     ],
     answer:
       'After you mate two boards, the join method sub-wheel opens automatically. You can also right-click an existing mate marker in the viewport to reopen it. Choose from Screws, Nails, Glue, Pocket Holes, Biscuit, Dowel, Bracket / Hardware, or Mortise & Tenon. Glue and Mortise & Tenon skip fastener placement. All other methods enter placement mode so you can click joint faces on the ¼" grid to place 3D fastener meshes.',
@@ -168,6 +170,7 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     keywords: [
       'join', 'auto', 'detect', 'miter', 'butt', 'lap', 'multi',
       'toolbar', 'several', 'multiple', 'how', 'what is',
+      'connect', 'attach', 'members', 'together', 'boards', 'two',
     ],
     answer:
       'Select two or more boards using drag box or Shift+click. A toolbar appears above the selection with: Auto-Detect Joints (finds flush faces within 0.1" and creates mates), Miter (adds 45° cuts), Butt Joint (face-to-face mate), Lap Joint (overlapping preset), and Open Radial Wheel (assign join methods on the primary selection). Use Auto-Detect first, then pick join methods from the sub-wheel.',

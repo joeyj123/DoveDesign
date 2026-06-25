@@ -178,7 +178,7 @@ export function PepeEmbedded() {
       knowledgeRef.current = PEPE_KNOWLEDGE;
       fuseRef.current = new Fuse(PEPE_KNOWLEDGE, {
         keys: ['keywords', 'topic', 'answer'],
-        threshold: 0.45,
+        threshold: 0.6,
         includeScore: true,
       });
     });
@@ -199,7 +199,7 @@ export function PepeEmbedded() {
       }
 
       const results = fuseRef.current?.search(trimmed) ?? [];
-      if (results.length > 0 && (results[0].score ?? 1) < 0.5) {
+      if (results.length > 0 && (results[0].score ?? 1) < 0.65) {
         setMatchedEntry(results[0].item);
         setNoMatch(false);
         setSuggestedTopics([]);

@@ -16,6 +16,7 @@ export function SelectBoxPlane() {
 
   function onPointerDown(e: ThreeEvent<PointerEvent>) {
     if (e.button !== 0) return;
+    if (!e.shiftKey) return; // non-shift left-drag goes to orbit; shift+drag = box-select
     e.stopPropagation();
     setOrbitControlsEnabled(false);
     setBoxSelectPending({
