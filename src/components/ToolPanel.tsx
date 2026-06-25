@@ -43,6 +43,8 @@ export default function ToolPanel() {
   );
   const addMember = useAppStore((s) => s.addMember);
   const addCut = useAppStore((s) => s.addCut);
+  const splitMemberByCrossCut = useAppStore((s) => s.splitMemberByCrossCut);
+  const splitMemberByRipCut = useAppStore((s) => s.splitMemberByRipCut);
   const removeCut = useAppStore((s) => s.removeCut);
   const updateCut = useAppStore((s) => s.updateCut);
   const allMembers = useAppStore((s) => s.project.members);
@@ -142,20 +144,14 @@ export default function ToolPanel() {
     if (!selectedId || !selectedMember) return;
     const tw = parseFloat(ripTargetWidth);
     if (isNaN(tw) || tw <= 0 || tw >= selectedMember.width) return;
-    addCut(
-      selectedId,
-      createCutOperation('ripCut', {
-        targetWidth: tw,
-        ripKeepEdge: 'start',
-      })
-    );
+    splitMemberByRipCut(selectedId, tw);
   }
 
   function handleAddCrossCut() {
     if (!selectedId || !selectedMember) return;
     const pos = parseFloat(crossCutPosition);
     if (isNaN(pos) || pos <= 0 || pos >= selectedMember.length) return;
-    addCut(selectedId, createCutOperation('crossCut', { position: pos }));
+    splitMemberByCrossCut(selectedId, pos);
   }
 
   return (

@@ -15,6 +15,7 @@ import { createDefaultFastenersForMate } from './lib/fastenerDefaults';
 import { findCloseFacePairs, buildMateFromPair, lapJointPatch } from './lib/quickJoin';
 import { createCutOperation } from './lib/joinery';
 import { serializeWcad, parseWcad } from './lib/wcad';
+import { splitByCrossCut, splitByRipCut } from './lib/memberSplit';
 
 const DEFAULT_ESTIMATING: EstimatingSettings = {
   taxRatePercent: 8.25,
@@ -51,6 +52,7 @@ const DEFAULT_UI: UIState = {
   isolatedMemberId: null,
   orbitControlsEnabled: true,
   cameraResetNonce: 0,
+  cameraPreset: null,
   angleSnapEnabled: true,
   angleSnapIncrement: 15,
   contextMenu: { open: false, x: 0, y: 0, memberId: null },
@@ -188,6 +190,7 @@ interface AppStore {
   setTrimBoundary:  (id: string | null) => void;
   setOrbitControlsEnabled: (enabled: boolean) => void;
   resetCamera: () => void;
+  setCameraPreset: (preset: string | null) => void;
   setAngleSnapEnabled: (enabled: boolean) => void;
   setAngleSnapIncrement: (deg: UIState['angleSnapIncrement']) => void;
   openContextMenu: (x: number, y: number, memberId: string | null) => void;
@@ -241,6 +244,8 @@ interface AppStore {
   setAssemblyGuideOpen: (open: boolean) => void;
   setPolygonDrawPoints: (pts: [number, number][]) => void;
   setMultiSelection: (ids: string[]) => void;
+  splitMemberByCrossCut: (memberId: string, position: number) => void;
+  splitMemberByRipCut: (memberId: string, targetWidth: number) => void;
   toggleMultiSelectionMember: (id: string) => void;
   setCombinedSelectionBounds: (bounds: UIState['combinedSelectionBounds']) => void;
   setBoxSelectRect: (rect: UIState['boxSelectRect']) => void;
@@ -546,9 +551,9 @@ export const useAppStore = create<AppStore>()(
         multiSelection: ids,
         selectedMemberId: ids[0] ?? null,
         quickDimensionsOpen: false,
-        radialWheelOpen: ids.length === 1,
+        radialWheelOpen: false,
         radialWheelCollapsed: false,
-        radialWheelAnchor: ids.length === 1 ? s.ui.radialWheelAnchor : null,
+        radialWheelAnchor: null,
         quickJoinMiterAxis: null,
         ...(ids.length === 0
           ? {
@@ -593,6 +598,9 @@ export const useAppStore = create<AppStore>()(
 
   resetCamera: () =>
     set((s) => ({ ui: { ...s.ui, cameraResetNonce: s.ui.cameraResetNonce + 1 } })),
+
+  setCameraPreset: (preset) =>
+    set((s) => ({ ui: { ...s.ui, cameraPreset: preset } })),
 
   setAngleSnapEnabled: (enabled) =>
     set((s) => ({ ui: { ...s.ui, angleSnapEnabled: enabled } })),
@@ -723,8 +731,7 @@ export const useAppStore = create<AppStore>()(
         mateGridOffset: null,
         mateHoverFace: null,
         activeTool: 'select',
-        radialWheelOpen: true,
-        radialWheelMode: 'joinOnly',
+        radialWheelOpen: false,
         selectedMateId: mate.id,
       },
     }));
@@ -1114,8 +1121,7 @@ export const useAppStore = create<AppStore>()(
       set((s) => ({
         ui: {
           ...s.ui,
-          radialWheelOpen: true,
-          radialWheelMode: 'joinOnly',
+          radialWheelOpen: false,
           selectedMateId: newMateIds[0],
         },
       }));
@@ -1185,6 +1191,62 @@ export const useAppStore = create<AppStore>()(
 
     commitProject(set, get, { ...get().project, members: nextMembers, mates: nextMates });
     set((s) => ({ ui: { ...s.ui, quickJoinMiterAxis: null } }));
+  },
+
+  splitMemberByCrossCut: (memberId, position) => {
+    const member = get().project.members.find((m) => m.id === memberId);
+    if (!member) return;
+    const [board1, board2] = splitByCrossCut(member, position);
+    const p = get().project;
+    commitProject(set, get, {
+      ...p,
+      members: [
+        ...p.members.filter((m) => m.id !== memberId).map(migrateMember),
+        migrateMember(board1),
+        migrateMember(board2),
+      ],
+      mates: p.mates.filter((m) => m.memberAId !== memberId && m.memberBId !== memberId),
+      fasteners: p.fasteners.filter((f) => {
+        const mate = p.mates.find((m) => m.id === f.mateId);
+        return mate && mate.memberAId !== memberId && mate.memberBId !== memberId;
+      }),
+    });
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        selectedMemberId: board1.id,
+        multiSelection: [board1.id],
+        activeTool: 'select',
+      },
+    }));
+  },
+
+  splitMemberByRipCut: (memberId, targetWidth) => {
+    const member = get().project.members.find((m) => m.id === memberId);
+    if (!member) return;
+    const [board1, board2] = splitByRipCut(member, targetWidth);
+    const p = get().project;
+    commitProject(set, get, {
+      ...p,
+      members: [
+        ...p.members.filter((m) => m.id !== memberId).map(migrateMember),
+        migrateMember(board1),
+        migrateMember(board2),
+      ],
+      mates: p.mates.filter((m) => m.memberAId !== memberId && m.memberBId !== memberId),
+      fasteners: p.fasteners.filter((f) => {
+        const mate = p.mates.find((m) => m.id === f.mateId);
+        return mate && mate.memberAId !== memberId && mate.memberBId !== memberId;
+      }),
+    });
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        selectedMemberId: board1.id,
+        multiSelection: [board1.id],
+        activeTool: 'select',
+      },
+    }));
   },
 
   setPolygonDrawPoints: (pts) =>

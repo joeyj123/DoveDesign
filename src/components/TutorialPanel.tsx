@@ -2,9 +2,62 @@ import { useState } from 'react';
 import BrandLogo from './BrandLogo';
 import { BRAND_TAGLINE } from '../lib/brand';
 
+function HighlightText({ text, search }: { text: string; search: string }) {
+  if (!search) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(search.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-amber-400/40 text-amber-200 rounded px-0.5">{text.slice(idx, idx + search.length)}</mark>
+      <HighlightText text={text.slice(idx + search.length)} search={search} />
+    </>
+  );
+}
+
+const ALL_SECTION_TITLES = [
+  'Keyboard Shortcuts',
+  'Left Tool Panel — Model, Modify, Joinery, Shapes',
+  'Shop Tools',
+  'Cross-Cuts & Rip Cuts',
+  'Board Dimensions & Quick Dimensions',
+  'Mate / Join Tool',
+  'Unmate & Edit Connections',
+  'Attachment Points',
+  'Radial Wheel & Board Actions',
+  'Join Methods (after Mating)',
+  'Fastener Placement',
+  'Continuous Edge Drawing (Chain Mode)',
+  'Multi-Select & Box Selection',
+  'Quick-Join Toolbar',
+  'Pepe the Woodworking Owl',
+  'Joinery Detail Cuts',
+  'Edge Treatments',
+  'Shapes & Special Geometry',
+  'Assembly Mode',
+  'Display Modes (Shaded, Wireframe, X-Ray)',
+  'Hardware Library & Placed Hardware',
+  'System Ribbon — File, View & More',
+  'Right-Click Context Menu',
+  'Workbench Quick-Start Blueprint',
+  'Viewport Navigation',
+  'Navigation Cube',
+  'Snap Points',
+  'Renaming Boards (Label)',
+  'Keyboard Shortcuts & Escape Priority',
+];
+
 export default function TutorialPanel() {
   const [search, setSearch] = useState('');
   const searchLower = search.toLowerCase().trim();
+
+  const matchCount = searchLower
+    ? ALL_SECTION_TITLES.filter((t) => t.toLowerCase().includes(searchLower)).length
+    : 0;
+
+  function registerMatch() {
+    // no-op: count computed above
+  }
 
   return (
     <div className="space-y-5 text-base text-zinc-300">
@@ -15,16 +68,26 @@ export default function TutorialPanel() {
           placeholder="Search tutorial... (e.g. 'mate', 'shortcuts', 'cut')"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
         />
-        {search && (
-          <button
-            type="button"
-            className="text-sm text-zinc-400 underline mt-1"
-            onClick={() => setSearch('')}
-          >
-            Clear search
-          </button>
-        )}
+        <div className="flex items-center justify-between mt-1 min-h-[1.25rem]">
+          {search && matchCount > 0 && (
+            <span className="text-sm text-amber-400">{matchCount} match{matchCount !== 1 ? 'es' : ''}</span>
+          )}
+          {search && matchCount === 0 && (
+            <span className="text-sm text-zinc-500">No matches</span>
+          )}
+          {!search && <span />}
+          {search && (
+            <button
+              type="button"
+              className="text-sm text-zinc-400 underline"
+              onClick={() => setSearch('')}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
       <div>
         <BrandLogo size="md" className="mb-1 block" />
@@ -36,7 +99,7 @@ export default function TutorialPanel() {
         </p>
       </div>
 
-      <Section search={searchLower} title="Keyboard Shortcuts">
+      <Section search={searchLower} onMatch={registerMatch} title="Keyboard Shortcuts">
         <p className="text-base text-zinc-400 mb-2">
           DoveDesign uses industry-standard CAD shortcuts so experienced woodworkers
           feel right at home.
@@ -65,7 +128,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Left Tool Panel — Model, Modify, Joinery, Shapes">
+      <Section search={searchLower} onMatch={registerMatch} title="Left Tool Panel — Model, Modify, Joinery, Shapes">
         <p className="text-base text-zinc-400 mb-2">
           The vertical panel on the left side of the screen is organized into four tabs. Click a tab name to switch groups.
           Use the « / » button at the top to collapse the panel to a narrow strip (abbreviated tab labels) or expand it for full tool names.
@@ -81,7 +144,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Shop Tools">
+      <Section search={searchLower} onMatch={registerMatch} title="Shop Tools">
         <p className="text-base text-zinc-400 mb-2">
           These are the core tools in the <strong className="text-zinc-300">Model</strong> and <strong className="text-zinc-300">Modify</strong> tabs:
         </p>
@@ -97,28 +160,30 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Cross-Cuts & Rip Cuts">
+      <Section search={searchLower} title="Cross-Cuts & Rip Cuts" onMatch={registerMatch}>
         <ul className="space-y-2 list-disc pl-4 text-zinc-400">
           <li>
             <strong className="text-zinc-300">Cross Cut (C)</strong> — Select a board, press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">C</kbd> or click Cross Cut in the Modify tab.
             In the Inspector panel, set the <strong className="text-zinc-300">Cut Position</strong> in inches from the board&apos;s start end, then click <strong className="text-zinc-300">Apply Cross Cut</strong>.
+            <strong className="text-zinc-300"> This creates TWO separate boards</strong> — a keep piece and a waste piece — both fully independent and moveable.
             This goes ACROSS the grain — like a chop saw shortening the board.
           </li>
           <li>
             <strong className="text-zinc-300">Rip Cut (R)</strong> — Select a board, press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">R</kbd> or click Rip Cut.
             Set the <strong className="text-zinc-300">Target Width</strong> in inches, then click <strong className="text-zinc-300">Apply Rip Cut</strong>.
-            The waste side is removed automatically. This goes ALONG the grain — like a table saw narrowing the board.
+            <strong className="text-zinc-300"> This creates TWO separate boards</strong> — the target-width piece and the waste strip — both fully independent.
+            This goes ALONG the grain — like a table saw narrowing the board.
           </li>
         </ul>
         <p className="text-base text-zinc-400 mt-2">
-          <strong className="text-zinc-300">Remember:</strong> Cross cut = shorter board. Rip cut = narrower board.
+          <strong className="text-zinc-300">Remember:</strong> Cross cut = shorter board. Rip cut = narrower board. Both cuts always produce two independent pieces you can move and label separately.
         </p>
         <p className="text-base text-zinc-500 mt-2">
-          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I make a cross cut?&quot; · &quot;What is a rip cut?&quot; · &quot;Difference between cross cut and rip cut?&quot;
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I make a cross cut?&quot; · &quot;What is a rip cut?&quot; · &quot;What happens when I apply a cut?&quot;
         </p>
       </Section>
 
-      <Section search={searchLower} title="Miter & Bevel Guides">
+      <Section search={searchLower} onMatch={registerMatch} title="Miter & Bevel Guides">
         <ol className="space-y-1.5 list-decimal pl-4 text-zinc-400">
           <li>Select the board and choose <strong className="text-zinc-300">Miter</strong> from the Modify tab.</li>
           <li>Use the Inspector to set the angle (45° for standard corners, 30° for bevels).</li>
@@ -130,7 +195,7 @@ export default function TutorialPanel() {
         </ul>
       </Section>
 
-      <Section search={searchLower} title="Quick Dimensions Panel">
+      <Section search={searchLower} onMatch={registerMatch} title="Quick Dimensions Panel">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Select a board (left-click with the Select tool, or right-click any board).</li>
           <li>Click the <strong className="text-zinc-300">Dims</strong> segment on the radial wheel, or open it when the wheel first appears.</li>
@@ -146,7 +211,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Mate Tool — Full Flow">
+      <Section search={searchLower} onMatch={registerMatch} title="Mate Tool — Full Flow">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li><strong className="text-zinc-300">Step 1</strong> — Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">J</kbd>, or open the <strong className="text-zinc-300">Joinery</strong> tab and click <strong className="text-zinc-300">Mate</strong>, or choose Mate from the radial wheel.</li>
           <li><strong className="text-zinc-300">Step 2</strong> — Click a face on the first board. It highlights and a ¼&quot; grid overlay appears on hover.</li>
@@ -166,7 +231,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Connections & Unmate">
+      <Section search={searchLower} onMatch={registerMatch} title="Connections & Unmate">
         <p className="text-base text-zinc-400">
           To see what a board is connected to, select it and check the <strong className="text-zinc-300">Inspector</strong> tab — Connections lists every mate. Click <strong className="text-zinc-300">Unmate</strong> next to any connection to detach those two boards.
         </p>
@@ -181,7 +246,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Attachment Points & Face Grid">
+      <Section search={searchLower} onMatch={registerMatch} title="Attachment Points & Face Grid">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Activate the <strong className="text-zinc-300">Mate</strong> tool from the Joinery tab or radial wheel.</li>
           <li>Hover any board face — a yellow ¼&quot; snap grid appears on the face.</li>
@@ -195,7 +260,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Radial Orbital Wheel">
+      <Section search={searchLower} onMatch={registerMatch} title="Radial Orbital Wheel">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>With the <strong className="text-zinc-300">Select</strong> tool active, left-click any board — the wheel opens every time.</li>
           <li>Or right-click any board with any tool active — the wheel opens and the context menu appears.</li>
@@ -216,7 +281,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Join Method Sub-Wheel">
+      <Section search={searchLower} onMatch={registerMatch} title="Join Method Sub-Wheel">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Mate two boards first (see Mate Tool section).</li>
           <li>After the mate is confirmed, the join method sub-wheel opens automatically.</li>
@@ -232,7 +297,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Physical Fastener Placement">
+      <Section search={searchLower} onMatch={registerMatch} title="Physical Fastener Placement">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Choose a join method that requires fasteners (Screws, Nails, Pocket Holes, Biscuit, Dowel, or Bracket).</li>
           <li>Placement mode activates — the joint face shows a ¼&quot; snap grid.</li>
@@ -248,7 +313,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Continuous Edge Drawing">
+      <Section search={searchLower} onMatch={registerMatch} title="Continuous Edge Drawing">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Select the <strong className="text-zinc-300">Draw</strong> tool from the Model tab.</li>
           <li>Click and drag on the grid to place your first board.</li>
@@ -261,7 +326,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Drag Box Selection">
+      <Section search={searchLower} onMatch={registerMatch} title="Drag Box Selection">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Make sure the <strong className="text-zinc-300">Select</strong> tool is active.</li>
           <li>Click and drag on empty viewport space (not on a board).</li>
@@ -276,7 +341,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Multi-Member Quick Join Toolbar">
+      <Section search={searchLower} onMatch={registerMatch} title="Multi-Member Quick Join Toolbar">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Select two or more boards (drag box or Shift+click).</li>
           <li>A toolbar appears above the selection with these actions:</li>
@@ -293,7 +358,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Pepe — Design Assistant">
+      <Section search={searchLower} onMatch={registerMatch} title="Pepe — Design Assistant">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Find Pepe the frog at the <strong className="text-zinc-300">bottom of the left tool panel</strong> (below the tool buttons).</li>
           <li>Click Pepe to open <strong className="text-zinc-300">Pepe&apos;s Workshop</strong> — fully offline, no internet needed.</li>
@@ -313,7 +378,7 @@ export default function TutorialPanel() {
         </ul>
       </Section>
 
-      <Section search={searchLower} title="Joinery & Mating">
+      <Section search={searchLower} onMatch={registerMatch} title="Joinery & Mating">
         <ul className="space-y-1 list-disc pl-4 text-base text-zinc-400">
           <li><strong className="text-zinc-300">Pocket Holes</strong> — Dual-sided CSG drills angled pilot holes on both boards. Choose Pocket Holes as a join method after mating, or use the Join tool in the Inspector.</li>
           <li><strong className="text-zinc-300">Box / Finger / Dovetail</strong> — Complementary slots cut on mating members. Finger joints use square fingers; dovetails taper for drawer strength.</li>
@@ -324,7 +389,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Edge Treatments">
+      <Section search={searchLower} onMatch={registerMatch} title="Edge Treatments">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Select a board and click <strong className="text-zinc-300">Edge</strong> on the radial wheel, or choose <strong className="text-zinc-300">Edge Treatment</strong> from the Joinery tab.</li>
           <li>Hover board edges — they highlight amber.</li>
@@ -340,7 +405,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Complex Shapes">
+      <Section search={searchLower} onMatch={registerMatch} title="Complex Shapes">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Open the <strong className="text-zinc-300">Shapes</strong> tab in the left panel.</li>
           <li>Click a shape button to add it to the scene:</li>
@@ -361,7 +426,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Assembly Mode">
+      <Section search={searchLower} onMatch={registerMatch} title="Assembly Mode">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Click <strong className="text-zinc-300">Mode</strong> in the top ribbon and choose <strong className="text-zinc-300">Assembly</strong>.</li>
           <li>Boards explode and spread flat on the grid with spacing between them.</li>
@@ -375,7 +440,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Display Modes">
+      <Section search={searchLower} onMatch={registerMatch} title="Display Modes">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Find the <strong className="text-zinc-300">Display</strong> dropdown in the top ribbon.</li>
           <li>Choose a mode:</li>
@@ -391,7 +456,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Hardware Library">
+      <Section search={searchLower} onMatch={registerMatch} title="Hardware Library">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Open the <strong className="text-zinc-300">Hardware</strong> tab in the right sidebar.</li>
           <li>Browse labeled items with inline previews: drawer slides, hinges, pulls, shelf pins, cam locks, brackets, and barrel bolts.</li>
@@ -406,7 +471,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Top Ribbon & Right Sidebar">
+      <Section search={searchLower} onMatch={registerMatch} title="Top Ribbon & Right Sidebar">
         <p className="text-base text-zinc-400 mb-2">
           <strong className="text-zinc-300">Top ribbon</strong> — File (save, open, new), View (grid, camera, orthographic), Help, Mode (Design / Assembly),
           Display dropdown (Shaded, Wireframe, Shaded + Edges, X-Ray), and Undo / Redo.
@@ -420,7 +485,7 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Right-Click Context Menu">
+      <Section search={searchLower} onMatch={registerMatch} title="Right-Click Context Menu">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
           <li>Right-click any board (short click, no drag) to open the context menu.</li>
           <li>If you hold right mouse and drag to pan the camera, the menu will <strong className="text-zinc-300">not</strong> appear — it only opens on a short click.</li>
@@ -442,7 +507,7 @@ export default function TutorialPanel() {
         </ul>
       </Section>
 
-      <Section search={searchLower} title="Workbench Quick-Start Blueprint">
+      <Section search={searchLower} onMatch={registerMatch} title="Workbench Quick-Start Blueprint">
         <ol className="space-y-2 list-decimal pl-4 text-zinc-400">
           <li>
             <strong className="text-zinc-300">Top slab</strong> — Draw a 48&quot; × 24&quot; plywood sheet on the grid
@@ -470,16 +535,69 @@ export default function TutorialPanel() {
         </ol>
       </Section>
 
-      <Section search={searchLower} title="Viewport Navigation">
+      <Section search={searchLower} title="Viewport Navigation" onMatch={registerMatch}>
         <ul className="space-y-1 list-disc pl-4 text-zinc-400">
           <li><strong className="text-zinc-300">Left-click + drag</strong> — Orbit / rotate the camera around the focal point.</li>
           <li><strong className="text-zinc-300">Middle mouse + drag</strong> — Pan across the workbench plane.</li>
           <li><strong className="text-zinc-300">Shift + left-click + drag</strong> — Pan (for trackpads and mice without a wheel button).</li>
           <li><strong className="text-zinc-300">Scroll wheel</strong> — Zoom in and out.</li>
+          <li><strong className="text-zinc-300">Right-click + drag</strong> — Also pans the camera.</li>
         </ul>
+        <p className="text-base text-zinc-400 mt-2">
+          The <strong className="text-zinc-300">Navigation Cube</strong> in the bottom-right corner lets you jump to preset views — see the Navigation Cube section below.
+        </p>
       </Section>
 
-      <Section search={searchLower} title="Keyboard Shortcuts & Escape Priority">
+      <Section search={searchLower} title="Navigation Cube" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          The small cube in the <strong className="text-zinc-300">bottom-right corner</strong> of the viewport shows your current orientation and lets you jump to preset views instantly.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li><strong className="text-zinc-300">Click TOP / BOTTOM / FRONT / BACK / LEFT / RIGHT</strong> — Jump to that exact orthographic-style view. Great for checking alignment.</li>
+          <li><strong className="text-zinc-300">Click a corner symbol (◤ ◥ ◣ ◢)</strong> — Jump to an isometric 3-quarter view from that corner.</li>
+          <li><strong className="text-zinc-300">Home button (below the cube)</strong> — Returns camera to the default perspective starting position.</li>
+        </ul>
+        <p className="text-base text-zinc-400 mt-2">
+          The cube does <em>not</em> replace mouse navigation — you can still orbit with left-click drag at any time.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I use the navigation cube?&quot; · &quot;How do I get a top view?&quot; · &quot;How do I reset the camera?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Snap Points" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          When you select a board, small white dots appear at all its <strong className="text-zinc-300">corners and face centers</strong> — these are snap points.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>8 corner dots at each vertex of the board</li>
+          <li>6 face-center dots (one per face — top, bottom, front, back, left end, right end)</li>
+          <li>1 center dot at the board&apos;s center</li>
+        </ul>
+        <p className="text-base text-zinc-400 mt-2">
+          In <strong className="text-zinc-300">Mate / Join mode (J)</strong>, amber snap dots appear on all boards so you can see possible attachment points clearly. Clicking near a snap point initiates the mate at that exact location for more precise alignment.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What are snap points?&quot; · &quot;How do I align boards precisely?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Renaming Boards (Label)" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          Every board has a <strong className="text-zinc-300">Label</strong> field at the top of the Inspector panel on the right side.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>Select a board, then click the Label field in the Inspector.</li>
+          <li>Type your new name — for example &quot;Leg A&quot; or &quot;Top Rail&quot;.</li>
+          <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Enter</kbd> to confirm, or just click anywhere else.</li>
+          <li>You can rename a board even while the move arrows are active — it will not interrupt your transform.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I rename a board?&quot; · &quot;How do I change the board name?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} onMatch={registerMatch} title="Keyboard Shortcuts & Escape Priority">
         <p className="text-base text-zinc-400 mb-2">
           Press <strong className="text-zinc-300">Escape</strong> repeatedly to step through open UI in this order:
         </p>
@@ -501,11 +619,25 @@ export default function TutorialPanel() {
   );
 }
 
-function Section({ title, children, search = '' }: { title: string; children: React.ReactNode; search?: string }) {
-  if (search && !title.toLowerCase().includes(search)) return null;
+function Section({
+  title,
+  children,
+  search = '',
+  onMatch,
+}: {
+  title: string;
+  children: React.ReactNode;
+  search?: string;
+  onMatch?: () => void;
+}) {
+  const matches = !search || title.toLowerCase().includes(search);
+  if (!matches) return null;
+  if (onMatch) onMatch();
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-500/90">{title}</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-500/90">
+        <HighlightText text={title} search={search} />
+      </h3>
       {children}
     </div>
   );

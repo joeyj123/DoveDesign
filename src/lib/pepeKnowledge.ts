@@ -723,6 +723,55 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     answer:
       'The right-click menu only appears on a short click. If you hold right mouse and drag to pan the camera, the menu will not appear — just release without dragging to open it.',
   },
+  {
+    id: 'rename-board',
+    topic: 'How to rename a board',
+    keywords: ['rename board', 'change name', 'label', 'board name'],
+    answer:
+      'Click the Label field in the Inspector panel on the right — just type a new name and press Enter. You can rename a board even while it\'s selected or being moved.',
+  },
+  {
+    id: 'snap-points',
+    topic: 'What are snap points',
+    keywords: ['snap points', 'snap dots', 'corner dots', 'align boards precisely', 'snap'],
+    answer:
+      'Snap points are small dots that appear on the corners and face centers of each board when it is selected. In Mate mode, they appear on all boards so you can see possible attachment locations clearly.',
+  },
+  {
+    id: 'nav-cube',
+    topic: 'How to use the navigation cube',
+    keywords: ['navigation cube', 'nav cube', 'top view', 'front view', 'camera view', 'isometric'],
+    answer:
+      'The navigation cube in the bottom-right corner shows your view orientation. Click a face (TOP, FRONT, LEFT, etc.) to jump to that view. Click a corner symbol for an isometric view. The Home button below resets the camera to the default position.',
+  },
+  {
+    id: 'apply-cross-cut-result',
+    topic: 'What happens when I apply a cross cut',
+    keywords: ['apply cross cut', 'cross cut result', 'two boards', 'split board cross'],
+    answer:
+      'Applying a cross cut splits your board into two separate pieces — the keep piece and the waste piece. Both become independent boards you can move, label, or delete separately.',
+  },
+  {
+    id: 'apply-rip-cut-result',
+    topic: 'What happens when I apply a rip cut',
+    keywords: ['apply rip cut', 'rip cut result', 'two boards', 'split board rip', 'narrow board'],
+    answer:
+      'Applying a rip cut splits your board along its width into two separate boards — the target-width piece and the waste strip. Both are independent boards you can work with separately.',
+  },
+  {
+    id: 'radial-wheel-spacebar',
+    topic: 'How to open the radial wheel',
+    keywords: ['radial wheel', 'open wheel', 'tool wheel', 'spacebar wheel'],
+    answer:
+      'Press Spacebar while a board is selected to open the radial tool wheel. The wheel only opens with Spacebar — clicking a board just selects it without opening the wheel.',
+  },
+  {
+    id: 'transform-gizmo-persist',
+    topic: 'How to keep move arrows visible',
+    keywords: ['move arrows', 'gizmo stays', 'transform gizmo', 'arrows disappear'],
+    answer:
+      'Press M to activate the move arrows on a selected board. They stay visible until you press Escape or switch tools. Press Tab to cycle through Move, Rotate, and Scale modes.',
+  },
 ];
 
 export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [

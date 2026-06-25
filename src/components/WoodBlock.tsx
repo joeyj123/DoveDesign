@@ -17,6 +17,7 @@ import { buildEdgeTreatmentSubtractions, getBoxEdgeSegment } from '../lib/edgeTr
 import { buildCustomPolygonShape, createMemberBaseGeometry } from '../lib/memberGeometry';
 import { consumeBoxSelectClickSuppress } from '../lib/boxSelectGuard';
 import TransformGizmo from './TransformGizmo';
+import SnapPointHandles from './SnapPointHandles';
 
 interface Props {
   member: WoodMember;
@@ -167,7 +168,11 @@ export default function WoodBlock({ member }: Props) {
     }
 
     if (activeTool === 'select') {
-      selectMember(member.id, { openWheel: false });
+      // Don't call selectMember if already selected — it would reset transformGizmoActive
+      const currentSelectedId = useAppStore.getState().ui.selectedMemberId;
+      if (currentSelectedId !== member.id) {
+        selectMember(member.id, { openWheel: false });
+      }
       return;
     }
 
@@ -303,7 +308,7 @@ export default function WoodBlock({ member }: Props) {
         <Geometry>
           <Base>
             {(member.shapeType ?? 'box') === 'box' && (
-              <boxGeometry args={[member.length, member.thickness, member.width]} />
+              <boxGeometry args={[effectiveDims.length, effectiveDims.thickness, effectiveDims.width]} />
             )}
             {(member.shapeType ?? 'box') === 'cylinder' && (
               <cylinderGeometry args={[member.radius ?? member.width / 2, member.radius ?? member.width / 2, member.length, 24]} />
@@ -384,6 +389,7 @@ export default function WoodBlock({ member }: Props) {
       )}
 
       {isSelected && <TransformGizmo member={member} objectRef={meshRef} />}
+      <SnapPointHandles member={member} forMate />
     </>
   );
 }

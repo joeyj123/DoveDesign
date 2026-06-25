@@ -96,8 +96,12 @@ export default function MemberInspector() {
             className="input-field text-base font-semibold"
             value={selectedMember.label}
             onChange={(e) =>
-              updateMember(selectedMember.id, { label: e.target.value })
+              updateMember(selectedMember.id, { label: e.target.value }, true)
             }
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') e.currentTarget.blur();
+            }}
             placeholder="Board name"
           />
         </label>

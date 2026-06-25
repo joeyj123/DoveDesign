@@ -340,6 +340,8 @@ export interface UIState {
   orbitControlsEnabled: boolean;
   /** Increment camera reset from context menu. */
   cameraResetNonce: number;
+  /** Camera preset to animate to (e.g. 'top', 'front', 'left', 'right', 'back', 'bottom', 'iso-front-top-right'). */
+  cameraPreset: string | null;
   angleSnapEnabled: boolean;
   angleSnapIncrement: AngleSnapIncrement;
   contextMenu: ContextMenuState;

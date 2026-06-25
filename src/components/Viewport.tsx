@@ -23,6 +23,7 @@ import PlacedHardwareMeshes from './PlacedHardwareMeshes';
 import AttachmentPointLinks, { PolygonDrawTool } from './AttachmentPointLinks';
 import AttachmentPointHandles from './AttachmentPointHandles';
 import KeyboardShortcuts from './KeyboardShortcuts';
+import NavigationCube from './NavigationCube';
 
 function ShadowFloor() {
   return (
@@ -162,10 +163,11 @@ export default function Viewport() {
         <PlacedHardwareMeshes />
 
         <SceneOrbitControls />
-        <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
+        <GizmoHelper alignment="bottom-right" margin={[130, 180]}>
           <GizmoViewport labelColor="white" axisHeadScale={0.85} />
         </GizmoHelper>
       </Canvas>
+      <NavigationCube />
     </div>
   );
 }
