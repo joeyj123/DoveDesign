@@ -56,6 +56,7 @@ export default function ToolPanel() {
 
   const [form, setForm] = useState<FormState>(DEFAULTS);
   const [ripTargetWidth, setRipTargetWidth] = useState('2.75');
+  const [crossCutPosition, setCrossCutPosition] = useState('12');
   const [joineryPartnerId, setJoineryPartnerId] = useState('');
 
   useEffect(() => {
@@ -150,6 +151,13 @@ export default function ToolPanel() {
     );
   }
 
+  function handleAddCrossCut() {
+    if (!selectedId || !selectedMember) return;
+    const pos = parseFloat(crossCutPosition);
+    if (isNaN(pos) || pos <= 0 || pos >= selectedMember.length) return;
+    addCut(selectedId, createCutOperation('crossCut', { position: pos }));
+  }
+
   return (
     <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-3">
       <p className="text-xs font-semibold uppercase tracking-wider text-amber-500/90">
@@ -197,7 +205,27 @@ export default function ToolPanel() {
       )}
 
       {selectedMember && activeTool === 'cut' && (
-        <button type="button" className="btn-secondary w-full text-sm" onClick={() => handleAddCut('crossCut')}>Add Cross-Cut</button>
+        <div className="space-y-2">
+          <label className="flex flex-col gap-1 text-sm">
+            Cut Position (in)
+            <input
+              type="number"
+              step="0.125"
+              min="0.125"
+              max={selectedMember.length - 0.125}
+              className="input-field mono-num"
+              value={crossCutPosition}
+              onChange={(e) => setCrossCutPosition(e.target.value)}
+            />
+          </label>
+          <p className="text-xs text-zinc-500">
+            Board length: <span className="mono-num">{selectedMember.length}"</span>
+            {' · '}Distance from start end
+          </p>
+          <button type="button" className="btn-secondary w-full text-sm" onClick={handleAddCrossCut}>
+            Apply Cross Cut
+          </button>
+        </div>
       )}
       {selectedMember && activeTool === 'rip' && (
         <div className="space-y-2">

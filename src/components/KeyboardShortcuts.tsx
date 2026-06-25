@@ -130,6 +130,19 @@ export default function KeyboardShortcuts() {
           }
           break;
 
+        case 'u':
+        case 'U':
+          if (store.ui.selectedMemberId) {
+            const memberId = store.ui.selectedMemberId;
+            const mates = store.project.mates.filter(
+              (m) => m.memberAId === memberId || m.memberBId === memberId
+            );
+            if (mates.length > 0) {
+              store.removeMate(mates[mates.length - 1].id);
+            }
+          }
+          break;
+
         case 'Tab':
           e.preventDefault();
           if (store.ui.selectedMemberId && store.ui.transformGizmoActive) {

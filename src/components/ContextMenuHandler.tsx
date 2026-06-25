@@ -11,9 +11,21 @@ export default function ContextMenuHandler() {
 
   useEffect(() => {
     const canvas = gl.domElement;
+    let downX = 0;
+    let downY = 0;
+
+    function onMouseDown(e: MouseEvent) {
+      if (e.button !== 2) return;
+      downX = e.clientX;
+      downY = e.clientY;
+    }
 
     function onContextMenu(e: MouseEvent) {
       e.preventDefault();
+
+      // Suppress if mouse moved significantly — user was panning, not right-clicking
+      const dragDist = Math.hypot(e.clientX - downX, e.clientY - downY);
+      if (dragDist > 6) return;
 
       const rect = canvas.getBoundingClientRect();
       const mouse = new THREE.Vector2(
@@ -38,17 +50,18 @@ export default function ContextMenuHandler() {
       }
 
       if (memberId) {
-        selectMember(memberId, {
-          openWheel: true,
-          wheelAnchor: { x: e.clientX, y: e.clientY },
-        });
+        selectMember(memberId, { openWheel: false }); // select only, no wheel on right-click
       }
 
       openContextMenu(e.clientX, e.clientY, memberId);
     }
 
+    canvas.addEventListener('mousedown', onMouseDown);
     canvas.addEventListener('contextmenu', onContextMenu);
-    return () => canvas.removeEventListener('contextmenu', onContextMenu);
+    return () => {
+      canvas.removeEventListener('mousedown', onMouseDown);
+      canvas.removeEventListener('contextmenu', onContextMenu);
+    };
   }, [gl, camera, scene, raycaster, openContextMenu, selectMember]);
 
   return null;

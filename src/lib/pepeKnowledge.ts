@@ -28,7 +28,7 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     topic: 'Keyboard shortcuts',
     keywords: ['keyboard', 'shortcut', 'hotkey', 'key', 'shortcuts', 'ctrl', 'escape', 'delete', 'undo', 'redo', 'space'],
     answer:
-      'DoveDesign shortcuts: Space = open radial wheel, Escape = cancel/deselect, S = select tool, B = draw board, C = cross cut, M = move (shows transform arrows), Tab = cycle Move/Rotate/Scale, R = rip cut, J = mate/join boards, F = flip board (toggle), D = duplicate, G = toggle grid, Delete = delete board, Ctrl+Z = undo, Ctrl+Y = redo, Shift+drag = box select.',
+      'DoveDesign shortcuts: Space = open radial wheel, Escape = cancel/deselect, S = select tool, B = draw board, C = cross cut, M = move (shows transform arrows), Tab = cycle Move/Rotate/Scale, R = rip cut, J = mate/join boards, F = flip board (toggle), D = duplicate, G = toggle grid, U = unmate most recent connection, Delete = delete board, Ctrl+Z = undo, Ctrl+Y = redo, Shift+drag = box select.',
   },
   {
     id: 'how-move-board',
@@ -687,6 +687,41 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     keywords: ['undo mate', 'reverse mate', 'ctrl z mate', 'unsnap', 'undo snap'],
     answer:
       'Yes — press Ctrl+Z right after mating to fully undo it including the position snap. Or select the board later and click Unmate in the Inspector to just remove the connection record.',
+  },
+  {
+    id: 'cross-vs-rip',
+    topic: 'Difference between cross cut and rip cut',
+    keywords: ['cross cut vs rip cut', 'difference cross rip', 'cross cut rip cut', 'chop saw table saw'],
+    answer:
+      'Cross cut goes ACROSS the grain like a chop saw — it shortens the board. Rip cut goes ALONG the grain like a table saw — it narrows the board. Press C for cross cut, R for rip cut.',
+  },
+  {
+    id: 'how-shorten-board',
+    topic: 'How to shorten a board',
+    keywords: ['shorten board', 'cut board shorter', 'trim length', 'chop cut', 'cut to length'],
+    answer:
+      'Use Cross Cut — select the board, press C, then set the cut position in the Inspector and click Apply Cross Cut.',
+  },
+  {
+    id: 'how-narrow-board',
+    topic: 'How to narrow a board',
+    keywords: ['narrow board', 'cut board narrower', 'rip cut narrow', 'reduce width'],
+    answer:
+      'Use Rip Cut — select the board, press R, then set the target width in the Inspector and click Apply Rip Cut.',
+  },
+  {
+    id: 'u-key-unmate',
+    topic: 'U key to unmate',
+    keywords: ['u key', 'unmate shortcut', 'u unmate', 'quick unmate', 'keyboard unmate'],
+    answer:
+      'Press U to quickly unmate the most recent connection on the selected board. Or open the Inspector tab and click Unmate next to any connection.',
+  },
+  {
+    id: 'right-click-pan',
+    topic: 'Right click menu keeps appearing after panning',
+    keywords: ['right click menu', 'context menu pan', 'menu appears panning', 'right click drag'],
+    answer:
+      'The right-click menu only appears on a short click. If you hold right mouse and drag to pan the camera, the menu will not appear — just release without dragging to open it.',
   },
 ];
 

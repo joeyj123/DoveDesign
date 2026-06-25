@@ -78,7 +78,17 @@ export default function WoodBlock({ member }: Props) {
     [member, allMembers, edgeTreatments]
   );
 
-  const baseGeo = useMemo(() => createMemberBaseGeometry(member), [member]);
+  const effectiveDims = useMemo(() => {
+    let width = member.width;
+    for (const cut of member.cuts) {
+      if (cut.type === 'ripCut' && cut.targetWidth) {
+        width = cut.targetWidth;
+      }
+    }
+    return { ...member, width };
+  }, [member]);
+
+  const baseGeo = useMemo(() => createMemberBaseGeometry(effectiveDims), [effectiveDims]);
 
   useEffect(() => {
     if (!meshRef.current) return;

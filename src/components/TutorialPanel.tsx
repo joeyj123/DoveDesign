@@ -8,7 +8,7 @@ export default function TutorialPanel() {
 
   return (
     <div className="space-y-5 text-base text-zinc-300">
-      <div>
+      <div className="sticky top-0 z-10 bg-zinc-950 pb-2 pt-1 -mx-4 px-4 border-b border-zinc-800">
         <input
           type="text"
           className="input-field text-base w-full"
@@ -53,6 +53,7 @@ export default function TutorialPanel() {
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">C</kbd> — Cross Cut tool</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">J</kbd> — Mate / Join tool (join boards face to face)</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">F</kbd> — Flip board (toggles between normal and flipped — press again to flip back)</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">U</kbd> — Unmate the most recent connection on the selected board</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Tab</kbd> — Cycle through Move / Rotate / Scale when move arrows are active</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Delete</kbd> — Delete selected board</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Z</kbd> — Undo</li>
@@ -97,18 +98,23 @@ export default function TutorialPanel() {
       </Section>
 
       <Section search={searchLower} title="Cross-Cuts & Rip Cuts">
-        <ol className="space-y-1.5 list-decimal pl-4 text-zinc-400">
-          <li>Select the board you want to cut.</li>
-          <li>Open the <strong className="text-zinc-300">Modify</strong> tab and click <strong className="text-zinc-300">Cross Cut</strong> or <strong className="text-zinc-300">Rip Cut</strong>.</li>
-          <li>In the <strong className="text-zinc-300">Inspector</strong> tab (right sidebar), set the cut position or target width.</li>
-          <li>The cut appears immediately in the 3D view as a CSG subtraction.</li>
-        </ol>
-        <ul className="space-y-1 list-disc pl-4 text-zinc-400 mt-2">
-          <li><strong className="text-zinc-300">Cross-Cut</strong> — A vertical chop across the board width (like a chop saw).</li>
-          <li><strong className="text-zinc-300">Rip Cut</strong> — Enter a target width; the waste strip is removed automatically.</li>
+        <ul className="space-y-2 list-disc pl-4 text-zinc-400">
+          <li>
+            <strong className="text-zinc-300">Cross Cut (C)</strong> — Select a board, press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">C</kbd> or click Cross Cut in the Modify tab.
+            In the Inspector panel, set the <strong className="text-zinc-300">Cut Position</strong> in inches from the board&apos;s start end, then click <strong className="text-zinc-300">Apply Cross Cut</strong>.
+            This goes ACROSS the grain — like a chop saw shortening the board.
+          </li>
+          <li>
+            <strong className="text-zinc-300">Rip Cut (R)</strong> — Select a board, press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">R</kbd> or click Rip Cut.
+            Set the <strong className="text-zinc-300">Target Width</strong> in inches, then click <strong className="text-zinc-300">Apply Rip Cut</strong>.
+            The waste side is removed automatically. This goes ALONG the grain — like a table saw narrowing the board.
+          </li>
         </ul>
+        <p className="text-base text-zinc-400 mt-2">
+          <strong className="text-zinc-300">Remember:</strong> Cross cut = shorter board. Rip cut = narrower board.
+        </p>
         <p className="text-base text-zinc-500 mt-2">
-          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I make a cross cut?&quot; · &quot;What is a rip cut?&quot;
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I make a cross cut?&quot; · &quot;What is a rip cut?&quot; · &quot;Difference between cross cut and rip cut?&quot;
         </p>
       </Section>
 
@@ -165,10 +171,13 @@ export default function TutorialPanel() {
           To see what a board is connected to, select it and check the <strong className="text-zinc-300">Inspector</strong> tab — Connections lists every mate. Click <strong className="text-zinc-300">Unmate</strong> next to any connection to detach those two boards.
         </p>
         <p className="text-base text-zinc-400 mt-1">
+          <strong className="text-zinc-300">Shortcut:</strong> Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">U</kbd> to instantly unmate the most recent connection on the selected board without opening the Inspector.
+        </p>
+        <p className="text-base text-zinc-400 mt-1">
           This does <strong className="text-zinc-300">NOT</strong> undo the position change — use <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Ctrl+Z</kbd> if you want to fully reverse a mate including where the board moved.
         </p>
         <p className="text-base text-zinc-500 mt-2">
-          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I unmate boards?&quot; · &quot;Can I undo a mate?&quot;
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I unmate boards?&quot; · &quot;Can I undo a mate?&quot; · &quot;U key unmate&quot;
         </p>
       </Section>
 
@@ -413,7 +422,8 @@ export default function TutorialPanel() {
 
       <Section search={searchLower} title="Right-Click Context Menu">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
-          <li>Right-click any board to open the context menu and the radial wheel at the same time.</li>
+          <li>Right-click any board (short click, no drag) to open the context menu.</li>
+          <li>If you hold right mouse and drag to pan the camera, the menu will <strong className="text-zinc-300">not</strong> appear — it only opens on a short click.</li>
           <li>Right-click empty space for viewport actions.</li>
         </ol>
         <p className="text-base text-zinc-400 mt-2">On a board:</p>
