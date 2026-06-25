@@ -19,7 +19,9 @@ interface Props {
 
 export default function TransformGizmo({ member, objectRef }: Props) {
   const transformMode = useAppStore((s) => s.ui.transformMode);
+  const transformGizmoActive = useAppStore((s) => s.ui.transformGizmoActive);
   const activeTool = useAppStore((s) => s.ui.activeTool);
+  const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
   const angleSnapEnabled = useAppStore((s) => s.ui.angleSnapEnabled);
   const angleSnapIncrement = useAppStore((s) => s.ui.angleSnapIncrement);
   const updateMember = useAppStore((s) => s.updateMember);
@@ -43,6 +45,7 @@ export default function TransformGizmo({ member, objectRef }: Props) {
     if (!tc) return;
     const handler = (e: { value: boolean }) => {
       if (controls) controls.enabled = !e.value;
+      setOrbitControlsEnabled(!e.value);
       if (!e.value && objectRef.current) {
         const obj = objectRef.current;
         let pos: [number, number, number] = [obj.position.x, obj.position.y, obj.position.z];
@@ -80,9 +83,9 @@ export default function TransformGizmo({ member, objectRef }: Props) {
     };
     tc.addEventListener('dragging-changed', handler);
     return () => tc.removeEventListener('dragging-changed', handler);
-  }, [controls, member, objectRef, transformMode, allMembers, updateMember, angleSnapEnabled, angleSnapIncrement, viewportMode]);
+  }, [controls, member, objectRef, transformMode, allMembers, updateMember, angleSnapEnabled, angleSnapIncrement, viewportMode, setOrbitControlsEnabled]);
 
-  if (activeTool !== 'select' || !attached || !objectRef.current) return null;
+  if (activeTool !== 'select' || !transformGizmoActive || !attached || !objectRef.current) return null;
 
   return (
     <TransformControls ref={tcRef as never} object={objectRef.current} mode={transformMode} size={0.75} />

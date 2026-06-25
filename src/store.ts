@@ -46,6 +46,7 @@ const DEFAULT_UI: UIState = {
   selectedMemberId: null,
   rightPanelTab: 'inspector',
   transformMode: 'translate',
+  transformGizmoActive: false,
   trimBoundaryId: null,
   isolatedMemberId: null,
   orbitControlsEnabled: true,
@@ -183,6 +184,7 @@ interface AppStore {
   ) => void;
   setActiveTool:    (tool: ActiveTool) => void;
   setTransformMode: (mode: TransformMode) => void;
+  setTransformGizmoActive: (active: boolean) => void;
   setTrimBoundary:  (id: string | null) => void;
   setOrbitControlsEnabled: (enabled: boolean) => void;
   resetCamera: () => void;
@@ -499,7 +501,7 @@ export const useAppStore = create<AppStore>()(
     if (ui.dimensionEditPending && ui.selectedMemberId) {
       get().commitDimensionEdit();
     }
-    const openWheel = opts?.openWheel ?? id !== null;
+    const openWheel = opts?.openWheel ?? false;
     set((s) => {
       let anchor: { x: number; y: number } | null = null;
       if (id !== null) {
@@ -515,6 +517,7 @@ export const useAppStore = create<AppStore>()(
           selectedMemberId: id,
           multiSelection: id ? [id] : [],
           quickDimensionsOpen: false,
+          transformGizmoActive: false,
           radialWheelOpen: id !== null && openWheel,
           radialWheelMode: 'full',
           radialWheelCollapsed: false,
@@ -578,6 +581,9 @@ export const useAppStore = create<AppStore>()(
   setTransformMode: (mode) =>
     set((s) => ({ ui: { ...s.ui, transformMode: mode } })),
 
+  setTransformGizmoActive: (active) =>
+    set((s) => ({ ui: { ...s.ui, transformGizmoActive: active } })),
+
   setTrimBoundary: (id) =>
     set((s) => ({ ui: { ...s.ui, trimBoundaryId: id } })),
 
@@ -636,6 +642,7 @@ export const useAppStore = create<AppStore>()(
         quickJoinMiterAxis: null,
         multiSelection: [],
         selectedMemberId: null,
+        transformGizmoActive: false,
         drawBoardCancelNonce: s.ui.drawBoardCancelNonce + 1,
         contextMenu: { ...s.ui.contextMenu, open: false },
       },

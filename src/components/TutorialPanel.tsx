@@ -14,6 +14,30 @@ export default function TutorialPanel() {
         </p>
       </div>
 
+      <Section title="Keyboard Shortcuts">
+        <p className="text-base text-zinc-400 mb-2">
+          DoveDesign uses industry-standard CAD shortcuts so experienced woodworkers
+          feel right at home.
+        </p>
+        <ul className="space-y-1.5 list-none pl-0 text-zinc-400">
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Space</kbd> — Open / close the radial tool wheel on selected board</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Escape</kbd> — Cancel current tool, deselect all, close wheel</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">S</kbd> — Switch to Select tool</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">B</kbd> — Switch to Draw Board tool</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">M</kbd> — Activate Move (shows transform arrows on selected board)</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">R</kbd> — Switch to Rip Cut tool</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">D</kbd> — Duplicate selected board</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">G</kbd> — Toggle grid on / off</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Delete</kbd> — Delete selected board</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Z</kbd> — Undo</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Y</kbd> — Redo</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Shift+drag</kbd> — Box select multiple boards</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What are the keyboard shortcuts?&quot; · &quot;How do I move a board with the keyboard?&quot;
+        </p>
+      </Section>
+
       <Section title="Left Tool Panel — Model, Modify, Joinery, Shapes">
         <p className="text-base text-zinc-400 mb-2">
           The vertical panel on the left side of the screen is organized into four tabs. Click a tab name to switch groups.
@@ -35,7 +59,7 @@ export default function TutorialPanel() {
           These are the core tools in the <strong className="text-zinc-300">Model</strong> and <strong className="text-zinc-300">Modify</strong> tabs:
         </p>
         <ul className="space-y-1.5 list-disc pl-4 text-zinc-400">
-          <li><strong className="text-zinc-300">Select</strong> — Click a board to select it and open the radial wheel. Drag the gizmo to move, rotate, or scale.</li>
+          <li><strong className="text-zinc-300">Select</strong> — Click a board to highlight it. Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Space</kbd> to open the radial wheel. Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">M</kbd> to activate move arrows. Shift+click to multi-select.</li>
           <li><strong className="text-zinc-300">Draw</strong> — Click and drag on the grid to sketch a rectangle footprint; release to create a board. See Continuous Edge Drawing below for chaining.</li>
           <li><strong className="text-zinc-300">Add</strong> — Place a board with exact dimensions; finish details in the Inspector tab on the right.</li>
           <li><strong className="text-zinc-300">Cross Cut / Rip Cut / Miter / Trim / Join</strong> — Select a board first, pick the tool, then apply settings from the Inspector panel.</li>

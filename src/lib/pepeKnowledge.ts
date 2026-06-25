@@ -24,6 +24,48 @@ export interface KnowledgeEntry {
 
 const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
   {
+    id: 'keyboard-shortcuts',
+    topic: 'Keyboard shortcuts',
+    keywords: ['keyboard', 'shortcut', 'hotkey', 'key', 'shortcuts', 'ctrl', 'escape', 'delete', 'undo', 'redo', 'space'],
+    answer:
+      'DoveDesign shortcuts: Space = open radial wheel on selected board, Escape = cancel/deselect, S = select tool, B = draw board, M = move selected board (shows transform arrows), R = rip cut, D = duplicate, G = toggle grid, Delete = delete board, Ctrl+Z = undo, Ctrl+Y = redo, Shift+drag = box select.',
+  },
+  {
+    id: 'how-move-board',
+    topic: 'How to move a board',
+    keywords: ['move', 'drag', 'reposition', 'translate', 'arrow', 'gizmo', 'transform', 'how do i move'],
+    answer:
+      'Click the board to select it (it glows amber), then press M to activate the move arrows, or press Space to open the radial wheel and choose Move. Drag the colored arrows to move along that axis.',
+  },
+  {
+    id: 'how-open-radial-wheel',
+    topic: 'How to open the radial wheel',
+    keywords: ['radial', 'wheel', 'open', 'menu', 'circular', 'tool wheel', 'how do i open'],
+    answer:
+      'Click any board to select it, then press Space to open the radial wheel at your cursor. Press Space again or Escape to close it.',
+  },
+  {
+    id: 'how-delete-board',
+    topic: 'How to delete a board',
+    keywords: ['delete', 'remove', 'erase', 'get rid of', 'trash', 'board'],
+    answer:
+      'Click the board to select it, then press the Delete key. Or press Space to open the radial wheel and choose Delete.',
+  },
+  {
+    id: 'how-undo',
+    topic: 'How to undo',
+    keywords: ['undo', 'redo', 'ctrl z', 'ctrl y', 'revert', 'back', 'history'],
+    answer:
+      'Press Ctrl+Z to undo your last action. Press Ctrl+Y or Ctrl+Shift+Z to redo.',
+  },
+  {
+    id: 'how-duplicate-board',
+    topic: 'How to duplicate a board',
+    keywords: ['duplicate', 'copy', 'clone', 'repeat', 'board'],
+    answer:
+      'Select a board by clicking it, then press D to duplicate it. The copy appears offset slightly from the original.',
+  },
+  {
     id: 'left-tool-panel',
     topic: 'Left tool panel tabs',
     keywords: [

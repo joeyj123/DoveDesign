@@ -22,6 +22,7 @@ import DesignSuggestionsBridge from './DesignSuggestionsBridge';
 import PlacedHardwareMeshes from './PlacedHardwareMeshes';
 import AttachmentPointLinks, { PolygonDrawTool } from './AttachmentPointLinks';
 import AttachmentPointHandles from './AttachmentPointHandles';
+import KeyboardShortcuts from './KeyboardShortcuts';
 
 function ShadowFloor() {
   return (
@@ -65,6 +66,7 @@ export default function Viewport() {
       style={{ minHeight: 0 }}
       data-viewport-root
     >
+      <KeyboardShortcuts />
       <ViewportContextMenu />
       {showWelcome && <ViewportWelcome />}
       <QuickDimensionsPanel />

@@ -331,6 +331,7 @@ export interface UIState {
   selectedMemberId: string | null;
   rightPanelTab: RightPanelTab;
   transformMode: TransformMode;
+  transformGizmoActive: boolean;
   /** Boundary board for trim/extend operations. */
   trimBoundaryId: string | null;
   /** When set, only this member is visible in the viewport. */

@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store';
 
 const SEGMENTS = [
-  { id: 'dimensions', label: 'Dims', title: 'Quick Dimensions' },
-  { id: 'mate', label: 'Mate', title: 'Mate faces' },
-  { id: 'edge', label: 'Edge', title: 'Edge treatment' },
-  { id: 'flip', label: 'Flip', title: 'Flip across longest axis' },
-  { id: 'delete', label: 'Delete', title: 'Delete board' },
+  { id: 'dimensions', label: 'Dims',   title: 'Quick Dimensions' },
+  { id: 'move',       label: 'Move',   title: 'Move / Rotate / Scale' },
+  { id: 'mate',       label: 'Mate',   title: 'Mate faces' },
+  { id: 'edge',       label: 'Edge',   title: 'Edge treatment' },
+  { id: 'flip',       label: 'Flip',   title: 'Flip across longest axis' },
+  { id: 'delete',     label: 'Delete', title: 'Delete board' },
 ] as const;
 
 type SegId = (typeof SEGMENTS)[number]['id'];
@@ -15,7 +16,7 @@ const WHEEL_SIZE = 240;
 const CENTER = WHEEL_SIZE / 2;
 const OUTER_R = 118;
 const INNER_R = 34;
-const SEG_COUNT = 5;
+const SEG_COUNT = 6;
 const SEG_ANGLE = 360 / SEG_COUNT;
 
 function polar(cx: number, cy: number, r: number, deg: number) {
@@ -59,6 +60,17 @@ function SegmentIcon({ id }: { id: SegId }) {
           <path d="M11 16 L11 13" />
           <path d="M15 16 L15 14" />
           <path d="M17 16 L17 13" />
+        </svg>
+      );
+    case 'move':
+      return (
+        <svg {...props}>
+          <path d="M10 3 L10 17" />
+          <path d="M3 10 L17 10" />
+          <path d="M10 3 L7 6 M10 3 L13 6" />
+          <path d="M10 17 L7 14 M10 17 L13 14" />
+          <path d="M3 10 L6 7 M3 10 L6 13" />
+          <path d="M17 10 L14 7 M17 10 L14 13" />
         </svg>
       );
     case 'mate':
@@ -146,8 +158,12 @@ export default function RadialOrbitalSelector() {
   const anchor = useAppStore((s) => s.ui.radialWheelAnchor);
   const selectedId = useAppStore((s) => s.ui.selectedMemberId);
   const members = useAppStore((s) => s.project.members);
+  const activeTool = useAppStore((s) => s.ui.activeTool);
+  const multiSelection = useAppStore((s) => s.ui.multiSelection);
 
   const setRadialWheelOpen = useAppStore((s) => s.setRadialWheelOpen);
+  const setTransformGizmoActive = useAppStore((s) => s.setTransformGizmoActive);
+  const setTransformMode = useAppStore((s) => s.setTransformMode);
   const setQuickDimensionsOpen = useAppStore((s) => s.setQuickDimensionsOpen);
   const setEdgeToolMemberId = useAppStore((s) => s.setEdgeToolMemberId);
   const setActiveTool = useAppStore((s) => s.setActiveTool);
@@ -199,6 +215,18 @@ export default function RadialOrbitalSelector() {
     };
   }, [open, showHint]);
 
+  useEffect(() => {
+    if (activeTool !== 'select') {
+      setRadialWheelOpen(false);
+    }
+  }, [activeTool]);
+
+  useEffect(() => {
+    if (multiSelection.length > 1) {
+      setRadialWheelOpen(false);
+    }
+  }, [multiSelection]);
+
   if (!open || !bounds || !selectedId) return null;
 
   const clickX = anchor?.x ?? (bounds.left + bounds.right) / 2;
@@ -230,6 +258,11 @@ export default function RadialOrbitalSelector() {
     switch (segId) {
       case 'dimensions':
         setQuickDimensionsOpen(true);
+        setRadialWheelOpen(false);
+        break;
+      case 'move':
+        setTransformGizmoActive(true);
+        setTransformMode('translate');
         setRadialWheelOpen(false);
         break;
       case 'mate':

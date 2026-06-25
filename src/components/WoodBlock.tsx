@@ -146,8 +146,7 @@ export default function WoodBlock({ member }: Props) {
     }
 
     if (activeTool === 'select') {
-      const anchor = { x: e.clientX, y: e.clientY };
-      selectMember(member.id, { openWheel: true, wheelAnchor: anchor });
+      selectMember(member.id, { openWheel: false });
       return;
     }
 
