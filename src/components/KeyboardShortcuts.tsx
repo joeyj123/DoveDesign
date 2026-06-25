@@ -101,6 +101,24 @@ export default function KeyboardShortcuts() {
             store.setActiveTool('select');
           }
           break;
+
+        case 'j':
+        case 'J':
+          store.setActiveTool('mate');
+          store.setRadialWheelOpen(false);
+          break;
+
+        case 'f':
+        case 'F':
+          if (store.ui.selectedMemberId) {
+            const m = store.project.members.find((mem) => mem.id === store.ui.selectedMemberId);
+            if (m) {
+              store.updateMember(store.ui.selectedMemberId, {
+                rotation: [m.rotation[0], m.rotation[1] + Math.PI, m.rotation[2]],
+              });
+            }
+          }
+          break;
       }
     };
 

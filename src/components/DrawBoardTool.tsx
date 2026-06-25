@@ -114,6 +114,14 @@ export default function DrawBoardTool() {
     drawing.current = false;
 
     const end: [number, number] = [e.point.x, e.point.z];
+
+    // Minimum drag distance — cancel if the user just clicked without dragging
+    const dragDist = Math.hypot(end[0] - start[0], end[1] - start[1]);
+    if (dragDist < 3) {
+      cancelDraw();
+      return;
+    }
+
     const length = Math.max(Math.abs(end[0] - start[0]), 6);
     const width = Math.max(Math.abs(end[1] - start[1]), drawDefaults.thickness);
     const cx = (start[0] + end[0]) / 2;

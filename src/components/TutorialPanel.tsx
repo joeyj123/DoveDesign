@@ -28,6 +28,8 @@ export default function TutorialPanel() {
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">R</kbd> — Switch to Rip Cut tool</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">D</kbd> — Duplicate selected board</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">G</kbd> — Toggle grid on / off</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">J</kbd> — Activate Mate tool (Join boards)</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">F</kbd> — Flip selected board 180°</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Delete</kbd> — Delete selected board</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Z</kbd> — Undo</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Y</kbd> — Redo</li>
@@ -115,7 +117,7 @@ export default function TutorialPanel() {
 
       <Section title="Mate Tool — Full Flow">
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
-          <li><strong className="text-zinc-300">Step 1</strong> — Open the <strong className="text-zinc-300">Joinery</strong> tab and click <strong className="text-zinc-300">Mate</strong>, or click <strong className="text-zinc-300">Mate</strong> on the radial wheel.</li>
+          <li><strong className="text-zinc-300">Step 1</strong> — Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">J</kbd>, or open the <strong className="text-zinc-300">Joinery</strong> tab and click <strong className="text-zinc-300">Mate</strong>, or choose Mate from the radial wheel.</li>
           <li><strong className="text-zinc-300">Step 2</strong> — Click a face on the first board. It highlights and a ¼&quot; grid overlay appears on hover.</li>
           <li><strong className="text-zinc-300">Step 3</strong> — Optionally click a grid intersection to set where the joint origin sits (amber marker).</li>
           <li><strong className="text-zinc-300">Step 4</strong> — Click a face on a <em>different</em> board. The second board snaps flush to the first and a mate record is created.</li>
@@ -126,7 +128,7 @@ export default function TutorialPanel() {
           Double-click a second point on another board to connect them point-to-point. Drag a point to reposition it on its face.
         </p>
         <p className="text-base text-zinc-500 mt-2">
-          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I mate two boards?&quot; · &quot;What is the face grid?&quot; · &quot;How do attachment points work?&quot;
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I mate two boards?&quot; · &quot;Why won&apos;t my boards attach?&quot; · &quot;How do I use the J shortcut?&quot;
         </p>
       </Section>
 

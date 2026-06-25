@@ -66,6 +66,34 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
       'Select a board by clicking it, then press D to duplicate it. The copy appears offset slightly from the original.',
   },
   {
+    id: 'how-attach-boards',
+    topic: 'How to attach two boards together',
+    keywords: ['attach', 'join', 'connect', 'mate', 'snap', 'together', 'face', 'j shortcut'],
+    answer:
+      'Press J to activate the Mate tool, then click a face on the first board (other boards glow blue). Then click any face on the second board — it snaps flush to the first automatically. Then choose a join method like Screws or Glue.',
+  },
+  {
+    id: 'mate-not-working',
+    topic: 'Mate tool not working or boards not snapping',
+    keywords: ['mate', 'not working', 'wont snap', 'attach fail', 'boards wont connect', 'join broken'],
+    answer:
+      'Make sure you click two DIFFERENT boards. Click a face on board A first (other boards turn blue), then click any face on board B. They snap together. Press J to start the Mate tool.',
+  },
+  {
+    id: 'how-flip-board',
+    topic: 'How to flip a board',
+    keywords: ['flip', 'rotate 180', 'turn around', 'f key', 'mirror', 'reverse'],
+    answer:
+      'Select the board and press F to flip it 180 degrees. Or press Space to open the radial wheel and choose Flip.',
+  },
+  {
+    id: 'j-shortcut',
+    topic: 'J keyboard shortcut for Mate tool',
+    keywords: ['j', 'shortcut', 'mate', 'join', 'keyboard'],
+    answer:
+      'Press J to activate the Mate tool — this is the standard CAD shortcut for joining parts. Click face A on one board, then face B on another board to snap them together.',
+  },
+  {
     id: 'left-tool-panel',
     topic: 'Left tool panel tabs',
     keywords: [

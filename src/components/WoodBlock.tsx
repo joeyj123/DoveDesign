@@ -28,7 +28,6 @@ export default function WoodBlock({ member }: Props) {
   const activeTool   = useAppStore((s) => s.ui.activeTool);
   const mateFaceA = useAppStore((s) => s.ui.mateFaceA);
   const setMateFaceA = useAppStore((s) => s.setMateFaceA);
-  const setMateFaceB = useAppStore((s) => s.setMateFaceB);
   const setMateHoverFace = useAppStore((s) => s.setMateHoverFace);
   const setMateGridOffset = useAppStore((s) => s.setMateGridOffset);
   const applyMate = useAppStore((s) => s.applyMate);
@@ -56,6 +55,10 @@ export default function WoodBlock({ member }: Props) {
   const isSelected   = selectedId === member.id || multiSelection.includes(member.id);
   const isHighlighted = suggestionHighlightIds.includes(member.id);
   const isHidden     = isolatedMemberId !== null && isolatedMemberId !== member.id;
+  const isMateCandidate =
+    activeTool === 'mate' &&
+    mateFaceA !== null &&
+    mateFaceA.memberId !== member.id;
   const edgeToolActive = activeTool === 'edge' && edgeToolMemberId === member.id;
 
   const grainTex = getWoodGrainTexture(member.color);
@@ -87,8 +90,12 @@ export default function WoodBlock({ member }: Props) {
 
   function handleFaceFromEvent(e: ThreeEvent<MouseEvent>) {
     if (!e.face) return null;
-    const worldNormal = e.face.normal.clone().transformDirection(e.object.matrixWorld).normalize();
-    return pickFaceFromWorldNormal(member, worldNormal);
+    // Use the parent mesh matrixWorld, not e.object (which may be a CSG child with wrong transform)
+    const matrix = meshRef.current?.matrixWorld ?? e.object.matrixWorld;
+    const worldNormal = e.face.normal.clone().transformDirection(matrix).normalize();
+    const face = pickFaceFromWorldNormal(member, worldNormal);
+    console.log('[Mate] face detected:', face, 'worldNormal:', worldNormal);
+    return face;
   }
 
   function handleClick(e: ThreeEvent<MouseEvent>) {
@@ -126,16 +133,20 @@ export default function WoodBlock({ member }: Props) {
       const offset = worldPointToFaceOffset(member, face, e.point.clone());
       setMateGridOffset({ memberId: member.id, face, offset });
       const sel = { memberId: member.id, face, offset };
-      if (!mateFaceA) {
+
+      const currentFaceA = useAppStore.getState().ui.mateFaceA;
+
+      if (!currentFaceA) {
         setMateFaceA(sel);
         return;
       }
-      if (mateFaceA.memberId === member.id && mateFaceA.face === face) return;
-      if (mateFaceA.memberId === member.id) {
+      if (currentFaceA.memberId === member.id && currentFaceA.face === face) return;
+      if (currentFaceA.memberId === member.id) {
         setMateFaceA(sel);
         return;
       }
-      setMateFaceB(sel);
+      // Set faceB directly in store then immediately call applyMate to avoid stale state
+      useAppStore.setState((s) => ({ ui: { ...s.ui, mateFaceB: sel } }));
       applyMate();
       return;
     }
@@ -266,8 +277,17 @@ export default function WoodBlock({ member }: Props) {
           transparent={xray}
           opacity={xray ? 0.3 : 1}
           depthWrite={!xray}
-          emissive={isSelected || isHighlighted ? '#ffaa00' : '#000000'}
-          emissiveIntensity={isSelected ? 0.28 : isHighlighted ? 0.22 : 0}
+          emissive={
+            isSelected || isHighlighted ? '#ffaa00' :
+            isMateCandidate ? '#0066ff' :
+            '#000000'
+          }
+          emissiveIntensity={
+            isSelected ? 0.28 :
+            isHighlighted ? 0.22 :
+            isMateCandidate ? 0.15 :
+            0
+          }
         />
 
         <Geometry>
