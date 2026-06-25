@@ -70,8 +70,11 @@ export default function Viewport() {
       <KeyboardShortcuts />
       <ViewportContextMenu />
       {activeTool === 'mate' && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg bg-zinc-900/90 border border-amber-500/40 text-base text-amber-100 pointer-events-none">
-          {mateFaceA ? 'Now click a face on the second board' : 'Click a face on the first board — it will glow'}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg bg-zinc-900/90 border border-amber-500/40 text-base text-amber-100 pointer-events-none text-center">
+          {mateFaceA
+            ? <>Now click a face on the <strong>second board</strong> — it will snap TO the first board</>
+            : <>Click a face on the <strong>first board</strong> — it stays still, the second board moves to it</>
+          }
         </div>
       )}
       {showWelcome && <ViewportWelcome />}

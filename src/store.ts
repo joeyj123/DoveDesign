@@ -255,6 +255,7 @@ interface AppStore {
   applyButtJoints: () => void;
   applyLapJoints: () => void;
   applyMiterJoints: (axis: 'x' | 'y' | 'z') => void;
+  removeMate: (mateId: string) => void;
   newProject: () => void;
   setRightPanelTab: (tab: UIState['rightPanelTab']) => void;
   updateProjectMeta:(patch: { name?: string; description?: string }) => void;
@@ -787,6 +788,13 @@ export const useAppStore = create<AppStore>()(
       }));
     }
   },
+
+  removeMate: (mateId) =>
+    commitProject(set, get, {
+      ...get().project,
+      mates: get().project.mates.filter((m) => m.id !== mateId),
+      fasteners: get().project.fasteners.filter((f) => f.mateId !== mateId),
+    }),
 
   addAttachmentPoint: (point) =>
     commitProject(set, get, {

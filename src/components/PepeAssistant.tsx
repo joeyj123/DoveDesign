@@ -263,7 +263,10 @@ export function PepeEmbedded() {
   return (
     <div className="flex flex-col items-center">
       {open && (
-        <div className="w-full mb-2 pointer-events-auto bg-zinc-950/95 border-2 border-green-600 rounded-xl p-3 shadow-lg max-h-64 overflow-y-auto sidebar-scroll">
+        <div
+          className="fixed bottom-16 left-16 z-50 w-[480px] max-w-[calc(100vw-120px)] rounded-xl border-2 border-green-600/80 bg-zinc-900/97 shadow-2xl p-4 max-h-[70vh] overflow-y-auto sidebar-scroll"
+          style={{ backdropFilter: 'blur(8px)' }}
+        >
           <h2 className="text-base font-bold text-green-300 mb-2">Pepe&apos;s Workshop</h2>
           <div className="flex gap-1 mb-2">
             {(['suggestions', 'ask'] as const).map((t) => (
@@ -319,12 +322,12 @@ export function PepeEmbedded() {
             <div className="space-y-2">
               <label className="flex flex-col gap-1 text-base text-zinc-300">
                 Your question
-                <input
-                  type="text"
-                  className="input-field text-base"
+                <textarea
+                  className="input-field text-base w-full resize-none"
+                  rows={2}
                   value={query}
                   onChange={(e) => handleQueryChange(e.target.value)}
-                  placeholder="Ask me anything about woodworking..."
+                  placeholder="Ask me anything about woodworking or DoveDesign..."
                 />
               </label>
 

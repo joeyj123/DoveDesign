@@ -19,6 +19,9 @@ export default function MemberInspector() {
   const setAngleSnapIncrement = useAppStore((s) => s.setAngleSnapIncrement);
   const isolatedMemberId = useAppStore((s) => s.ui.isolatedMemberId);
   const setIsolatedMember = useAppStore((s) => s.setIsolatedMember);
+  const mates = useAppStore((s) => s.project.mates);
+  const members = useAppStore((s) => s.project.members);
+  const removeMate = useAppStore((s) => s.removeMate);
 
   if (!selectedMember) {
     return (
@@ -251,6 +254,36 @@ export default function MemberInspector() {
           ))}
         </div>
       </div>
+
+      {(() => {
+        const myMates = mates.filter(
+          (m) => m.memberAId === selectedMember.id || m.memberBId === selectedMember.id
+        );
+        if (myMates.length === 0) return null;
+        return (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Connections
+            </p>
+            {myMates.map((mate) => {
+              const otherId = mate.memberAId === selectedMember.id ? mate.memberBId : mate.memberAId;
+              const other = members.find((m) => m.id === otherId);
+              return (
+                <div key={mate.id} className="flex items-center justify-between py-1">
+                  <span className="text-base text-zinc-300">→ {other?.label ?? 'Unknown'}</span>
+                  <button
+                    type="button"
+                    className="text-sm text-red-400 hover:text-red-300 border border-red-800 rounded px-2 py-0.5"
+                    onClick={() => removeMate(mate.id)}
+                  >
+                    Unmate
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       <button
         type="button"

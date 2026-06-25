@@ -583,6 +583,111 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     answer:
       'Wear eye and ear protection. Keep guards on tools. Use push sticks past the blade. Unplug tools when changing bits or blades. Keep floors clear of offcuts and extension cords. Never reach over a spinning blade.',
   },
+  {
+    id: 'left-panel-tools',
+    topic: 'What tools are in the left panel',
+    keywords: ['left panel', 'tools', 'tabs', 'model tab', 'modify tab', 'joinery tab', 'shapes tab', 'panel'],
+    answer:
+      'The left panel has 4 tabs: Model (Select, Draw, Add boards), Modify (Cross Cut, Rip Cut, Miter, Trim, Join), Joinery (Mate, Edge Treatment, Attach Point), and Shapes (Cylinder, Sphere, Cone, Triangle, Hexagon, Custom Polygon).',
+  },
+  {
+    id: 'modify-tab-tools',
+    topic: 'What is in the Modify tab',
+    keywords: ['modify', 'modify tab', 'cross cut', 'rip cut', 'miter', 'trim', 'join', 'cut tool'],
+    answer:
+      'The Modify tab has: Cross Cut (chop across the board width), Rip Cut (cut along the length to a target width), Miter (angled end cuts), Trim (trim a board to a boundary), and Join (auto-detect joints between selected boards).',
+  },
+  {
+    id: 'joinery-tab-tools',
+    topic: 'What is in the Joinery tab',
+    keywords: ['joinery', 'joinery tab', 'mate tool', 'edge treatment', 'attach point'],
+    answer:
+      'The Joinery tab has: Mate (snap two board faces together, press J), Edge Treatment (add chamfers, fillets, rabbets to edges), and Attach Point (place named connection points on faces).',
+  },
+  {
+    id: 'right-panel-tabs',
+    topic: 'What panels are on the right side',
+    keywords: ['right panel', 'right sidebar', 'inspector', 'estimating', 'cut list', 'optimizer', 'engineering', 'right side'],
+    answer:
+      'The right sidebar has: Inspector (dimensions, position, rotation of selected board), Estimating (material costs), Cut List (all boards listed), Optimizer (cut layout for lumber), and Engineering (deflection calculations).',
+  },
+  {
+    id: 'cut-optimizer',
+    topic: 'What is the cut optimizer',
+    keywords: ['optimizer', 'cut optimizer', 'lumber layout', 'nesting', 'waste', 'sheet layout'],
+    answer:
+      'The Cut Optimizer shows you how to cut your boards from standard lumber lengths with the least waste. Open it from the Optimizer tab on the right sidebar.',
+  },
+  {
+    id: 'engineering-panel',
+    topic: 'What is the engineering panel',
+    keywords: ['engineering', 'deflection', 'beam', 'sag', 'load', 'structural'],
+    answer:
+      'The Engineering panel calculates beam deflection — how much a board will sag under a load. Select a board, set the load in the Inspector, then check the Engineering tab.',
+  },
+  {
+    id: 'estimating-panel',
+    topic: 'What is the estimating panel',
+    keywords: ['estimating', 'cost', 'price', 'board foot', 'material cost'],
+    answer:
+      'The Estimating panel calculates material costs for your project. Set prices per board foot for each species in the Estimating tab on the right sidebar.',
+  },
+  {
+    id: 'assembly-mode',
+    topic: 'What is assembly mode',
+    keywords: ['assembly', 'assembly mode', 'build sequence', 'assembly guide', 'step by step'],
+    answer:
+      'Assembly mode (in the Mode menu at the top) spreads your boards out in order and shows an assembly guide so you can see the step-by-step build sequence.',
+  },
+  {
+    id: 'save-project',
+    topic: 'How to save a project',
+    keywords: ['save', 'file', 'open', 'export', 'wcad', 'project file'],
+    answer:
+      'Go to File > Save in the top menu to download your project as a .wcad file. Open it again with File > Open.',
+  },
+  {
+    id: 'what-is-mate',
+    topic: 'What is a mate',
+    keywords: ['what is mate', 'what is a mate', 'mate definition', 'connection record'],
+    answer:
+      'A mate is a connection between two board faces. Use the Mate tool (press J) to snap boards together. Mates are listed in the Inspector under Connections, where you can also unmate them.',
+  },
+  {
+    id: 'display-modes',
+    topic: 'What display modes are available',
+    keywords: ['display', 'wireframe', 'xray', 'shaded', 'edges', 'view mode'],
+    answer:
+      'Use the Display menu at the top to switch between Shaded (normal), Wireframe (see through), Shaded with Edges, and X-Ray modes.',
+  },
+  {
+    id: 'multi-select',
+    topic: 'How to select multiple boards',
+    keywords: ['multi select', 'multiple boards', 'select all', 'shift click', 'box select', 'group select'],
+    answer:
+      'Hold Shift and click boards to add them to the selection, or hold Shift and drag a box around multiple boards to select them all at once.',
+  },
+  {
+    id: 'quick-dimensions',
+    topic: 'What is the quick dimensions panel',
+    keywords: ['quick dimensions', 'dims', 'exact dimensions', 'type dimensions', 'dimension panel'],
+    answer:
+      'Press Space to open the radial wheel on a selected board, then choose Dims. A floating panel lets you type exact dimensions for length, width, and thickness in inches.',
+  },
+  {
+    id: 'how-unmate',
+    topic: 'How to unmate boards',
+    keywords: ['unmate', 'detach', 'disconnect', 'remove mate', 'undo mate', 'remove connection'],
+    answer:
+      'Select either board, then look in the Inspector tab under Connections. Click Unmate next to the connection you want to remove. Use Ctrl+Z if you want to fully undo the mate including the position change.',
+  },
+  {
+    id: 'undo-mate',
+    topic: 'Can I undo a mate',
+    keywords: ['undo mate', 'reverse mate', 'ctrl z mate', 'unsnap', 'undo snap'],
+    answer:
+      'Yes — press Ctrl+Z right after mating to fully undo it including the position snap. Or select the board later and click Unmate in the Inspector to just remove the connection record.',
+  },
 ];
 
 export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
