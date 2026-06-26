@@ -18,6 +18,7 @@ import { buildCustomPolygonShape, createMemberBaseGeometry } from '../lib/member
 import { consumeBoxSelectClickSuppress } from '../lib/boxSelectGuard';
 import TransformGizmo from './TransformGizmo';
 import SnapPointHandles from './SnapPointHandles';
+import JointMarkerRenderer from './JointMarkerRenderer';
 
 interface Props {
   member: WoodMember;
@@ -53,6 +54,8 @@ export default function WoodBlock({ member }: Props) {
   const hardwareLibraryPick = useAppStore((s) => s.ui.hardwareLibraryPick);
   const addPlacedHardware = useAppStore((s) => s.addPlacedHardware);
   const viewportMode = useAppStore((s) => s.ui.viewportMode);
+  const selectedJointType = useAppStore((s) => s.ui.selectedJointType);
+  const addJointMarker = useAppStore((s) => s.addJointMarker);
   const isSelected   = selectedId === member.id || multiSelection.includes(member.id);
   const isHighlighted = suggestionHighlightIds.includes(member.id);
   const isHidden     = isolatedMemberId !== null && isolatedMemberId !== member.id;
@@ -126,6 +129,29 @@ export default function WoodBlock({ member }: Props) {
     const ui = useAppStore.getState().ui;
     if (ui.boxSelectRect || ui.boxSelectPending) return;
     if (activeTool === 'drawBoard') return;
+
+    if (activeTool === 'joint' && selectedJointType && e.face) {
+      e.stopPropagation();
+      const matrix = meshRef.current?.matrixWorld ?? e.object.matrixWorld;
+      const worldNormal = e.face.normal.clone().transformDirection(matrix).normalize();
+      const face = pickFaceFromWorldNormal(member, worldNormal);
+      // Map FaceId → faceIndex number
+      const faceIndexMap: Record<string, number> = {
+        xMin:0, xMax:1, yMin:2, yMax:3, zMin:4, zMax:5,
+      };
+      const faceIndex = faceIndexMap[face ?? 'yMax'] ?? 3;
+
+      // Convert world hit point to board local space
+      const invMatrix = new THREE.Matrix4().copy(matrix).invert();
+      const localHit = e.point.clone().applyMatrix4(invMatrix);
+
+      addJointMarker(member.id, {
+        type: selectedJointType,
+        position: { x: localHit.x, y: localHit.y, z: localHit.z },
+        faceIndex,
+      });
+      return;
+    }
 
     if (activeTool === 'placeHardware' && hardwareLibraryPick && e.face) {
       const face = handleFaceFromEvent(e)!;
@@ -399,6 +425,7 @@ export default function WoodBlock({ member }: Props) {
 
       {isSelected && <TransformGizmo member={member} objectRef={meshRef} />}
       <SnapPointHandles member={member} meshRef={meshRef} forMate />
+      <JointMarkerRenderer member={member} />
     </>
   );
 }

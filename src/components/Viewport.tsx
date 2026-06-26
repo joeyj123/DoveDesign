@@ -27,6 +27,7 @@ import MeasureTool from './MeasureTool';
 import DimensionLineRenderer from './DimensionLineRenderer';
 import RotationRing from './RotationRing';
 import CrossCutPreviewLine from './CrossCutPreviewLine';
+import RipCutPreviewLine from './RipCutPreviewLine';
 import ScrapBox from './ScrapBox';
 
 function ShadowFloor() {
@@ -65,7 +66,8 @@ export default function Viewport() {
   const activeTool        = useAppStore((s) => s.ui.activeTool);
   const mateFaceA         = useAppStore((s) => s.ui.mateFaceA);
   const measureStartPoint = useAppStore((s) => s.ui.measureStartPoint);
-  const gridVisible  = useAppStore((s) => s.ui.gridVisible);
+  const gridVisible       = useAppStore((s) => s.ui.gridVisible);
+  const snapToGrid        = useAppStore((s) => s.ui.snapToGrid);
   const showWelcome  = members.length === 0;
 
   return (
@@ -76,6 +78,11 @@ export default function Viewport() {
     >
       <KeyboardShortcuts />
       <ViewportContextMenu />
+      {snapToGrid && (
+        <div className="absolute top-3 right-3 z-20 px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/50 text-xs font-semibold text-amber-300 pointer-events-none select-none">
+          ⊞ Snap to Grid ON
+        </div>
+      )}
       {activeTool === 'measure' && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg bg-zinc-900/90 border border-amber-500/40 text-base text-amber-100 pointer-events-none text-center">
           {measureStartPoint
@@ -181,6 +188,7 @@ export default function Viewport() {
         <DimensionLineRenderer />
         <RotationRing />
         <CrossCutPreviewLine />
+        <RipCutPreviewLine />
         <SceneOrbitControls />
         <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
           <GizmoViewport labelColor="white" axisHeadScale={0.85} />

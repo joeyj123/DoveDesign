@@ -773,6 +773,90 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
       'Press M to activate the move arrows on a selected board. They stay visible until you press Escape or switch tools. Press Tab to cycle through Move, Rotate, and Scale modes.',
   },
   {
+    id: 'mortise-tenon',
+    topic: 'Mortise and tenon joint',
+    keywords: ['mortise', 'tenon', 'mortise and tenon', 'socket', 'tongue'],
+    answer:
+      'A mortise is a rectangular socket chiseled into one board. The tenon is a matching tongue on the end of the other board that slides in. Use the V (Joinery Visualization) tool to place Mortise and Tenon markers on your boards to plan the joint.',
+  },
+  {
+    id: 'pocket-hole',
+    topic: 'Pocket holes (Kreg jig)',
+    keywords: ['pocket hole', 'pocket screw', 'kreg', 'pocket jig', 'ph marker'],
+    answer:
+      'Pocket holes are angled holes drilled into one board so a screw can pull two boards together from inside. Press V for the Joinery Visualization tool, choose Pocket Hole, then click a face to mark where the holes go.',
+  },
+  {
+    id: 'dovetail-joint',
+    topic: 'Dovetail joint',
+    keywords: ['dovetail', 'tail', 'pin board', 'drawer joint', 'dove tail'],
+    answer:
+      'Dovetails interlock fan-shaped tails on one board with matching pins on the other. They are very strong and resist pulling apart — often used on drawer boxes. Press V and choose Dovetail to mark board ends with the trapezoidal profile.',
+  },
+  {
+    id: 'biscuit-joint',
+    topic: 'Biscuit joint',
+    keywords: ['biscuit', 'plate joint', 'biscuit joiner', 'wafer'],
+    answer:
+      'Biscuit joints use small oval wafers glued into slots in both boards to align and hold them together. Good for edge-to-edge joins like tabletops. Press V and choose Biscuit to mark where the slots go.',
+  },
+  {
+    id: 'joint-marker-how-to',
+    topic: 'How to add a joint marker',
+    keywords: ['add joint', 'place marker', 'joint marker', 'v tool', 'how joint'],
+    answer:
+      'Press V to open the Joinery Visualization tool. In the Inspector, pick a joint type (Pocket Hole, Mortise, Tenon, Dovetail, or Biscuit). Then click any face on a board — a dashed amber marker appears at that spot.',
+  },
+  {
+    id: 'joint-tool-overview',
+    topic: 'Joinery visualization tool overview',
+    keywords: ['joinery visualization', 'joint tool', 'v key', 'joint planning'],
+    answer:
+      'The Joinery Visualization tool (press V) lets you mark where joints will be cut on your boards. Markers are visual-only — no wood is actually removed. They help you plan and communicate your joinery before you cut.',
+  },
+  {
+    id: 'show-joints-on-boards',
+    topic: 'How to show where I am joining two boards',
+    keywords: ['show join', 'mark joint', 'where cut', 'joint location', 'show joint'],
+    answer:
+      'Press V for the Joinery Visualization tool, pick the joint type in the Inspector, then click the face of each board where the joint goes. Amber dashed markers show the joint location on each board.',
+  },
+  {
+    id: 'what-joints-available',
+    topic: 'What joint types are available',
+    keywords: ['joint types', 'available joints', 'what joints', 'list joints', 'all joints'],
+    answer:
+      'The Joinery Visualization tool (V) supports five types: Pocket Hole, Mortise, Tenon, Dovetail, and Biscuit. Each one shows a different shape on the board face to represent where that joint gets cut.',
+  },
+  {
+    id: 'remove-joint-marker',
+    topic: 'How to remove a joint marker',
+    keywords: ['remove marker', 'delete marker', 'clear joint', 'erase joint marker'],
+    answer:
+      'Press V to enter the Joinery Visualization tool, then click the amber marker on the board. A "Remove Marker" button appears — click it to delete just that one marker. You can also click "Clear All Markers" in the Inspector to remove all markers from a selected board.',
+  },
+  {
+    id: 'mortise-vs-tenon',
+    topic: 'Mortise vs tenon — which goes where',
+    keywords: ['mortise vs tenon', 'which is socket', 'which is tongue', 'mortise difference tenon'],
+    answer:
+      'The mortise is the hole (socket) — it gets cut INTO the board. The tenon is the plug (tongue) — it sticks OUT from the end of the other board. Mark the mortise on the board that stays still; mark the tenon on the board that slides in.',
+  },
+  {
+    id: 'pocket-hole-angle',
+    topic: 'Pocket hole drill angle',
+    keywords: ['pocket angle', '15 degree', 'pocket drill angle', 'kreg angle'],
+    answer:
+      'Pocket holes are drilled at a 15° angle so the screw pulls the joint tight. The Joinery Visualization tool shows this angled drill line on the board face when you place a Pocket Hole marker.',
+  },
+  {
+    id: 'dovetail-layout',
+    topic: 'Dovetail pin and tail layout',
+    keywords: ['dovetail layout', 'pin board', 'tail board', 'dovetail layout'],
+    answer:
+      'A dovetail joint has tails (fan-shaped, wider at tip) on one board and pins (narrow) on the other. The Dovetail marker in DoveDesign shows the trapezoidal tail profile on the board end to help you plan the layout.',
+  },
+  {
     id: 'snap-to-grid',
     topic: 'Snap to grid',
     keywords: ['snap', 'grid', 'snap to grid', 'align grid', 'grid snap', 'g key'],

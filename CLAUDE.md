@@ -120,7 +120,7 @@ threshold, and box-select orbit conflict are all resolved in Phases 4–8.
 **Currently watch-out items (not critical, but worth a future pass):**
 
 ### 1. None known — build is clean
-No TypeScript errors. All Phase 7 + 8 features pass `npm run build`.
+No TypeScript errors. All Phase 7 + 8 + 9 features pass `npm run build`.
 
 ### 2. Placeholder
 **Fix:** 

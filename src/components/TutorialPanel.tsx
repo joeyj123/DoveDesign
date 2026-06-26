@@ -21,6 +21,7 @@ const ALL_SECTION_TITLES = [
   'Keyboard Shortcuts',
   'Snap to Grid',
   'Scrap Box',
+  'Joinery Visualization',
   'Left Tool Panel — Model, Modify, Joinery, Shapes',
   'Shop Tools',
   'Cross-Cuts & Rip Cuts',
@@ -208,6 +209,8 @@ export default function TutorialPanel() {
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Z</kbd> — Undo</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Y</kbd> — Redo</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Shift+drag</kbd> — Box select multiple boards</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Shift+X</kbd> — Send selected board to Scrap Box</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">V</kbd> — Joinery Visualization tool (place joint markers)</li>
         </ul>
         <p className="text-base text-zinc-500 mt-2">
           <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What are the keyboard shortcuts?&quot; · &quot;How do I move a board with the keyboard?&quot;
@@ -670,6 +673,28 @@ export default function TutorialPanel() {
         </p>
         <p className="text-base text-zinc-500 mt-2">
           <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What are snap points?&quot; · &quot;How do I align boards precisely?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Joinery Visualization" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">V</kbd> to activate the Joinery Visualization tool. This lets you place visual markers on boards to plan where joints will be cut — no material is actually removed.
+        </p>
+        <p className="text-base text-zinc-400 mt-2">
+          <strong className="text-zinc-300">How to place a marker:</strong> Press V, choose a joint type from the Inspector panel, then click any board face. A dashed amber shape appears where the joint will go.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li><strong className="text-zinc-300">Pocket Hole (PH)</strong> — Circle + angled drill line showing Kreg-style pocket screw entry at 15°.</li>
+          <li><strong className="text-zinc-300">Mortise (M)</strong> — Dashed rectangle showing the socket that gets chiseled or routed into the board.</li>
+          <li><strong className="text-zinc-300">Tenon (T)</strong> — Solid rectangle showing the tongue that fits into the mortise.</li>
+          <li><strong className="text-zinc-300">Dovetail (DT)</strong> — Trapezoidal outline showing the tapered tail shape on board ends.</li>
+          <li><strong className="text-zinc-300">Biscuit (B)</strong> — Oval slot shape showing where the biscuit insert goes.</li>
+        </ul>
+        <p className="text-base text-zinc-400 mt-2">
+          <strong className="text-zinc-300">Managing markers:</strong> Click any marker to select it — a Remove Marker button appears. Use "Clear All Markers" in the Inspector to remove all markers from a board at once. Markers are visual-only and do not affect cut lists or estimating.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I add a pocket hole marker?&quot; · &quot;What is a mortise and tenon joint?&quot; · &quot;How do I remove a joint marker?&quot;
         </p>
       </Section>
 

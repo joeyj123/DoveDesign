@@ -46,6 +46,10 @@ export default function ToolPanel() {
   const splitMemberByCrossCut = useAppStore((s) => s.splitMemberByCrossCut);
   const splitMemberByRipCut = useAppStore((s) => s.splitMemberByRipCut);
   const setCrossCutPreviewPosition = useAppStore((s) => s.setCrossCutPreviewPosition);
+  const setRipCutPreviewPosition  = useAppStore((s) => s.setRipCutPreviewPosition);
+  const selectedJointType         = useAppStore((s) => s.ui.selectedJointType);
+  const setSelectedJointType      = useAppStore((s) => s.setSelectedJointType);
+  const clearJointMarkers         = useAppStore((s) => s.clearJointMarkers);
   const removeCut = useAppStore((s) => s.removeCut);
   const updateCut = useAppStore((s) => s.updateCut);
   const allMembers = useAppStore((s) => s.project.members);
@@ -70,7 +74,10 @@ export default function ToolPanel() {
     if (activeTool !== 'cut') {
       setCrossCutPreviewPosition(null);
     }
-  }, [selectedMember?.id, activeTool, setCrossCutPreviewPosition]);
+    if (activeTool !== 'rip') {
+      setRipCutPreviewPosition(null);
+    }
+  }, [selectedMember?.id, activeTool, setCrossCutPreviewPosition, setRipCutPreviewPosition]);
 
   useEffect(() => {
     if (selectedMember && activeTool === 'rip') {
@@ -78,7 +85,7 @@ export default function ToolPanel() {
     }
   }, [selectedMember?.id, selectedMember?.width, activeTool]);
 
-  if (activeTool === 'select') return null;
+  if (activeTool === 'select' || activeTool === 'measure') return null;
 
   function handleSpeciesChange(species: string) {
     const mat = MATERIAL_CATALOG.find((m) => m.name === species);
@@ -244,12 +251,18 @@ export default function ToolPanel() {
             Target Width (in)
             <input
               type="number"
-              step="0.125"
+              step="0.0625"
               min="0.25"
               max={selectedMember.width - 0.25}
               className="input-field mono-num"
               value={ripTargetWidth}
-              onChange={(e) => setRipTargetWidth(e.target.value)}
+              onChange={(e) => {
+                setRipTargetWidth(e.target.value);
+                const n = parseFloat(e.target.value);
+                if (!isNaN(n) && n > 0 && n < selectedMember.width) {
+                  setRipCutPreviewPosition(n);
+                }
+              }}
               onKeyDown={(e) => e.stopPropagation()}
             />
           </label>
@@ -351,6 +364,53 @@ export default function ToolPanel() {
 
       {activeTool === 'trimExtend' && selectedMember && allMembers.length > 1 && (
         <TrimExtendPanel memberId={selectedMember.id} />
+      )}
+
+      {activeTool === 'joint' && (
+        <div className="space-y-3">
+          {!selectedMember && (
+            <p className="text-sm text-zinc-500">Select a board, then click a face to place a joint marker.</p>
+          )}
+          <p className="text-sm text-zinc-400">Joint type to place:</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {([
+              { id: 'pocket_hole', label: 'Pocket Hole' },
+              { id: 'mortise',     label: 'Mortise' },
+              { id: 'tenon',       label: 'Tenon' },
+              { id: 'dovetail',    label: 'Dovetail' },
+              { id: 'biscuit',     label: 'Biscuit' },
+            ] as const).map((jt) => (
+              <button
+                key={jt.id}
+                type="button"
+                onClick={() => setSelectedJointType(selectedJointType === jt.id ? null : jt.id)}
+                className={[
+                  'text-sm py-2 rounded-lg border font-medium transition-colors',
+                  selectedJointType === jt.id
+                    ? 'bg-amber-500 text-zinc-900 border-amber-300'
+                    : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700',
+                ].join(' ')}
+              >
+                {jt.label}
+              </button>
+            ))}
+          </div>
+          {selectedMember && selectedJointType && (
+            <p className="text-xs text-amber-400/80">
+              Click a face on the board in the viewport to place a{' '}
+              <strong>{selectedJointType.replace('_', ' ')}</strong> marker.
+            </p>
+          )}
+          {selectedMember && (selectedMember.jointMarkers ?? []).length > 0 && (
+            <button
+              type="button"
+              className="btn-secondary w-full text-sm"
+              onClick={() => clearJointMarkers(selectedMember.id)}
+            >
+              Clear All Markers on This Board
+            </button>
+          )}
+        </div>
       )}
 
       {activeTool === 'mate' && (

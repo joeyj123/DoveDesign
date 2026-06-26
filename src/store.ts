@@ -7,6 +7,7 @@ import type {
   MemberMate, AttachmentPoint, Fastener, JoinMethod,
   DesignSuggestion, EdgeTreatment, PlacedHardwareItem, AssemblyStep,
   HardwareLibraryId, DisplayMode, ViewportMode, DimensionLine,
+  JointMarker, JointMarkerType,
 } from './types';
 import { trimToBoundary, extendToBoundary } from './lib/trimExtend';
 import { inferMaterialKind, getMaterialByName } from './lib/materials';
@@ -104,8 +105,11 @@ const DEFAULT_UI: UIState = {
   selectedDimensionLineId: null,
   dimensionLinesVisible: true,
   crossCutPreviewPosition: null,
+  ripCutPreviewPosition: null,
   snapToGrid: false,
   scrapBoxOpen: false,
+  selectedJointType: null,
+  selectedJointMarkerId: null,
   drawDefaults: {
     species: 'Southern Yellow Pine',
     thickness: 1.5,
@@ -127,6 +131,7 @@ function migrateMember(m: WoodMember): WoodMember {
     color: m.color ?? mat?.color ?? '#d4a96a',
     shapeType: m.shapeType ?? 'box',
     inScrapBox: m.inScrapBox ?? false,
+    jointMarkers: m.jointMarkers ?? [],
   };
 }
 
@@ -281,11 +286,19 @@ interface AppStore {
   setDimensionLinesVisible: (visible: boolean) => void;
   setMeasureStartPoint: (pt: UIState['measureStartPoint']) => void;
 
-  // Cross cut preview
+  // Cut previews
   setCrossCutPreviewPosition: (pos: number | null) => void;
+  setRipCutPreviewPosition: (pos: number | null) => void;
 
   // Snap to grid
   setSnapToGrid: (enabled: boolean) => void;
+
+  // Joint markers
+  addJointMarker: (memberId: string, marker: Omit<JointMarker, 'id'>) => void;
+  removeJointMarker: (memberId: string, markerId: string) => void;
+  clearJointMarkers: (memberId: string) => void;
+  setSelectedJointType: (t: JointMarkerType | null) => void;
+  setSelectedJointMarkerId: (id: string | null) => void;
 
   // Scrap box
   sendToScrapBox: (id: string) => void;
@@ -680,6 +693,7 @@ export const useAppStore = create<AppStore>()(
         measureStartPoint: null,
         selectedDimensionLineId: null,
         crossCutPreviewPosition: null,
+        ripCutPreviewPosition: null,
         multiSelection: [],
         selectedMemberId: null,
         transformGizmoActive: false,
@@ -1283,8 +1297,45 @@ export const useAppStore = create<AppStore>()(
   setPolygonDrawPoints: (pts) =>
     set((s) => ({ ui: { ...s.ui, polygonDrawPoints: pts } })),
 
+  addJointMarker: (memberId, marker) =>
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) =>
+        m.id === memberId
+          ? { ...m, jointMarkers: [...(m.jointMarkers ?? []), { ...marker, id: crypto.randomUUID() }] }
+          : m
+      ),
+    }),
+
+  removeJointMarker: (memberId, markerId) =>
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) =>
+        m.id === memberId
+          ? { ...m, jointMarkers: (m.jointMarkers ?? []).filter((j) => j.id !== markerId) }
+          : m
+      ),
+    }),
+
+  clearJointMarkers: (memberId) =>
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) =>
+        m.id === memberId ? { ...m, jointMarkers: [] } : m
+      ),
+    }),
+
+  setSelectedJointType: (t) =>
+    set((s) => ({ ui: { ...s.ui, selectedJointType: t } })),
+
+  setSelectedJointMarkerId: (id) =>
+    set((s) => ({ ui: { ...s.ui, selectedJointMarkerId: id } })),
+
   setCrossCutPreviewPosition: (pos) =>
     set((s) => ({ ui: { ...s.ui, crossCutPreviewPosition: pos } })),
+
+  setRipCutPreviewPosition: (pos) =>
+    set((s) => ({ ui: { ...s.ui, ripCutPreviewPosition: pos } })),
 
   setSnapToGrid: (enabled) =>
     set((s) => ({ ui: { ...s.ui, snapToGrid: enabled } })),

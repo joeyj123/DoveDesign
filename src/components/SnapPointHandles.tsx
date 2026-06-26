@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useAppStore } from '../store';
 import type { WoodMember } from '../types';
+import type { FaceId } from '../types';
 
 function getLocalSnapPoints(member: WoodMember): THREE.Vector3[] {
   let width = member.width;
@@ -17,19 +18,29 @@ function getLocalSnapPoints(member: WoodMember): THREE.Vector3[] {
   const hL = L / 2, hT = T / 2, hW = W / 2;
 
   const pts: [number, number, number][] = [
-    // 8 corners
+    // 8 corners (indices 0-7)
     [-hL, -hT, -hW], [-hL, -hT, hW], [-hL, hT, -hW], [-hL, hT, hW],
     [ hL, -hT, -hW], [ hL, -hT, hW], [ hL, hT, -hW], [ hL, hT, hW],
-    // 6 face centers
-    [-hL, 0, 0], [hL, 0, 0],
-    [0, -hT, 0], [0, hT, 0],
-    [0, 0, -hW], [0, 0, hW],
-    // center
+    // 6 face centers (indices 8-13) — these map cleanly to FaceIds
+    [-hL, 0, 0], [hL, 0, 0],   // 8=xMin, 9=xMax
+    [0, -hT, 0], [0, hT, 0],   // 10=yMin, 11=yMax
+    [0, 0, -hW], [0, 0, hW],   // 12=zMin, 13=zMax
+    // center (index 14)
     [0, 0, 0],
   ];
 
   return pts.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
 }
+
+// Map face-center snap index → FaceId (only for indices 8-13)
+const FACE_CENTER_MAP: Record<number, FaceId> = {
+  8:  'xMin',
+  9:  'xMax',
+  10: 'yMin',
+  11: 'yMax',
+  12: 'zMin',
+  13: 'zMax',
+};
 
 interface Props {
   member: WoodMember;
@@ -38,8 +49,11 @@ interface Props {
 }
 
 export default function SnapPointHandles({ member, meshRef, forMate }: Props) {
-  const selectedId = useAppStore((s) => s.ui.selectedMemberId);
-  const activeTool = useAppStore((s) => s.ui.activeTool);
+  const selectedId    = useAppStore((s) => s.ui.selectedMemberId);
+  const activeTool    = useAppStore((s) => s.ui.activeTool);
+  const setMateFaceA  = useAppStore((s) => s.setMateFaceA);
+  const applyMate     = useAppStore((s) => s.applyMate);
+  const setMateGridOffset = useAppStore((s) => s.setMateGridOffset);
 
   const isSelected = selectedId === member.id;
   const isMateMode = activeTool === 'mate';
@@ -53,10 +67,11 @@ export default function SnapPointHandles({ member, meshRef, forMate }: Props) {
 
   const dotRefs = useRef<(THREE.Mesh | null)[]>([]);
 
-  const color = isMateMode ? '#fbbf24' : '#ffffff';
+  const color    = isMateMode ? '#fbbf24' : '#ffffff';
   const emissive = isMateMode ? '#d97706' : '#cccccc';
 
-  // Update dot positions every frame from the live matrixWorld — zero lag
+  // Update dot positions every frame from the live matrixWorld — zero lag.
+  // Also call updateMatrixWorld so the raycaster picks up new positions.
   useFrame(() => {
     if (!show || !meshRef.current) return;
     const mat = meshRef.current.matrixWorld;
@@ -65,10 +80,32 @@ export default function SnapPointHandles({ member, meshRef, forMate }: Props) {
       if (!dot) return;
       const wp = lp.clone().applyMatrix4(mat);
       dot.position.copy(wp);
+      dot.updateMatrixWorld(true);
     });
   });
 
   if (!show) return null;
+
+  function handleDotClick(i: number) {
+    if (activeTool !== 'mate') return;
+    const face = FACE_CENTER_MAP[i];
+    if (!face) return;
+
+    const sel = { memberId: member.id, face, offset: [0, 0, 0] as [number, number, number] };
+    setMateGridOffset({ memberId: member.id, face, offset: [0, 0, 0] });
+
+    const currentFaceA = useAppStore.getState().ui.mateFaceA;
+    if (!currentFaceA) {
+      setMateFaceA(sel);
+      return;
+    }
+    if (currentFaceA.memberId === member.id) {
+      setMateFaceA(sel);
+      return;
+    }
+    useAppStore.setState((s) => ({ ui: { ...s.ui, mateFaceB: sel } }));
+    applyMate();
+  }
 
   return (
     <>
@@ -77,6 +114,10 @@ export default function SnapPointHandles({ member, meshRef, forMate }: Props) {
           key={i}
           ref={(el) => { dotRefs.current[i] = el; }}
           position={[0, 0, 0]}
+          onClick={isMateMode && FACE_CENTER_MAP[i] ? (e) => {
+            e.stopPropagation();
+            handleDotClick(i);
+          } : undefined}
         >
           <sphereGeometry args={[0.12, 6, 6]} />
           <meshStandardMaterial

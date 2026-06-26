@@ -290,13 +290,16 @@ export default function MemberInspector() {
         );
       })()}
 
-      <button
-        type="button"
-        onClick={() => sendToScrapBox(selectedMember.id)}
-        className="w-full bg-zinc-800/80 hover:bg-zinc-700/80 text-amber-300 font-semibold text-base py-2.5 rounded-xl border-2 border-amber-700/40 transition-colors"
-      >
-        Send to Scrap Box
-      </button>
+      {!selectedMember.inScrapBox && (
+        <button
+          type="button"
+          onClick={() => sendToScrapBox(selectedMember.id)}
+          className="w-full bg-zinc-800/80 hover:bg-zinc-700/80 text-amber-300 font-semibold text-base py-2.5 rounded-xl border-2 border-amber-700/40 transition-colors"
+          title="Shift+X"
+        >
+          Send to Scrap Box
+        </button>
+      )}
 
       <button
         type="button"

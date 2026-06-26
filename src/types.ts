@@ -122,6 +122,8 @@ export interface WoodMember {
   radius?: number;
   /** When true, member is stashed in the scrap box and hidden from the viewport. */
   inScrapBox?: boolean;
+  /** Visual-only joint planning markers on this board. */
+  jointMarkers?: JointMarker[];
 }
 
 // ─── Assembly Mates ─────────────────────────────────────────────────────────
@@ -280,6 +282,21 @@ export interface StructuralAnalysis {
   analysisRunAt?: string;         // ISO timestamp of last simulation
 }
 
+// ─── Joint Markers (Joinery Visualization) ────────────────────────────────
+
+export type JointMarkerType = 'mortise' | 'tenon' | 'pocket_hole' | 'dovetail' | 'biscuit';
+
+export interface JointMarker {
+  id: string;
+  type: JointMarkerType;
+  /** Position in the board's local space (inches). */
+  position: { x: number; y: number; z: number };
+  /** Which face of the board (0=xMin 1=xMax 2=yMin 3=yMax 4=zMin 5=zMax). */
+  faceIndex: number;
+  /** For mortise/tenon pairs, the partnered board id. */
+  pairedMemberId?: string;
+}
+
 // ─── Dimension Lines (Measure Tool) ───────────────────────────────────────
 
 export interface DimensionLine {
@@ -320,7 +337,7 @@ export type ActiveTool =
   | 'trimExtend' | 'mate' | 'edge'
   | 'shapeCylinder' | 'shapeSphere' | 'shapeCone'
   | 'shapeTriPrism' | 'shapeHexPrism' | 'shapePolygon'
-  | 'placeHardware' | 'measure';
+  | 'placeHardware' | 'measure' | 'joint';
 
 export type ViewportMode = 'design' | 'assembly';
 
@@ -452,8 +469,14 @@ export interface UIState {
   dimensionLinesVisible: boolean;
   /** Cross cut preview position along board length (inches from start), or null when not active */
   crossCutPreviewPosition: number | null;
+  /** Rip cut preview position (target width in inches), or null when not active */
+  ripCutPreviewPosition: number | null;
   /** Whether boards snap to the 1-inch grid when moved */
   snapToGrid: boolean;
+  /** Currently selected joint marker type for placement */
+  selectedJointType: JointMarkerType | null;
+  /** Selected joint marker id (for removal) */
+  selectedJointMarkerId: string | null;
   /** Whether the scrap box panel is expanded */
   scrapBoxOpen: boolean;
 }

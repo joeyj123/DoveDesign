@@ -37,9 +37,24 @@ export default function KeyboardShortcuts() {
           store.setMeasureStartPoint(null);
           break;
 
+        case 'x':
+        case 'X':
+          if (e.shiftKey && store.ui.selectedMemberId) {
+            store.sendToScrapBox(store.ui.selectedMemberId);
+          }
+          break;
+
+        case 'v':
+        case 'V':
+          store.setActiveTool('joint');
+          break;
+
         case 'Delete':
         case 'Backspace':
-          if (store.ui.selectedMemberId) {
+          if (store.ui.selectedDimensionLineId) {
+            store.removeDimensionLine(store.ui.selectedDimensionLineId);
+            store.selectDimensionLine(null);
+          } else if (store.ui.selectedMemberId) {
             store.removeMember(store.ui.selectedMemberId);
           }
           break;
