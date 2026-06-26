@@ -62,12 +62,14 @@ export default function SnapPointHandles({ member, forMate }: Props) {
   const isMateMode = activeTool === 'mate';
 
   const show = isSelected || (forMate && isMateMode);
-  if (!show) return null;
 
+  // useMemo must come before any early return (Rules of Hooks)
   const points = useMemo(() => getSnapPoints(member), [member]);
 
   const color = isMateMode ? '#fbbf24' : '#ffffff';
   const emissive = isMateMode ? '#d97706' : '#cccccc';
+
+  if (!show) return null;
 
   return (
     <>
