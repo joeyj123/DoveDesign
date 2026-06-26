@@ -28,7 +28,7 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     topic: 'Keyboard shortcuts',
     keywords: ['keyboard', 'shortcut', 'hotkey', 'key', 'shortcuts', 'ctrl', 'escape', 'delete', 'undo', 'redo', 'space'],
     answer:
-      'DoveDesign shortcuts: Space = open radial wheel, Escape = cancel/deselect, S = select tool, B = draw board, C = cross cut, M = move (shows transform arrows), Tab = cycle Move/Rotate/Scale, R = rip cut, J = mate/join boards, F = flip board (toggle), D = duplicate, G = toggle grid, U = unmate most recent connection, Delete = delete board, Ctrl+Z = undo, Ctrl+Y = redo, Shift+drag = box select.',
+      'DoveDesign shortcuts: Space = open radial wheel, Escape = cancel/deselect, S = select tool, B = draw board, C = cross cut, M = move (shows transform arrows), Tab = cycle Move/Rotate/Scale, R = rip cut, J = mate/join boards, F = flip board (toggle), D = measure tool (dimension lines), G = toggle grid, U = unmate most recent connection, Delete = delete board, Ctrl+Z = undo, Ctrl+Y = redo, Shift+drag = box select.',
   },
   {
     id: 'how-move-board',
@@ -63,7 +63,7 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     topic: 'How to duplicate a board',
     keywords: ['duplicate', 'copy', 'clone', 'repeat', 'board'],
     answer:
-      'Select a board by clicking it, then press D to duplicate it. The copy appears offset slightly from the original.',
+      'Right-click the board and choose Duplicate from the context menu. The copy appears offset slightly from the original. (The D key is now the Measure tool.)',
   },
   {
     id: 'how-attach-boards',
@@ -771,6 +771,55 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     keywords: ['move arrows', 'gizmo stays', 'transform gizmo', 'arrows disappear'],
     answer:
       'Press M to activate the move arrows on a selected board. They stay visible until you press Escape or switch tools. Press Tab to cycle through Move, Rotate, and Scale modes.',
+  },
+  {
+    id: 'measure-distance',
+    topic: 'How to measure distance between two points',
+    keywords: ['measure', 'distance', 'dimension', 'how far', 'measurement', 'd key', 'dimension line'],
+    answer:
+      'Press D to activate the Measure tool. Click once to set the start point, then move your cursor (no drag needed) and click again to set the end point. The line shows distance in inches and the angle in degrees.',
+  },
+  {
+    id: 'dimension-lines',
+    topic: 'What are dimension lines',
+    keywords: ['dimension line', 'dimension', 'measurement line', 'measure line', 'ruler'],
+    answer:
+      'Dimension lines are amber dotted lines you draw with the Measure tool (D). They stay saved in your project and show distance and angle. Toggle them on or off in the View menu, or select one and click Delete to remove it.',
+  },
+  {
+    id: 'measure-tool',
+    topic: 'Measure tool — how it works',
+    keywords: ['measure tool', 'measuring', 'how measure', 'ruler tool'],
+    answer:
+      'Press D for the Measure tool. Click once to set the start point. Move your cursor to stretch a live line, then click again to drop the end point. Distance in inches and the angle both show on the line. Press D or Escape to exit.',
+  },
+  {
+    id: 'angle-dimension-line',
+    topic: 'Angle shown on dimension line',
+    keywords: ['angle', 'dimension angle', 'degree', 'measure angle', 'snap angle'],
+    answer:
+      'Every dimension line shows its angle near the end point. The line snaps to 0° (horizontal) or 90° (vertical) when you are within 5°. Hold Shift while placing to disable angle snapping and set any angle freely.',
+  },
+  {
+    id: 'snap-dots-follow-board',
+    topic: 'Snap dots not following the board',
+    keywords: ['snap dots', 'dots stay', 'dots not moving', 'snap points wrong position'],
+    answer:
+      'Snap dots now update in real time as you move a board. If they look stuck, try deselecting and reselecting the board. This was a known issue fixed in Phase 7.',
+  },
+  {
+    id: 'rotation-ring',
+    topic: 'Rotation ring and degree snapping',
+    keywords: ['rotation ring', 'rotate ring', 'rotate degrees', 'snap rotation', 'angle snap', '15 degree'],
+    answer:
+      'In Rotate mode (press M then Tab to reach Rotate), an amber ring appears around the board showing snap positions at every 15°. The current angle displays near the board. Hold Shift while rotating to turn off snapping and rotate to any angle.',
+  },
+  {
+    id: 'duplicate-board',
+    topic: 'How to duplicate a board',
+    keywords: ['duplicate', 'copy board', 'copy', 'clone'],
+    answer:
+      'Right-click the board and choose Duplicate, or use the context menu. The D key is now the Measure tool — to duplicate, use the right-click context menu instead.',
   },
 ];
 

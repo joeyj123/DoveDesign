@@ -278,6 +278,17 @@ export interface StructuralAnalysis {
   analysisRunAt?: string;         // ISO timestamp of last simulation
 }
 
+// ─── Dimension Lines (Measure Tool) ───────────────────────────────────────
+
+export interface DimensionLine {
+  id: string;
+  startPoint: { x: number; y: number; z: number };
+  endPoint: { x: number; y: number; z: number };
+  angleDegrees: number;
+  startMemberId?: string;
+  endMemberId?: string;
+}
+
 // ─── Project Root ──────────────────────────────────────────────────────────
 
 export interface Project {
@@ -296,6 +307,7 @@ export interface Project {
   edgeTreatments: EdgeTreatment[];
   placedHardware: PlacedHardwareItem[];
   assemblySteps: AssemblyStep[];
+  dimensionLines: DimensionLine[];
 }
 
 // ─── UI State (not persisted to disk) ─────────────────────────────────────
@@ -306,7 +318,7 @@ export type ActiveTool =
   | 'trimExtend' | 'mate' | 'edge'
   | 'shapeCylinder' | 'shapeSphere' | 'shapeCone'
   | 'shapeTriPrism' | 'shapeHexPrism' | 'shapePolygon'
-  | 'placeHardware';
+  | 'placeHardware' | 'measure';
 
 export type ViewportMode = 'design' | 'assembly';
 
@@ -430,6 +442,12 @@ export interface UIState {
   drawSnapIndicator: { x: number; z: number } | null;
   /** Quick join miter axis picker */
   quickJoinMiterAxis: 'x' | 'y' | 'z' | null;
+  /** Measure tool: start point of in-progress dimension line */
+  measureStartPoint: { x: number; y: number; z: number } | null;
+  /** Selected dimension line id */
+  selectedDimensionLineId: string | null;
+  /** Whether dimension lines are visible in the viewport */
+  dimensionLinesVisible: boolean;
 }
 
 export interface DesignSuggestion {

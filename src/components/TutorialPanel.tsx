@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useCallback, createContext, useContext } from 'react';
 import BrandLogo from './BrandLogo';
 import { BRAND_TAGLINE } from '../lib/brand';
+
+const FocusedTitleCtx = createContext<string>('');
 
 function HighlightText({ text, search }: { text: string; search: string }) {
   if (!search) return <>{text}</>;
@@ -41,23 +43,50 @@ const ALL_SECTION_TITLES = [
   'Right-Click Context Menu',
   'Workbench Quick-Start Blueprint',
   'Viewport Navigation',
-  'Navigation Cube',
   'Snap Points',
+  'Measure Tool — Dimension Lines',
   'Renaming Boards (Label)',
   'Keyboard Shortcuts & Escape Priority',
 ];
 
 export default function TutorialPanel() {
   const [search, setSearch] = useState('');
+  const [currentMatchIdx, setCurrentMatchIdx] = useState(0);
   const searchLower = search.toLowerCase().trim();
 
-  const matchCount = searchLower
-    ? ALL_SECTION_TITLES.filter((t) => t.toLowerCase().includes(searchLower)).length
-    : 0;
+  const matchedTitles = searchLower
+    ? ALL_SECTION_TITLES.filter((t) => t.toLowerCase().includes(searchLower))
+    : ALL_SECTION_TITLES;
+  const matchCount = searchLower ? matchedTitles.length : 0;
+
+  function sectionId(title: string) {
+    return `tut-section-${title.replace(/\W+/g, '-').toLowerCase()}`;
+  }
+
+  const scrollToIdx = useCallback((idx: number) => {
+    const title = matchedTitles[idx];
+    if (!title) return;
+    const el = document.getElementById(sectionId(title));
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [matchedTitles]);
+
+  function goNext() {
+    const next = matchCount > 0 ? (currentMatchIdx + 1) % matchedTitles.length : 0;
+    setCurrentMatchIdx(next);
+    scrollToIdx(next);
+  }
+
+  function goPrev() {
+    const prev = matchCount > 0 ? (currentMatchIdx - 1 + matchedTitles.length) % matchedTitles.length : 0;
+    setCurrentMatchIdx(prev);
+    scrollToIdx(prev);
+  }
 
   function registerMatch() {
-    // no-op: count computed above
+    // count computed from ALL_SECTION_TITLES filter above
   }
+
+  const focusedTitle = matchCount > 0 ? matchedTitles[currentMatchIdx] : '';
 
   return (
     <div className="space-y-5 text-base text-zinc-300">
@@ -67,12 +96,28 @@ export default function TutorialPanel() {
           className="input-field text-base w-full"
           placeholder="Search tutorial... (e.g. 'mate', 'shortcuts', 'cut')"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.stopPropagation()}
+          onChange={(e) => { setSearch(e.target.value); setCurrentMatchIdx(0); }}
+          onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') goNext(); }}
         />
         <div className="flex items-center justify-between mt-1 min-h-[1.25rem]">
           {search && matchCount > 0 && (
-            <span className="text-sm text-amber-400">{matchCount} match{matchCount !== 1 ? 'es' : ''}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-amber-400">
+                {currentMatchIdx + 1} of {matchCount} section{matchCount !== 1 ? 's' : ''}
+              </span>
+              <button
+                type="button"
+                className="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 border border-zinc-700"
+                onClick={goPrev}
+                title="Previous match"
+              >▲</button>
+              <button
+                type="button"
+                className="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 border border-zinc-700"
+                onClick={goNext}
+                title="Next match (or press Enter)"
+              >▼</button>
+            </div>
           )}
           {search && matchCount === 0 && (
             <span className="text-sm text-zinc-500">No matches</span>
@@ -82,13 +127,14 @@ export default function TutorialPanel() {
             <button
               type="button"
               className="text-sm text-zinc-400 underline"
-              onClick={() => setSearch('')}
+              onClick={() => { setSearch(''); setCurrentMatchIdx(0); }}
             >
               Clear
             </button>
           )}
         </div>
       </div>
+      <FocusedTitleCtx.Provider value={focusedTitle}>
       <div>
         <BrandLogo size="md" className="mb-1 block" />
         <h2 className="text-base font-semibold text-zinc-100 mb-1">
@@ -111,7 +157,7 @@ export default function TutorialPanel() {
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">B</kbd> — Switch to Draw Board tool</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">M</kbd> — Activate Move (shows transform arrows on selected board)</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">R</kbd> — Switch to Rip Cut tool</li>
-          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">D</kbd> — Duplicate selected board</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">D</kbd> — Measure tool (click two points to measure distance; press D again or Escape to exit)</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">G</kbd> — Toggle grid on / off</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">C</kbd> — Cross Cut tool</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">J</kbd> — Mate / Join tool (join boards face to face)</li>
@@ -177,6 +223,9 @@ export default function TutorialPanel() {
         </ul>
         <p className="text-base text-zinc-400 mt-2">
           <strong className="text-zinc-300">Remember:</strong> Cross cut = shorter board. Rip cut = narrower board. Both cuts always produce two independent pieces you can move and label separately.
+        </p>
+        <p className="text-base text-zinc-400 mt-2">
+          <strong className="text-zinc-300">Tip:</strong> Use the <strong className="text-zinc-300">Measure tool (D)</strong> to find the exact cut position first, then use that measurement in the Inspector.
         </p>
         <p className="text-base text-zinc-500 mt-2">
           <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I make a cross cut?&quot; · &quot;What is a rip cut?&quot; · &quot;What happens when I apply a cut?&quot;
@@ -544,24 +593,26 @@ export default function TutorialPanel() {
           <li><strong className="text-zinc-300">Right-click + drag</strong> — Also pans the camera.</li>
         </ul>
         <p className="text-base text-zinc-400 mt-2">
-          The <strong className="text-zinc-300">Navigation Cube</strong> in the bottom-right corner lets you jump to preset views — see the Navigation Cube section below.
+          The <strong className="text-zinc-300">XYZ axis widget</strong> in the bottom-right corner shows your current camera orientation as you orbit.
         </p>
       </Section>
 
-      <Section search={searchLower} title="Navigation Cube" onMatch={registerMatch}>
+      <Section search={searchLower} title="Measure Tool — Dimension Lines" onMatch={registerMatch}>
         <p className="text-base text-zinc-400">
-          The small cube in the <strong className="text-zinc-300">bottom-right corner</strong> of the viewport shows your current orientation and lets you jump to preset views instantly.
+          Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">D</kbd> to activate the Measure tool. Hover over the viewport floor or a board surface until you see the amber cursor dot, then click to set the start point.
+        </p>
+        <p className="text-base text-zinc-400 mt-2">
+          After the start point is set, move your cursor (no dragging needed) — a live dotted amber line stretches from start to cursor. The line shows the <strong className="text-zinc-300">distance in inches</strong> at the midpoint and the <strong className="text-zinc-300">angle in degrees</strong> near the end. Click a second time to finalize.
         </p>
         <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
-          <li><strong className="text-zinc-300">Click TOP / BOTTOM / FRONT / BACK / LEFT / RIGHT</strong> — Jump to that exact orthographic-style view. Great for checking alignment.</li>
-          <li><strong className="text-zinc-300">Click a corner symbol (◤ ◥ ◣ ◢)</strong> — Jump to an isometric 3-quarter view from that corner.</li>
-          <li><strong className="text-zinc-300">Home button (below the cube)</strong> — Returns camera to the default perspective starting position.</li>
+          <li><strong className="text-zinc-300">Angle snapping:</strong> The line snaps to exactly 0° (horizontal) or 90° (vertical) when you are within 5° of either. Hold <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Shift</kbd> while placing to turn off angle snapping.</li>
+          <li><strong className="text-zinc-300">Completed lines</strong> stay saved in your project and show distance + angle labels at all times.</li>
+          <li><strong className="text-zinc-300">Select a dimension line</strong> (click the distance label) to see it highlighted. A Delete button appears to remove it.</li>
+          <li><strong className="text-zinc-300">Toggle visibility</strong> in the View menu — turn all dimension lines on or off without deleting them.</li>
+          <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">D</kbd> again or <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Escape</kbd> to exit the Measure tool.</li>
         </ul>
-        <p className="text-base text-zinc-400 mt-2">
-          The cube does <em>not</em> replace mouse navigation — you can still orbit with left-click drag at any time.
-        </p>
         <p className="text-base text-zinc-500 mt-2">
-          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I use the navigation cube?&quot; · &quot;How do I get a top view?&quot; · &quot;How do I reset the camera?&quot;
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I measure distance?&quot; · &quot;What is the measure tool?&quot; · &quot;How do I add dimension lines?&quot;
         </p>
       </Section>
 
@@ -615,6 +666,7 @@ export default function TutorialPanel() {
           <li><span className="font-sans text-zinc-400">Right-click</span> — Context menu + radial wheel on boards</li>
         </ul>
       </Section>
+      </FocusedTitleCtx.Provider>
     </div>
   );
 }
@@ -630,11 +682,17 @@ function Section({
   search?: string;
   onMatch?: () => void;
 }) {
+  const focusedTitle = useContext(FocusedTitleCtx);
+  const focused = focusedTitle === title;
   const matches = !search || title.toLowerCase().includes(search);
   if (!matches) return null;
   if (onMatch) onMatch();
+  const id = `tut-section-${title.replace(/\W+/g, '-').toLowerCase()}`;
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-2">
+    <div
+      id={id}
+      className={`rounded-xl border ${focused ? 'border-amber-500 shadow-[0_0_0_2px_rgba(245,158,11,0.2)]' : 'border-zinc-800'} bg-zinc-900/50 p-3 space-y-2 transition-colors`}
+    >
       <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-500/90">
         <HighlightText text={title} search={search} />
       </h3>

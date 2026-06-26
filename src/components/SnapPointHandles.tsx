@@ -64,7 +64,13 @@ export default function SnapPointHandles({ member, forMate }: Props) {
   const show = isSelected || (forMate && isMateMode);
 
   // useMemo must come before any early return (Rules of Hooks)
-  const points = useMemo(() => getSnapPoints(member), [member]);
+  const points = useMemo(() => getSnapPoints(member), [
+    member.position[0], member.position[1], member.position[2],
+    member.length, member.thickness, member.width,
+    member.rotation[0], member.rotation[1], member.rotation[2],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    member.cuts,
+  ]);
 
   const color = isMateMode ? '#fbbf24' : '#ffffff';
   const emissive = isMateMode ? '#d97706' : '#cccccc';

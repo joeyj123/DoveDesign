@@ -23,7 +23,9 @@ import PlacedHardwareMeshes from './PlacedHardwareMeshes';
 import AttachmentPointLinks, { PolygonDrawTool } from './AttachmentPointLinks';
 import AttachmentPointHandles from './AttachmentPointHandles';
 import KeyboardShortcuts from './KeyboardShortcuts';
-import NavigationCube from './NavigationCube';
+import MeasureTool from './MeasureTool';
+import DimensionLineRenderer from './DimensionLineRenderer';
+import RotationRing from './RotationRing';
 
 function ShadowFloor() {
   return (
@@ -57,8 +59,9 @@ export default function Viewport() {
   const setBoxSelectPending = useAppStore((s) => s.setBoxSelectPending);
   const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
   const setRadialWheelOpen = useAppStore((s) => s.setRadialWheelOpen);
-  const activeTool   = useAppStore((s) => s.ui.activeTool);
-  const mateFaceA    = useAppStore((s) => s.ui.mateFaceA);
+  const activeTool        = useAppStore((s) => s.ui.activeTool);
+  const mateFaceA         = useAppStore((s) => s.ui.mateFaceA);
+  const measureStartPoint = useAppStore((s) => s.ui.measureStartPoint);
   const gridVisible  = useAppStore((s) => s.ui.gridVisible);
   const showWelcome  = members.length === 0;
 
@@ -70,6 +73,14 @@ export default function Viewport() {
     >
       <KeyboardShortcuts />
       <ViewportContextMenu />
+      {activeTool === 'measure' && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg bg-zinc-900/90 border border-amber-500/40 text-base text-amber-100 pointer-events-none text-center">
+          {measureStartPoint
+            ? <>Now move to your end point and <strong>click</strong> to finish the measurement</>
+            : <>Click any point to set the <strong>start</strong> of your measurement</>
+          }
+        </div>
+      )}
       {activeTool === 'mate' && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg bg-zinc-900/90 border border-amber-500/40 text-base text-amber-100 pointer-events-none text-center">
           {mateFaceA
@@ -162,12 +173,14 @@ export default function Viewport() {
         <MateMarkers />
         <PlacedHardwareMeshes />
 
+        <MeasureTool />
+        <DimensionLineRenderer />
+        <RotationRing />
         <SceneOrbitControls />
-        <GizmoHelper alignment="bottom-right" margin={[130, 180]}>
+        <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
           <GizmoViewport labelColor="white" axisHeadScale={0.85} />
         </GizmoHelper>
       </Canvas>
-      <NavigationCube />
     </div>
   );
 }

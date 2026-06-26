@@ -34,6 +34,7 @@ export default function KeyboardShortcuts() {
 
         case 'Escape':
           store.resetToolState();
+          store.setMeasureStartPoint(null);
           break;
 
         case 'Delete':
@@ -70,8 +71,13 @@ export default function KeyboardShortcuts() {
 
         case 'd':
         case 'D':
-          if (store.ui.selectedMemberId) {
-            store.duplicateMember(store.ui.selectedMemberId);
+          if (store.ui.activeTool === 'measure') {
+            store.setActiveTool('select');
+            store.setMeasureStartPoint(null);
+            store.setOrbitControlsEnabled(true);
+          } else {
+            store.setActiveTool('measure');
+            store.setOrbitControlsEnabled(false);
           }
           break;
 

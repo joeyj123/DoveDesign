@@ -29,7 +29,8 @@ export function splitByCrossCut(
   member: WoodMember,
   pos: number
 ): [WoodMember, WoodMember] {
-  const { length: L, thickness: T, width: W, position, rotation, label } = member;
+  const { length: L, thickness: T, width: W, position, rotation } = member;
+  const label = member.label.replace(/\s*\(\d+ of \d+\)$/, '');
   const clampedPos = Math.max(0.25, Math.min(pos, L - 0.25));
 
   // Board 1 (keep piece): length = clampedPos
@@ -73,7 +74,8 @@ export function splitByRipCut(
   member: WoodMember,
   targetWidth: number
 ): [WoodMember, WoodMember] {
-  const { length: L, thickness: T, width: W, position, rotation, label } = member;
+  const { length: L, thickness: T, width: W, position, rotation } = member;
+  const label = member.label.replace(/\s*\(\d+ of \d+\)$/, '');
   const clampedTW = Math.max(0.25, Math.min(targetWidth, W - 0.25));
   const wasteW = W - clampedTW;
 

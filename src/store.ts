@@ -6,7 +6,7 @@ import type {
   EstimatingSettings, MaterialPriceEntry, TransformMode,
   MemberMate, AttachmentPoint, Fastener, JoinMethod,
   DesignSuggestion, EdgeTreatment, PlacedHardwareItem, AssemblyStep,
-  HardwareLibraryId, DisplayMode, ViewportMode,
+  HardwareLibraryId, DisplayMode, ViewportMode, DimensionLine,
 } from './types';
 import { trimToBoundary, extendToBoundary } from './lib/trimExtend';
 import { inferMaterialKind, getMaterialByName } from './lib/materials';
@@ -40,6 +40,7 @@ const DEFAULT_PROJECT: Project = {
   edgeTreatments: [],
   placedHardware: [],
   assemblySteps: [],
+  dimensionLines: [],
 };
 
 const DEFAULT_UI: UIState = {
@@ -99,6 +100,9 @@ const DEFAULT_UI: UIState = {
   drawChainLinks: [],
   drawSnapIndicator: null,
   quickJoinMiterAxis: null,
+  measureStartPoint: null,
+  selectedDimensionLineId: null,
+  dimensionLinesVisible: true,
   drawDefaults: {
     species: 'Southern Yellow Pine',
     thickness: 1.5,
@@ -132,6 +136,7 @@ function migrateProject(p: Project): Project {
     edgeTreatments: p.edgeTreatments ?? [],
     placedHardware: p.placedHardware ?? [],
     assemblySteps: p.assemblySteps ?? [],
+    dimensionLines: p.dimensionLines ?? [],
     members: p.members.map(migrateMember),
   };
 }
@@ -264,6 +269,13 @@ interface AppStore {
   newProject: () => void;
   setRightPanelTab: (tab: UIState['rightPanelTab']) => void;
   updateProjectMeta:(patch: { name?: string; description?: string }) => void;
+
+  // Dimension lines (Measure tool)
+  addDimensionLine: (line: DimensionLine) => void;
+  removeDimensionLine: (id: string) => void;
+  selectDimensionLine: (id: string | null) => void;
+  setDimensionLinesVisible: (visible: boolean) => void;
+  setMeasureStartPoint: (pt: UIState['measureStartPoint']) => void;
 
   // Persistence
   saveProjectToFile:   () => void;
@@ -649,6 +661,8 @@ export const useAppStore = create<AppStore>()(
         boxSelectRect: null,
         boxSelectPending: null,
         quickJoinMiterAxis: null,
+        measureStartPoint: null,
+        selectedDimensionLineId: null,
         multiSelection: [],
         selectedMemberId: null,
         transformGizmoActive: false,
@@ -1251,6 +1265,27 @@ export const useAppStore = create<AppStore>()(
 
   setPolygonDrawPoints: (pts) =>
     set((s) => ({ ui: { ...s.ui, polygonDrawPoints: pts } })),
+
+  addDimensionLine: (line) =>
+    commitProject(set, get, {
+      ...get().project,
+      dimensionLines: [...(get().project.dimensionLines ?? []), line],
+    }),
+
+  removeDimensionLine: (id) =>
+    commitProject(set, get, {
+      ...get().project,
+      dimensionLines: (get().project.dimensionLines ?? []).filter((l) => l.id !== id),
+    }),
+
+  selectDimensionLine: (id) =>
+    set((s) => ({ ui: { ...s.ui, selectedDimensionLineId: id } })),
+
+  setDimensionLinesVisible: (visible) =>
+    set((s) => ({ ui: { ...s.ui, dimensionLinesVisible: visible } })),
+
+  setMeasureStartPoint: (pt) =>
+    set((s) => ({ ui: { ...s.ui, measureStartPoint: pt } })),
 
   newProject: () => {
     set({
