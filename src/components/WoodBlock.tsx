@@ -94,10 +94,19 @@ export default function WoodBlock({ member }: Props) {
   useEffect(() => {
     if (!meshRef.current) return;
     meshRef.current.userData.memberId = member.id;
-    meshRef.current.position.set(...member.position);
-    meshRef.current.rotation.set(...member.rotation);
-    meshRef.current.scale.set(1, 1, 1);
-  }, [member.id, member.position, member.rotation]);
+    // Only set if store values actually differ from current mesh state (avoids
+    // snapping the mesh back during an in-progress gizmo drag)
+    const m = meshRef.current;
+    const [px, py, pz] = member.position;
+    const [rx, ry, rz] = member.rotation;
+    if (m.position.x !== px || m.position.y !== py || m.position.z !== pz) {
+      m.position.set(px, py, pz);
+    }
+    if (m.rotation.x !== rx || m.rotation.y !== ry || m.rotation.z !== rz) {
+      m.rotation.set(rx, ry, rz);
+    }
+    m.scale.set(1, 1, 1);
+  }, [member.id, member.position[0], member.position[1], member.position[2], member.rotation[0], member.rotation[1], member.rotation[2]]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleFaceFromEvent(e: ThreeEvent<MouseEvent>) {
     if (!e.face) return null;
@@ -389,7 +398,7 @@ export default function WoodBlock({ member }: Props) {
       )}
 
       {isSelected && <TransformGizmo member={member} objectRef={meshRef} />}
-      <SnapPointHandles member={member} forMate />
+      <SnapPointHandles member={member} meshRef={meshRef} forMate />
     </>
   );
 }

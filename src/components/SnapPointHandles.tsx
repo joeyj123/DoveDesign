@@ -1,10 +1,10 @@
-import { useMemo } from 'react';
+import { useRef, useMemo } from 'react';
 import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
 import { useAppStore } from '../store';
 import type { WoodMember } from '../types';
 
-function getSnapPoints(member: WoodMember): THREE.Vector3[] {
-  // Use effectiveDims (accounting for rip cuts)
+function getLocalSnapPoints(member: WoodMember): THREE.Vector3[] {
   let width = member.width;
   for (const cut of member.cuts) {
     if (cut.type === 'ripCut' && cut.targetWidth) {
@@ -14,73 +14,70 @@ function getSnapPoints(member: WoodMember): THREE.Vector3[] {
   const L = member.length;
   const T = member.thickness;
   const W = width;
+  const hL = L / 2, hT = T / 2, hW = W / 2;
 
-  const hL = L / 2;
-  const hT = T / 2;
-  const hW = W / 2;
-
-  // 8 corners
-  const corners: [number, number, number][] = [
+  const pts: [number, number, number][] = [
+    // 8 corners
     [-hL, -hT, -hW], [-hL, -hT, hW], [-hL, hT, -hW], [-hL, hT, hW],
     [ hL, -hT, -hW], [ hL, -hT, hW], [ hL, hT, -hW], [ hL, hT, hW],
+    // 6 face centers
+    [-hL, 0, 0], [hL, 0, 0],
+    [0, -hT, 0], [0, hT, 0],
+    [0, 0, -hW], [0, 0, hW],
+    // center
+    [0, 0, 0],
   ];
 
-  // 6 face centers
-  const faces: [number, number, number][] = [
-    [-hL, 0, 0], [hL, 0, 0],   // left/right length faces
-    [0, -hT, 0], [0, hT, 0],   // bottom/top thickness faces
-    [0, 0, -hW], [0, 0, hW],   // front/back width faces
-  ];
-
-  // 3 axis midpoints along center
-  const mids: [number, number, number][] = [
-    [0, 0, 0], // center
-  ];
-
-  const localPts = [...corners, ...faces, ...mids];
-
-  // Transform from local to world space
-  const euler = new THREE.Euler(...member.rotation);
-  const q = new THREE.Quaternion().setFromEuler(euler);
-  const pos = new THREE.Vector3(...member.position);
-
-  return localPts.map((p) =>
-    new THREE.Vector3(p[0], p[1], p[2]).applyQuaternion(q).add(pos)
-  );
+  return pts.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
 }
 
 interface Props {
   member: WoodMember;
-  forMate?: boolean; // show on all boards when in mate mode
+  meshRef: React.RefObject<THREE.Mesh>;
+  forMate?: boolean;
 }
 
-export default function SnapPointHandles({ member, forMate }: Props) {
+export default function SnapPointHandles({ member, meshRef, forMate }: Props) {
   const selectedId = useAppStore((s) => s.ui.selectedMemberId);
   const activeTool = useAppStore((s) => s.ui.activeTool);
 
   const isSelected = selectedId === member.id;
   const isMateMode = activeTool === 'mate';
-
   const show = isSelected || (forMate && isMateMode);
 
-  // useMemo must come before any early return (Rules of Hooks)
-  const points = useMemo(() => getSnapPoints(member), [
-    member.position[0], member.position[1], member.position[2],
-    member.length, member.thickness, member.width,
-    member.rotation[0], member.rotation[1], member.rotation[2],
+  const localPoints = useMemo(
+    () => getLocalSnapPoints(member),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    member.cuts,
-  ]);
+    [member.length, member.thickness, member.width, member.cuts]
+  );
+
+  const dotRefs = useRef<(THREE.Mesh | null)[]>([]);
 
   const color = isMateMode ? '#fbbf24' : '#ffffff';
   const emissive = isMateMode ? '#d97706' : '#cccccc';
+
+  // Update dot positions every frame from the live matrixWorld — zero lag
+  useFrame(() => {
+    if (!show || !meshRef.current) return;
+    const mat = meshRef.current.matrixWorld;
+    localPoints.forEach((lp, i) => {
+      const dot = dotRefs.current[i];
+      if (!dot) return;
+      const wp = lp.clone().applyMatrix4(mat);
+      dot.position.copy(wp);
+    });
+  });
 
   if (!show) return null;
 
   return (
     <>
-      {points.map((pt, i) => (
-        <mesh key={i} position={[pt.x, pt.y, pt.z]}>
+      {localPoints.map((_, i) => (
+        <mesh
+          key={i}
+          ref={(el) => { dotRefs.current[i] = el; }}
+          position={[0, 0, 0]}
+        >
           <sphereGeometry args={[0.12, 6, 6]} />
           <meshStandardMaterial
             color={color}

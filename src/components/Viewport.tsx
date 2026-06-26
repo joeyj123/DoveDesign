@@ -26,6 +26,8 @@ import KeyboardShortcuts from './KeyboardShortcuts';
 import MeasureTool from './MeasureTool';
 import DimensionLineRenderer from './DimensionLineRenderer';
 import RotationRing from './RotationRing';
+import CrossCutPreviewLine from './CrossCutPreviewLine';
+import ScrapBox from './ScrapBox';
 
 function ShadowFloor() {
   return (
@@ -55,7 +57,8 @@ function AdaptiveCamera() {
 }
 
 export default function Viewport() {
-  const members      = useAppStore((s) => s.project.members);
+  const allMembers   = useAppStore((s) => s.project.members);
+  const members      = allMembers.filter((m) => !m.inScrapBox);
   const setBoxSelectPending = useAppStore((s) => s.setBoxSelectPending);
   const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
   const setRadialWheelOpen = useAppStore((s) => s.setRadialWheelOpen);
@@ -97,6 +100,7 @@ export default function Viewport() {
       <QuickJoinToolbar />
       <BoxSelectionHandler />
       <DesignSuggestionsBridge />
+      <ScrapBox />
       <Canvas
         style={{ width: '100%', height: '100%' }}
         shadows
@@ -176,6 +180,7 @@ export default function Viewport() {
         <MeasureTool />
         <DimensionLineRenderer />
         <RotationRing />
+        <CrossCutPreviewLine />
         <SceneOrbitControls />
         <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
           <GizmoViewport labelColor="white" axisHeadScale={0.85} />

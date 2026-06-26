@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store';
 import { NOMINAL_DIMENSIONS } from '../types';
 import type { NominalSize, WoodCategory } from '../types';
@@ -45,6 +45,7 @@ export default function ToolPanel() {
   const addCut = useAppStore((s) => s.addCut);
   const splitMemberByCrossCut = useAppStore((s) => s.splitMemberByCrossCut);
   const splitMemberByRipCut = useAppStore((s) => s.splitMemberByRipCut);
+  const setCrossCutPreviewPosition = useAppStore((s) => s.setCrossCutPreviewPosition);
   const removeCut = useAppStore((s) => s.removeCut);
   const updateCut = useAppStore((s) => s.updateCut);
   const allMembers = useAppStore((s) => s.project.members);
@@ -59,13 +60,17 @@ export default function ToolPanel() {
   const [form, setForm] = useState<FormState>(DEFAULTS);
   const [ripTargetWidth, setRipTargetWidth] = useState('2.75');
   const [crossCutPosition, setCrossCutPosition] = useState('12');
+  const crossCutPositionRef = useRef('12'); // always-current value for stale-closure-free reads
   const [joineryPartnerId, setJoineryPartnerId] = useState('');
 
   useEffect(() => {
     if (selectedMember && activeTool === 'joinery') {
       setJoineryPartnerId('');
     }
-  }, [selectedMember?.id, activeTool]);
+    if (activeTool !== 'cut') {
+      setCrossCutPreviewPosition(null);
+    }
+  }, [selectedMember?.id, activeTool, setCrossCutPreviewPosition]);
 
   useEffect(() => {
     if (selectedMember && activeTool === 'rip') {
@@ -149,8 +154,10 @@ export default function ToolPanel() {
 
   function handleAddCrossCut() {
     if (!selectedId || !selectedMember) return;
-    const pos = parseFloat(crossCutPosition);
+    // Use ref for always-current value — avoids stale closure on first click
+    const pos = parseFloat(crossCutPositionRef.current);
     if (isNaN(pos) || pos <= 0 || pos >= selectedMember.length) return;
+    setCrossCutPreviewPosition(null);
     splitMemberByCrossCut(selectedId, pos);
   }
 
@@ -211,7 +218,15 @@ export default function ToolPanel() {
               max={selectedMember.length - 0.125}
               className="input-field mono-num"
               value={crossCutPosition}
-              onChange={(e) => setCrossCutPosition(e.target.value)}
+              onChange={(e) => {
+                setCrossCutPosition(e.target.value);
+                crossCutPositionRef.current = e.target.value;
+                const n = parseFloat(e.target.value);
+                if (!isNaN(n) && n > 0 && n < selectedMember.length) {
+                  setCrossCutPreviewPosition(n);
+                }
+              }}
+              onKeyDown={(e) => e.stopPropagation()}
             />
           </label>
           <p className="text-xs text-zinc-500">
@@ -231,17 +246,18 @@ export default function ToolPanel() {
               type="number"
               step="0.125"
               min="0.25"
-              max={selectedMember.width - 0.125}
+              max={selectedMember.width - 0.25}
               className="input-field mono-num"
               value={ripTargetWidth}
               onChange={(e) => setRipTargetWidth(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
             />
           </label>
           <p className="text-xs text-zinc-500">
-            Current width: <span className="mono-num">{selectedMember.width}"</span>
+            Board width: <span className="mono-num">{selectedMember.width}"</span>
             {' · '}Waste:{' '}
             <span className="mono-num">
-              {(selectedMember.width - (parseFloat(ripTargetWidth) || 0) - 0.125).toFixed(3)}"
+              {Math.max(0, selectedMember.width - (parseFloat(ripTargetWidth) || 0)).toFixed(3)}"
             </span>
           </p>
           <button type="button" className="btn-secondary w-full text-sm" onClick={handleAddRipCut}>

@@ -773,6 +773,62 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
       'Press M to activate the move arrows on a selected board. They stay visible until you press Escape or switch tools. Press Tab to cycle through Move, Rotate, and Scale modes.',
   },
   {
+    id: 'snap-to-grid',
+    topic: 'Snap to grid',
+    keywords: ['snap', 'grid', 'snap to grid', 'align grid', 'grid snap', 'g key'],
+    answer:
+      'Press G to toggle Snap to Grid. When on, boards snap to the nearest 1-inch position on the XZ floor plane when you move them. You can also toggle it in the View menu.',
+  },
+  {
+    id: 'scrap-box',
+    topic: 'What is the scrap box',
+    keywords: ['scrap box', 'scrap', 'waste box', 'offcut box', 'stash', 'hide board'],
+    answer:
+      'The Scrap Box is a place to stash cut waste pieces without deleting them. Open it with the 🗑 button at the bottom-left of the viewport. You can retrieve pieces later or clear them permanently.',
+  },
+  {
+    id: 'send-to-scrap',
+    topic: 'How to send a piece to the scrap box',
+    keywords: ['send scrap', 'save waste', 'move to scrap', 'scrap waste', 'hide piece'],
+    answer:
+      'Select the board, then click "Send to Scrap Box" at the bottom of the Inspector panel. The board disappears from the viewport but stays stored in the scrap box.',
+  },
+  {
+    id: 'retrieve-from-scrap',
+    topic: 'How to retrieve a piece from the scrap box',
+    keywords: ['retrieve', 'get back', 'restore piece', 'scrap retrieve', 'bring back'],
+    answer:
+      'Click the 🗑 Scrap Box button at the bottom-left of the viewport to expand the panel, then click "Retrieve" next to the piece you want. It returns to the viewport near your other boards.',
+  },
+  {
+    id: 'offcut-storage',
+    topic: 'Storing offcuts and waste pieces',
+    keywords: ['offcut', 'cut off', 'waste piece', 'store piece', 'keep waste'],
+    answer:
+      'Use the Scrap Box to store offcuts. Select the waste piece and click "Send to Scrap Box" in the Inspector. The piece is hidden but not deleted — you can retrieve it any time.',
+  },
+  {
+    id: 'clear-scrap',
+    topic: 'Delete all pieces in the scrap box',
+    keywords: ['clear scrap', 'delete waste', 'empty scrap', 'remove all scrap'],
+    answer:
+      'Open the Scrap Box (🗑 button, bottom-left), then click "Clear All" at the top of the panel. This permanently deletes all pieces in the scrap box — it cannot be undone.',
+  },
+  {
+    id: 'scrap-vs-delete',
+    topic: 'Scrap box vs deleting a board',
+    keywords: ['scrap vs delete', 'difference scrap delete', 'why scrap'],
+    answer:
+      'Delete permanently removes a board and cannot be recovered. The Scrap Box keeps the board stored safely — you can retrieve it later if you change your mind about a cut.',
+  },
+  {
+    id: 'scrap-count-badge',
+    topic: 'Scrap box count badge',
+    keywords: ['scrap count', 'badge scrap', 'how many scraps', 'scrap number'],
+    answer:
+      'The Scrap Box button at the bottom-left shows an amber number badge when there are pieces inside. Click it to expand the full list and manage your stored pieces.',
+  },
+  {
     id: 'measure-distance',
     topic: 'How to measure distance between two points',
     keywords: ['measure', 'distance', 'dimension', 'how far', 'measurement', 'd key', 'dimension line'],

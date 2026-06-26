@@ -103,6 +103,9 @@ const DEFAULT_UI: UIState = {
   measureStartPoint: null,
   selectedDimensionLineId: null,
   dimensionLinesVisible: true,
+  crossCutPreviewPosition: null,
+  snapToGrid: false,
+  scrapBoxOpen: false,
   drawDefaults: {
     species: 'Southern Yellow Pine',
     thickness: 1.5,
@@ -123,6 +126,7 @@ function migrateMember(m: WoodMember): WoodMember {
     materialKind: m.materialKind ?? inferMaterialKind(m.species, m.category),
     color: m.color ?? mat?.color ?? '#d4a96a',
     shapeType: m.shapeType ?? 'box',
+    inScrapBox: m.inScrapBox ?? false,
   };
 }
 
@@ -276,6 +280,18 @@ interface AppStore {
   selectDimensionLine: (id: string | null) => void;
   setDimensionLinesVisible: (visible: boolean) => void;
   setMeasureStartPoint: (pt: UIState['measureStartPoint']) => void;
+
+  // Cross cut preview
+  setCrossCutPreviewPosition: (pos: number | null) => void;
+
+  // Snap to grid
+  setSnapToGrid: (enabled: boolean) => void;
+
+  // Scrap box
+  sendToScrapBox: (id: string) => void;
+  retrieveFromScrapBox: (id: string) => void;
+  clearScrapBox: () => void;
+  setScrapBoxOpen: (open: boolean) => void;
 
   // Persistence
   saveProjectToFile:   () => void;
@@ -663,6 +679,7 @@ export const useAppStore = create<AppStore>()(
         quickJoinMiterAxis: null,
         measureStartPoint: null,
         selectedDimensionLineId: null,
+        crossCutPreviewPosition: null,
         multiSelection: [],
         selectedMemberId: null,
         transformGizmoActive: false,
@@ -1265,6 +1282,60 @@ export const useAppStore = create<AppStore>()(
 
   setPolygonDrawPoints: (pts) =>
     set((s) => ({ ui: { ...s.ui, polygonDrawPoints: pts } })),
+
+  setCrossCutPreviewPosition: (pos) =>
+    set((s) => ({ ui: { ...s.ui, crossCutPreviewPosition: pos } })),
+
+  setSnapToGrid: (enabled) =>
+    set((s) => ({ ui: { ...s.ui, snapToGrid: enabled } })),
+
+  sendToScrapBox: (id) => {
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) =>
+        m.id === id ? { ...m, inScrapBox: true } : m
+      ),
+    });
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        selectedMemberId: s.ui.selectedMemberId === id ? null : s.ui.selectedMemberId,
+        multiSelection: s.ui.multiSelection.filter((x) => x !== id),
+        radialWheelOpen: false,
+      },
+    }));
+  },
+
+  retrieveFromScrapBox: (id) => {
+    const member = get().project.members.find((m) => m.id === id);
+    if (!member) return;
+    const xs = get().project.members
+      .filter((m) => !m.inScrapBox && m.id !== id)
+      .map((m) => m.position[0]);
+    const maxX = xs.length > 0 ? Math.max(...xs) : 0;
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) =>
+        m.id === id
+          ? { ...m, inScrapBox: false, position: [maxX + member.length + 4, m.position[1], m.position[2]] }
+          : m
+      ),
+    });
+  },
+
+  clearScrapBox: () =>
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.filter((m) => !m.inScrapBox),
+      mates: get().project.mates.filter((mate) => {
+        const a = get().project.members.find((m) => m.id === mate.memberAId);
+        const b = get().project.members.find((m) => m.id === mate.memberBId);
+        return !a?.inScrapBox && !b?.inScrapBox;
+      }),
+    }),
+
+  setScrapBoxOpen: (open) =>
+    set((s) => ({ ui: { ...s.ui, scrapBoxOpen: open } })),
 
   addDimensionLine: (line) =>
     commitProject(set, get, {

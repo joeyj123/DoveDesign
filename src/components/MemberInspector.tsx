@@ -22,6 +22,7 @@ export default function MemberInspector() {
   const mates = useAppStore((s) => s.project.mates);
   const members = useAppStore((s) => s.project.members);
   const removeMate = useAppStore((s) => s.removeMate);
+  const sendToScrapBox = useAppStore((s) => s.sendToScrapBox);
 
   if (!selectedMember) {
     return (
@@ -288,6 +289,14 @@ export default function MemberInspector() {
           </div>
         );
       })()}
+
+      <button
+        type="button"
+        onClick={() => sendToScrapBox(selectedMember.id)}
+        className="w-full bg-zinc-800/80 hover:bg-zinc-700/80 text-amber-300 font-semibold text-base py-2.5 rounded-xl border-2 border-amber-700/40 transition-colors"
+      >
+        Send to Scrap Box
+      </button>
 
       <button
         type="button"

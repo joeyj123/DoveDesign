@@ -17,8 +17,12 @@ export default function SystemRibbon() {
   const resetCamera = useAppStore((s) => s.resetCamera);
   const gridVisible = useAppStore((s) => s.ui.gridVisible);
   const orthographic = useAppStore((s) => s.ui.orthographic);
+  const snapToGrid = useAppStore((s) => s.ui.snapToGrid);
+  const dimensionLinesVisible = useAppStore((s) => s.ui.dimensionLinesVisible);
   const setGridVisible = useAppStore((s) => s.setGridVisible);
   const setOrthographic = useAppStore((s) => s.setOrthographic);
+  const setSnapToGrid = useAppStore((s) => s.setSnapToGrid);
+  const setDimensionLinesVisible = useAppStore((s) => s.setDimensionLinesVisible);
   const setRightPanelTab = useAppStore((s) => s.setRightPanelTab);
   const undo = useAppStore((s) => s.undo);
   const redo = useAppStore((s) => s.redo);
@@ -77,6 +81,18 @@ export default function SystemRibbon() {
         <MenuItem
           label={`Grid: ${gridVisible ? 'On' : 'Off'}`}
           onClick={() => setGridVisible(!gridVisible)}
+        />
+        <MenuItem
+          label={`Snap to Grid (G): ${snapToGrid ? 'On' : 'Off'}`}
+          onClick={() => {
+            const next = !snapToGrid;
+            setSnapToGrid(next);
+            if (next && !gridVisible) setGridVisible(true);
+          }}
+        />
+        <MenuItem
+          label={`Dimension Lines: ${dimensionLinesVisible ? 'On' : 'Off'}`}
+          onClick={() => setDimensionLinesVisible(!dimensionLinesVisible)}
         />
         <MenuItem
           label={`Camera: ${orthographic ? 'Orthographic' : 'Perspective'}`}

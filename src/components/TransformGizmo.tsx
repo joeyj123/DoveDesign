@@ -24,6 +24,7 @@ export default function TransformGizmo({ member, objectRef }: Props) {
   const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
   const angleSnapEnabled = useAppStore((s) => s.ui.angleSnapEnabled);
   const angleSnapIncrement = useAppStore((s) => s.ui.angleSnapIncrement);
+  const snapToGrid = useAppStore((s) => s.ui.snapToGrid);
   const updateMember = useAppStore((s) => s.updateMember);
   const allMembers = useAppStore((s) => s.project.members);
   const viewportMode = useAppStore((s) => s.ui.viewportMode);
@@ -61,6 +62,9 @@ export default function TransformGizmo({ member, objectRef }: Props) {
               allMembers.filter((m) => m.id !== member.id)
             );
           }
+          if (snapToGrid) {
+            pos = [Math.round(pos[0]), pos[1], Math.round(pos[2])];
+          }
           obj.position.set(pos[0], pos[1], pos[2]);
         }
 
@@ -83,7 +87,7 @@ export default function TransformGizmo({ member, objectRef }: Props) {
     };
     tc.addEventListener('dragging-changed', handler);
     return () => tc.removeEventListener('dragging-changed', handler);
-  }, [controls, member, objectRef, transformMode, allMembers, updateMember, angleSnapEnabled, angleSnapIncrement, viewportMode, setOrbitControlsEnabled]);
+  }, [controls, member, objectRef, transformMode, allMembers, updateMember, angleSnapEnabled, angleSnapIncrement, viewportMode, setOrbitControlsEnabled, snapToGrid]);
 
   if (activeTool !== 'select' || !transformGizmoActive || !attached || !objectRef.current) return null;
 

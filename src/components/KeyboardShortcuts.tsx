@@ -66,7 +66,12 @@ export default function KeyboardShortcuts() {
 
         case 'g':
         case 'G':
-          store.setGridVisible(!store.ui.gridVisible);
+          {
+            const newSnap = !store.ui.snapToGrid;
+            store.setSnapToGrid(newSnap);
+            // Ensure grid is visible when snap is enabled
+            if (newSnap && !store.ui.gridVisible) store.setGridVisible(true);
+          }
           break;
 
         case 'd':

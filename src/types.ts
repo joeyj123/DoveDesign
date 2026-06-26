@@ -120,6 +120,8 @@ export interface WoodMember {
   polygonPoints?: [number, number][];
   /** Radius for cylinder, sphere, cone. */
   radius?: number;
+  /** When true, member is stashed in the scrap box and hidden from the viewport. */
+  inScrapBox?: boolean;
 }
 
 // ─── Assembly Mates ─────────────────────────────────────────────────────────
@@ -448,6 +450,12 @@ export interface UIState {
   selectedDimensionLineId: string | null;
   /** Whether dimension lines are visible in the viewport */
   dimensionLinesVisible: boolean;
+  /** Cross cut preview position along board length (inches from start), or null when not active */
+  crossCutPreviewPosition: number | null;
+  /** Whether boards snap to the 1-inch grid when moved */
+  snapToGrid: boolean;
+  /** Whether the scrap box panel is expanded */
+  scrapBoxOpen: boolean;
 }
 
 export interface DesignSuggestion {

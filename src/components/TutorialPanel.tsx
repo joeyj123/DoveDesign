@@ -19,6 +19,8 @@ function HighlightText({ text, search }: { text: string; search: string }) {
 
 const ALL_SECTION_TITLES = [
   'Keyboard Shortcuts',
+  'Snap to Grid',
+  'Scrap Box',
   'Left Tool Panel — Model, Modify, Joinery, Shapes',
   'Shop Tools',
   'Cross-Cuts & Rip Cuts',
@@ -145,6 +147,44 @@ export default function TutorialPanel() {
         </p>
       </div>
 
+      <Section search={searchLower} onMatch={registerMatch} title="Snap to Grid">
+        <p className="text-base text-zinc-400">
+          Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">G</kbd> to toggle Snap to Grid on and off. You can also find it in the <strong className="text-zinc-300">View</strong> menu.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>When ON, boards snap to the nearest 1-inch grid position when you move them with the transform arrows.</li>
+          <li>Snapping only happens on the XZ floor plane — board height (Y) is not snapped.</li>
+          <li>Turning on snap also makes the grid visible if it was hidden.</li>
+          <li>Useful for planning lumber layouts or aligning boards to a standard grid.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I snap boards to the grid?&quot; · &quot;What is snap to grid?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} onMatch={registerMatch} title="Scrap Box">
+        <p className="text-base text-zinc-400">
+          The <strong className="text-zinc-300">Scrap Box</strong> lets you stash cut waste pieces out of the way without permanently deleting them. Open it with the basket button in the <strong className="text-zinc-300">bottom-left corner</strong> of the viewport.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>
+            <strong className="text-zinc-300">Send a board to the scrap box:</strong> Select the board and click <strong className="text-zinc-300">Send to Scrap Box</strong> at the bottom of the Inspector panel. The board disappears from the viewport but is NOT deleted.
+          </li>
+          <li>
+            <strong className="text-zinc-300">View scrapped pieces:</strong> Click the 🗑 Scrap Box button at the bottom-left of the viewport. A panel expands showing all stashed pieces with their label and dimensions.
+          </li>
+          <li>
+            <strong className="text-zinc-300">Retrieve a piece:</strong> Click <strong className="text-zinc-300">Retrieve</strong> next to any piece — it returns to the viewport placed near the other boards.
+          </li>
+          <li>
+            <strong className="text-zinc-300">Permanently delete from scrap:</strong> Click <strong className="text-zinc-300">Delete</strong> next to a piece, or click <strong className="text-zinc-300">Clear All</strong> to delete every piece in the box at once. This cannot be undone.
+          </li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What is the scrap box?&quot; · &quot;How do I save a waste piece?&quot; · &quot;How do I get a piece back from the scrap box?&quot;
+        </p>
+      </Section>
+
       <Section search={searchLower} onMatch={registerMatch} title="Keyboard Shortcuts">
         <p className="text-base text-zinc-400 mb-2">
           DoveDesign uses industry-standard CAD shortcuts so experienced woodworkers
@@ -158,7 +198,7 @@ export default function TutorialPanel() {
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">M</kbd> — Activate Move (shows transform arrows on selected board)</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">R</kbd> — Switch to Rip Cut tool</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">D</kbd> — Measure tool (click two points to measure distance; press D again or Escape to exit)</li>
-          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">G</kbd> — Toggle grid on / off</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">G</kbd> — Snap to Grid toggle (boards snap to the nearest inch when moved)</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">C</kbd> — Cross Cut tool</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">J</kbd> — Mate / Join tool (join boards face to face)</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">F</kbd> — Flip board (toggles between normal and flipped — press again to flip back)</li>
