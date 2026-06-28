@@ -6,6 +6,8 @@ import { useAppStore } from '../store';
 
 const AMBER = '#F59E0B';
 const AMBER_BRIGHT = '#FCD34D';
+const GREEN = '#22c55e';
+const GREEN_BRIGHT = '#4ade80';
 const SNAP_RADIUS = 0.5;
 const SNAP_ANGLES_DEG = [0, 45, 90, 135, 180, 225, 270, 315];
 const SNAP_THRESHOLD_DEG = 5;
@@ -210,24 +212,28 @@ export default function MeasureTool() {
 
   return (
     <>
-      {/* Start anchor */}
+      {/* Start anchor — green dot when locked */}
       {startVec && (
         <mesh position={[startVec.x, startVec.y + 0.06, startVec.z]}>
-          <sphereGeometry args={[0.15, 10, 10]} />
-          <meshBasicMaterial color={AMBER} />
+          <sphereGeometry args={[0.18, 12, 12]} />
+          <meshBasicMaterial color={GREEN} />
         </mesh>
       )}
 
-      {/* Live line */}
+      {/* Live dashed amber line from start to cursor */}
       {livePoints.length === 2 && (
         <Line points={livePoints} color={lineColor} lineWidth={2} dashed dashSize={0.35} gapSize={0.18} />
       )}
 
-      {/* Cursor dot */}
+      {/* Cursor dot — green in idle, amber when drawing */}
       {cursor && (
         <mesh position={[cursor.x, cursor.y + 0.06, cursor.z]}>
           <sphereGeometry args={[cursorSnapped ? 0.18 : 0.11, 10, 10]} />
-          <meshBasicMaterial color={cursorSnapped ? AMBER_BRIGHT : AMBER} transparent opacity={0.85} />
+          <meshBasicMaterial
+            color={startVec ? (cursorSnapped ? AMBER_BRIGHT : AMBER) : (cursorSnapped ? GREEN_BRIGHT : GREEN)}
+            transparent
+            opacity={0.85}
+          />
         </mesh>
       )}
 

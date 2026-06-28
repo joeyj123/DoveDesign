@@ -51,7 +51,9 @@ export default function KeyboardShortcuts() {
 
         case 'Delete':
         case 'Backspace':
-          if (store.ui.selectedDimensionLineId) {
+          if (e.shiftKey) {
+            store.clearAllMembers();
+          } else if (store.ui.selectedDimensionLineId) {
             store.removeDimensionLine(store.ui.selectedDimensionLineId);
             store.selectDimensionLine(null);
           } else if (store.ui.selectedMemberId) {
@@ -123,8 +125,20 @@ export default function KeyboardShortcuts() {
 
         case 's':
         case 'S':
-          if (!e.ctrlKey) {
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            store.saveProjectToFile();
+          } else {
             store.setActiveTool('select');
+          }
+          break;
+
+        case 'o':
+        case 'O':
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            // Trigger the hidden file input in SystemRibbon via a custom event
+            document.dispatchEvent(new CustomEvent('dovedesign:open-file'));
           }
           break;
 

@@ -113,14 +113,13 @@ Do NOT refactor these unless fixing a specific bug in them.
 
 ## The 5 Most Broken Things (Fix These First)
 
-As of Phase 8 (2026-06-26), no critical known broken items remain from the original list.
-The `transformGizmoActive` flag, radial wheel open logic, mate tool face-picking, draw-board
-threshold, and box-select orbit conflict are all resolved in Phases 4–8.
+As of Phase 10 (2026-06-27), no critical known broken items remain.
+All Phase 10 features pass `npm run build` with zero TypeScript errors.
 
 **Currently watch-out items (not critical, but worth a future pass):**
 
 ### 1. None known — build is clean
-No TypeScript errors. All Phase 7 + 8 + 9 features pass `npm run build`.
+No TypeScript errors. All Phase 10 features pass `npm run build`.
 
 ### 2. Placeholder
 **Fix:** 
@@ -319,6 +318,9 @@ Rules for Pepe entries:
 | `F` | Flip selected board 180° |
 | `U` | Unmate most recent connection on selected board |
 | `Shift+drag` | Box select multiple boards |
+| `Shift+Delete` | Clear all boards (with confirm dialog) |
+| `Ctrl+S` | Save project to .wcad file |
+| `Ctrl+O` | Open a .wcad file |
 
 When adding new shortcuts, update this table AND add them to:
 1. `src/components/KeyboardShortcuts.tsx`

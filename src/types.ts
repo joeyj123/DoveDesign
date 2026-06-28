@@ -479,6 +479,10 @@ export interface UIState {
   selectedJointMarkerId: string | null;
   /** Whether the scrap box panel is expanded */
   scrapBoxOpen: boolean;
+  /** Rotation axis locked for rotation ring (default y) */
+  rotationAxis: 'x' | 'y' | 'z';
+  /** Template picker modal open */
+  templatePickerOpen: boolean;
 }
 
 export interface DesignSuggestion {

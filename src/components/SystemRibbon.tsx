@@ -3,7 +3,7 @@ import { useAppStore } from '../store';
 import BrandLogo from './BrandLogo';
 import SystemInfoModal from './SystemInfoModal';
 
-type MenuId = 'file' | 'view' | 'help' | null;
+type MenuId = 'file' | 'edit' | 'view' | 'help' | null;
 
 export default function SystemRibbon() {
   const [openMenu, setOpenMenu] = useState<MenuId>(null);
@@ -32,6 +32,8 @@ export default function SystemRibbon() {
   const displayMode = useAppStore((s) => s.ui.displayMode);
   const setViewportMode = useAppStore((s) => s.setViewportMode);
   const setDisplayMode = useAppStore((s) => s.setDisplayMode);
+  const clearAllMembers = useAppStore((s) => s.clearAllMembers);
+  const setTemplatePickerOpen = useAppStore((s) => s.setTemplatePickerOpen);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -41,8 +43,15 @@ export default function SystemRibbon() {
         setOpenMenu(null);
       }
     }
+    function onOpenFile() {
+      fileRef.current?.click();
+    }
     window.addEventListener('mousedown', onPointerDown);
-    return () => window.removeEventListener('mousedown', onPointerDown);
+    document.addEventListener('dovedesign:open-file', onOpenFile);
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('dovedesign:open-file', onOpenFile);
+    };
   }, []);
 
   async function handleLoad(e: React.ChangeEvent<HTMLInputElement>) {
@@ -72,9 +81,18 @@ export default function SystemRibbon() {
 
       <RibbonMenu label="File" open={openMenu === 'file'} onToggle={() => toggle('file')}>
         <MenuItem label="New Project" onClick={() => { newProject(); setOpenMenu(null); }} />
-        <MenuItem label="Save Project (.wcad)" onClick={() => { saveProjectToFile(); setOpenMenu(null); }} />
-        <MenuItem label="Load Project (.wcad)" onClick={() => fileRef.current?.click()} />
+        <MenuItem label="New from Template…" onClick={() => { setTemplatePickerOpen(true); setOpenMenu(null); }} />
+        <MenuDivider />
+        <MenuItem label="Save Project  Ctrl+S" onClick={() => { saveProjectToFile(); setOpenMenu(null); }} />
+        <MenuItem label="Open Project  Ctrl+O" onClick={() => { fileRef.current?.click(); setOpenMenu(null); }} />
         <input ref={fileRef} type="file" accept=".wcad,.woodproject" className="hidden" onChange={handleLoad} />
+      </RibbonMenu>
+
+      <RibbonMenu label="Edit" open={openMenu === 'edit'} onToggle={() => toggle('edit')}>
+        <MenuItem label="Undo  Ctrl+Z" onClick={() => { undo(); setOpenMenu(null); }} />
+        <MenuItem label="Redo  Ctrl+Y" onClick={() => { redo(); setOpenMenu(null); }} />
+        <MenuDivider />
+        <MenuItem label="Clear All Boards  Shift+Del" onClick={() => { clearAllMembers(); setOpenMenu(null); }} />
       </RibbonMenu>
 
       <RibbonMenu label="View" open={openMenu === 'view'} onToggle={() => toggle('view')}>
@@ -197,4 +215,8 @@ function MenuItem({ label, onClick }: { label: string; onClick: () => void }) {
       {label}
     </button>
   );
+}
+
+function MenuDivider() {
+  return <div className="my-1 border-t border-zinc-800" />;
 }

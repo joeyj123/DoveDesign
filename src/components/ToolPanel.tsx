@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store';
 import { NOMINAL_DIMENSIONS } from '../types';
 import type { NominalSize, WoodCategory } from '../types';
+import { radToDeg } from '../lib/angles';
 import { createCutOperation, CUT_TYPES, JOINERY_TYPES } from '../lib/joinery';
 import { MATERIAL_CATALOG, inferMaterialKind } from '../lib/materials';
 import { ALL_FACES, FACE_LABELS } from '../lib/mating';
@@ -85,7 +86,99 @@ export default function ToolPanel() {
     }
   }, [selectedMember?.id, selectedMember?.width, activeTool]);
 
-  if (activeTool === 'select' || activeTool === 'measure') return null;
+  const transformGizmoActive = useAppStore((s) => s.ui.transformGizmoActive);
+  const transformMode = useAppStore((s) => s.ui.transformMode);
+  const rotationAxis = useAppStore((s) => s.ui.rotationAxis);
+  const setRotationAxis = useAppStore((s) => s.setRotationAxis);
+  const updateMember = useAppStore((s) => s.updateMember);
+  const [degInput, setDegInput] = useState('');
+
+  const showRotationPanel =
+    activeTool === 'select' && transformGizmoActive && transformMode === 'rotate' && !!selectedMember;
+
+  if ((activeTool === 'select' || activeTool === 'measure') && !showRotationPanel) return null;
+
+  if (showRotationPanel) {
+    const axisIdx = rotationAxis === 'x' ? 0 : rotationAxis === 'y' ? 1 : 2;
+    const currentDeg = Math.round(((radToDeg(selectedMember!.rotation[axisIdx]) % 360) + 360) % 360);
+
+    function applyDeg() {
+      const val = parseFloat(degInput);
+      if (isNaN(val) || !selectedMember) return;
+      const axIdx = rotationAxis === 'x' ? 0 : rotationAxis === 'y' ? 1 : 2;
+      const newRot = [...selectedMember.rotation] as [number, number, number];
+      newRot[axIdx] = (val * Math.PI) / 180;
+      updateMember(selectedMember.id, { rotation: newRot });
+      setDegInput('');
+    }
+
+    const axisColors: Record<string, string> = { x: 'border-red-500 text-red-400', y: 'border-amber-500 text-amber-400', z: 'border-blue-500 text-blue-400' };
+    const axisBg: Record<string, string> = { x: 'bg-red-500/20', y: 'bg-amber-500/20', z: 'bg-blue-500/20' };
+
+    return (
+      <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-amber-500/90">Rotation</p>
+
+        <div>
+          <p className="text-xs text-zinc-500 mb-1">Axis</p>
+          <div className="flex gap-1">
+            {(['x', 'y', 'z'] as const).map((ax) => (
+              <button
+                key={ax}
+                type="button"
+                onClick={() => setRotationAxis(ax)}
+                className={`flex-1 py-1 rounded border text-sm font-bold transition-all ${rotationAxis === ax ? `${axisBg[ax]} ${axisColors[ax]}` : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}
+              >
+                {ax.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs text-zinc-500 mb-1">Current: {currentDeg}°</p>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              step="1"
+              placeholder={String(currentDeg)}
+              className="input-field mono-num flex-1"
+              value={degInput}
+              onChange={(e) => setDegInput(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') applyDeg();
+                if (e.key === 'Escape') setDegInput('');
+              }}
+            />
+            <button type="button" onClick={applyDeg} className="btn-secondary text-sm px-3">
+              Set
+            </button>
+          </div>
+          <p className="text-xs text-zinc-500 mt-1">Type degrees, press Enter or Set</p>
+        </div>
+
+        <div className="flex flex-wrap gap-1">
+          {[0, 45, 90, 135, 180].map((deg) => (
+            <button
+              key={deg}
+              type="button"
+              onClick={() => {
+                if (!selectedMember) return;
+                const axIdx = rotationAxis === 'x' ? 0 : rotationAxis === 'y' ? 1 : 2;
+                const newRot = [...selectedMember.rotation] as [number, number, number];
+                newRot[axIdx] = (deg * Math.PI) / 180;
+                updateMember(selectedMember.id, { rotation: newRot });
+              }}
+              className="px-2 py-0.5 rounded border border-zinc-700 text-xs text-zinc-300 hover:border-amber-500 hover:text-amber-400 transition-all"
+            >
+              {deg}°
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   function handleSpeciesChange(species: string) {
     const mat = MATERIAL_CATALOG.find((m) => m.name === species);

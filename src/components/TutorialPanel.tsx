@@ -50,6 +50,11 @@ const ALL_SECTION_TITLES = [
   'Measure Tool — Dimension Lines',
   'Renaming Boards (Label)',
   'Keyboard Shortcuts & Escape Priority',
+  'Clear All Boards',
+  'Selecting & Editing Dimension Lines',
+  'Rotation Axis Lock & Type-to-Snap',
+  'Project Save & Open',
+  'Project Templates',
 ];
 
 export default function TutorialPanel() {
@@ -209,6 +214,9 @@ export default function TutorialPanel() {
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Z</kbd> — Undo</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Y</kbd> — Redo</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Shift+drag</kbd> — Box select multiple boards</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Shift+Delete</kbd> — Clear all boards (with confirmation)</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+S</kbd> — Save project to .wcad file</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+O</kbd> — Open a .wcad file</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Shift+X</kbd> — Send selected board to Scrap Box</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">V</kbd> — Joinery Visualization tool (place joint markers)</li>
         </ul>
@@ -731,6 +739,80 @@ export default function TutorialPanel() {
           <li><span className="font-sans text-zinc-400">Right-click</span> — Context menu + radial wheel on boards</li>
         </ul>
       </Section>
+      <Section search={searchLower} title="Clear All Boards" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          Remove every board from the scene in one step — great for starting over without creating a whole new project.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Shift+Delete</kbd> — a confirmation box pops up first.</li>
+          <li>Or go to <strong className="text-zinc-300">Edit → Clear All Boards</strong> in the top menu.</li>
+          <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Ctrl+Z</kbd> to undo and get all your boards back.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;Clear all boards&quot; · &quot;How do I start over?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Selecting &amp; Editing Dimension Lines" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          Dimension lines you draw with the Measure tool can be selected, moved, and deleted.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li><strong className="text-zinc-300">Click</strong> any dimension line to select it — it turns bright amber.</li>
+          <li>With it selected, <strong className="text-zinc-300">drag either green endpoint handle</strong> to reanchor that end on a different surface or grid point.</li>
+          <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Delete</kbd> or click the <strong className="text-zinc-300">Delete Line</strong> button to remove it. Ctrl+Z to undo.</li>
+          <li>Click empty space to deselect the line.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;Move dimension line endpoint&quot; · &quot;Delete dimension line&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Rotation Axis Lock &amp; Type-to-Snap" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          When a board is selected and the rotation ring is visible, you can lock rotation to one axis and type an exact degree value.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">M</kbd> to activate the gizmo, then <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Tab</kbd> to switch to Rotate mode.</li>
+          <li>In the left panel, click <strong className="text-zinc-300">X</strong>, <strong className="text-zinc-300">Y</strong>, or <strong className="text-zinc-300">Z</strong> to lock the rotation axis.</li>
+          <li>Type a degree value in the number field and press Enter to snap the board precisely.</li>
+          <li>Click any <strong className="text-zinc-300">tick mark on the amber ring</strong> to snap directly to that angle. Hover a tick to see its degree value.</li>
+          <li>Quick-snap buttons for 0° · 45° · 90° · 135° · 180° appear below the input.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;Rotate board to exact angle&quot; · &quot;Click tick mark rotation&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Project Save &amp; Open" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          Save your project to a file so you can come back to it later — even on a different computer.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li><strong className="text-zinc-300">Save:</strong> Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Ctrl+S</kbd> or File → Save Project. Downloads a <em>.wcad</em> file.</li>
+          <li><strong className="text-zinc-300">Open:</strong> Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Ctrl+O</kbd> or File → Open Project, then pick your .wcad file.</li>
+          <li>DoveDesign <strong className="text-zinc-300">auto-saves in the browser</strong> so a page refresh will not lose your work.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I save my project?&quot; · &quot;What is a .wcad file?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Project Templates" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          Start from a pre-built project instead of a blank scene. All boards are pre-sized in pine and ready to customize.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>Go to <strong className="text-zinc-300">File → New from Template…</strong></li>
+          <li>Choose one of five templates: <strong className="text-zinc-300">Workbench</strong>, <strong className="text-zinc-300">Bookshelf</strong>, <strong className="text-zinc-300">Cabinet</strong>, <strong className="text-zinc-300">Side Table</strong>, or <strong className="text-zinc-300">Bed Frame</strong>.</li>
+          <li>Or pick <strong className="text-zinc-300">Blank Project</strong> for an empty scene.</li>
+          <li>If the scene has boards, a confirmation box asks before replacing them.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What templates are available?&quot; · &quot;Workbench template&quot;
+        </p>
+      </Section>
+
       </FocusedTitleCtx.Provider>
     </div>
   );

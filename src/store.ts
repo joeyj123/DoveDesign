@@ -110,6 +110,8 @@ const DEFAULT_UI: UIState = {
   scrapBoxOpen: false,
   selectedJointType: null,
   selectedJointMarkerId: null,
+  rotationAxis: 'y',
+  templatePickerOpen: false,
   drawDefaults: {
     species: 'Southern Yellow Pine',
     thickness: 1.5,
@@ -305,6 +307,21 @@ interface AppStore {
   retrieveFromScrapBox: (id: string) => void;
   clearScrapBox: () => void;
   setScrapBoxOpen: (open: boolean) => void;
+
+  // Clear all
+  clearAllMembers: () => void;
+
+  // Dimension line update
+  updateDimensionLine: (id: string, patch: Partial<import('./types').DimensionLine>) => void;
+
+  // Rotation axis
+  setRotationAxis: (axis: 'x' | 'y' | 'z') => void;
+
+  // Template picker
+  setTemplatePickerOpen: (open: boolean) => void;
+
+  // Load project from template / object
+  loadProjectData: (members: import('./types').WoodMember[], name: string) => void;
 
   // Persistence
   saveProjectToFile:   () => void;
@@ -1387,6 +1404,63 @@ export const useAppStore = create<AppStore>()(
 
   setScrapBoxOpen: (open) =>
     set((s) => ({ ui: { ...s.ui, scrapBoxOpen: open } })),
+
+  clearAllMembers: () => {
+    if (!window.confirm('Clear all boards? This can be undone with Ctrl+Z.')) return;
+    const { project, ui } = get();
+    commitProject(set, get, {
+      ...project,
+      members: [],
+      dimensionLines: [],
+      mates: [],
+      fasteners: [],
+      attachmentPoints: [],
+      edgeTreatments: [],
+      placedHardware: [],
+    });
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        selectedMemberId: null,
+        mateFaceA: null,
+        mateFaceB: null,
+        selectedDimensionLineId: null,
+        selectedJointMarkerId: null,
+        activeTool: 'select',
+        radialWheelOpen: false,
+      },
+    }));
+    void ui; // suppress unused var
+  },
+
+  updateDimensionLine: (id, patch) =>
+    commitProject(set, get, {
+      ...get().project,
+      dimensionLines: (get().project.dimensionLines ?? []).map((l) =>
+        l.id === id ? { ...l, ...patch } : l
+      ),
+    }),
+
+  setRotationAxis: (axis) =>
+    set((s) => ({ ui: { ...s.ui, rotationAxis: axis } })),
+
+  setTemplatePickerOpen: (open) =>
+    set((s) => ({ ui: { ...s.ui, templatePickerOpen: open } })),
+
+  loadProjectData: (members, name) => {
+    set({
+      project: {
+        ...DEFAULT_PROJECT,
+        id: crypto.randomUUID(),
+        name,
+        createdAt: new Date().toISOString(),
+        members: members.map(migrateMember),
+      },
+      past: [],
+      future: [],
+      ui: { ...get().ui, selectedMemberId: null, activeTool: 'select', templatePickerOpen: false },
+    });
+  },
 
   addDimensionLine: (line) =>
     commitProject(set, get, {

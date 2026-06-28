@@ -5,6 +5,7 @@ import Viewport from './components/Viewport';
 import RightSidebar from './components/RightSidebar';
 import AssemblyGuidePanel from './components/AssemblyGuidePanel';
 import EdgeTreatmentPanel from './components/EdgeTreatmentPanel';
+import TemplatePickerModal from './components/TemplatePickerModal';
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <EdgeTreatmentPanel />
         <RightSidebar />
       </div>
+      <TemplatePickerModal />
     </div>
   );
 }
