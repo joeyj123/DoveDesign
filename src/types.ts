@@ -306,6 +306,12 @@ export interface DimensionLine {
   angleDegrees: number;
   startMemberId?: string;
   endMemberId?: string;
+  /** If set, line is anchored to this board and moves with it */
+  anchorMemberId?: string;
+  /** Start point in the anchor board's local space */
+  localStart?: { x: number; y: number; z: number };
+  /** End point in the anchor board's local space */
+  localEnd?: { x: number; y: number; z: number };
 }
 
 // ─── Project Root ──────────────────────────────────────────────────────────
@@ -483,6 +489,8 @@ export interface UIState {
   rotationAxis: 'x' | 'y' | 'z';
   /** Template picker modal open */
   templatePickerOpen: boolean;
+  /** Bill of Materials panel open */
+  bomPanelOpen: boolean;
 }
 
 export interface DesignSuggestion {

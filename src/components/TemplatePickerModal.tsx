@@ -27,7 +27,7 @@ export default function TemplatePickerModal() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) setTemplatePickerOpen(false); }}
     >
       <div className="bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">

@@ -65,22 +65,20 @@ export default function SnapPointHandles({ member, meshRef, forMate }: Props) {
     [member.length, member.thickness, member.width, member.cuts]
   );
 
-  const dotRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const dotRefs = useRef<(THREE.Group | null)[]>([]);
 
   const color    = isMateMode ? '#fbbf24' : '#ffffff';
   const emissive = isMateMode ? '#d97706' : '#cccccc';
 
-  // Update dot positions every frame from the live matrixWorld — zero lag.
-  // Also call updateMatrixWorld so the raycaster picks up new positions.
   useFrame(() => {
     if (!show || !meshRef.current) return;
     const mat = meshRef.current.matrixWorld;
     localPoints.forEach((lp, i) => {
-      const dot = dotRefs.current[i];
-      if (!dot) return;
+      const grp = dotRefs.current[i];
+      if (!grp) return;
       const wp = lp.clone().applyMatrix4(mat);
-      dot.position.copy(wp);
-      dot.updateMatrixWorld(true);
+      grp.position.copy(wp);
+      grp.updateMatrixWorld(true);
     });
   });
 
@@ -109,26 +107,31 @@ export default function SnapPointHandles({ member, meshRef, forMate }: Props) {
 
   return (
     <>
-      {localPoints.map((_, i) => (
-        <mesh
-          key={i}
-          ref={(el) => { dotRefs.current[i] = el; }}
-          position={[0, 0, 0]}
-          onClick={isMateMode && FACE_CENTER_MAP[i] ? (e) => {
-            e.stopPropagation();
-            handleDotClick(i);
-          } : undefined}
-        >
-          <sphereGeometry args={[0.12, 6, 6]} />
-          <meshStandardMaterial
-            color={color}
-            emissive={emissive}
-            emissiveIntensity={0.5}
-            transparent
-            opacity={0.8}
-          />
-        </mesh>
-      ))}
+      {localPoints.map((_, i) => {
+        const clickable = isMateMode && !!FACE_CENTER_MAP[i];
+        return (
+          <group key={i} ref={(el) => { dotRefs.current[i] = el; }} position={[0, 0, 0]}>
+            {/* Visible dot */}
+            <mesh>
+              <sphereGeometry args={[0.18, 8, 8]} />
+              <meshStandardMaterial
+                color={color}
+                emissive={emissive}
+                emissiveIntensity={0.5}
+                transparent
+                opacity={0.8}
+              />
+            </mesh>
+            {/* Invisible hitbox for easier clicking */}
+            {clickable && (
+              <mesh onClick={(e) => { e.stopPropagation(); handleDotClick(i); }}>
+                <sphereGeometry args={[0.32, 6, 6]} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
     </>
   );
 }

@@ -26,15 +26,34 @@ function DimensionLineItem({
   onSelect,
   onRemove,
   onStartDrag,
+  members,
 }: {
   dl: DimensionLine;
   isSelected: boolean;
   onSelect: (id: string | null) => void;
   onRemove: (id: string) => void;
   onStartDrag: (state: DragState) => void;
+  members: { id: string; position: [number,number,number]; rotation: [number,number,number] }[];
 }) {
-  const start = new THREE.Vector3(dl.startPoint.x, dl.startPoint.y + 0.05, dl.startPoint.z);
-  const end = new THREE.Vector3(dl.endPoint.x, dl.endPoint.y + 0.05, dl.endPoint.z);
+  // If anchored to a board, transform local coords to world space
+  let startWorld = new THREE.Vector3(dl.startPoint.x, dl.startPoint.y, dl.startPoint.z);
+  let endWorld = new THREE.Vector3(dl.endPoint.x, dl.endPoint.y, dl.endPoint.z);
+
+  if (dl.anchorMemberId && dl.localStart && dl.localEnd) {
+    const anchor = members.find((m) => m.id === dl.anchorMemberId);
+    if (anchor) {
+      const mat = new THREE.Matrix4().compose(
+        new THREE.Vector3(...anchor.position),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...anchor.rotation)),
+        new THREE.Vector3(1, 1, 1)
+      );
+      startWorld = new THREE.Vector3(dl.localStart.x, dl.localStart.y, dl.localStart.z).applyMatrix4(mat);
+      endWorld = new THREE.Vector3(dl.localEnd.x, dl.localEnd.y, dl.localEnd.z).applyMatrix4(mat);
+    }
+  }
+
+  const start = startWorld.clone().setY(startWorld.y + 0.05);
+  const end = endWorld.clone().setY(endWorld.y + 0.05);
   const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
   const dist = start.distanceTo(end);
   const isCardinal = dl.angleDegrees % 90 === 0;
@@ -54,45 +73,66 @@ function DimensionLineItem({
       />
 
       {/* Start endpoint handle */}
-      <mesh
-        position={[start.x, start.y, start.z]}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onSelect(dl.id);
-          const rect = (e.nativeEvent.target as HTMLElement).closest('canvas')?.getBoundingClientRect();
-          if (!rect) return;
-          const ndc = new THREE.Vector2(
-            ((e.nativeEvent.clientX - rect.left) / rect.width) * 2 - 1,
-            -((e.nativeEvent.clientY - rect.top) / rect.height) * 2 + 1,
-          );
-          onStartDrag({ lineId: dl.id, endpoint: 'start', ndc });
-        }}
-      >
-        <sphereGeometry args={[isSelected ? 0.2 : 0.12, 10, 10]} />
-        <meshBasicMaterial color={isSelected ? GREEN : lineColor} />
-      </mesh>
+      <group position={[start.x, start.y, start.z]}>
+        <mesh
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            onSelect(dl.id);
+            const rect = (e.nativeEvent.target as HTMLElement).closest('canvas')?.getBoundingClientRect();
+            if (!rect) return;
+            const ndc = new THREE.Vector2(
+              ((e.nativeEvent.clientX - rect.left) / rect.width) * 2 - 1,
+              -((e.nativeEvent.clientY - rect.top) / rect.height) * 2 + 1,
+            );
+            onStartDrag({ lineId: dl.id, endpoint: 'start', ndc });
+          }}
+        >
+          <sphereGeometry args={[isSelected ? 0.28 : 0.18, 10, 10]} />
+          <meshBasicMaterial color={isSelected ? GREEN : lineColor} />
+        </mesh>
+        {/* Invisible hitbox */}
+        {!isSelected && (
+          <mesh onPointerDown={(e) => {
+            e.stopPropagation();
+            onSelect(dl.id);
+          }}>
+            <sphereGeometry args={[0.38, 6, 6]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+        )}
+      </group>
 
       {/* End endpoint handle */}
-      <mesh
-        position={[end.x, end.y, end.z]}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onSelect(dl.id);
-          const rect = (e.nativeEvent.target as HTMLElement).closest('canvas')?.getBoundingClientRect();
-          if (!rect) return;
-          const ndc = new THREE.Vector2(
-            ((e.nativeEvent.clientX - rect.left) / rect.width) * 2 - 1,
-            -((e.nativeEvent.clientY - rect.top) / rect.height) * 2 + 1,
-          );
-          onStartDrag({ lineId: dl.id, endpoint: 'end', ndc });
-        }}
-      >
-        <sphereGeometry args={[isSelected ? 0.2 : 0.12, 10, 10]} />
-        <meshBasicMaterial color={isSelected ? GREEN : lineColor} />
-      </mesh>
+      <group position={[end.x, end.y, end.z]}>
+        <mesh
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            onSelect(dl.id);
+            const rect = (e.nativeEvent.target as HTMLElement).closest('canvas')?.getBoundingClientRect();
+            if (!rect) return;
+            const ndc = new THREE.Vector2(
+              ((e.nativeEvent.clientX - rect.left) / rect.width) * 2 - 1,
+              -((e.nativeEvent.clientY - rect.top) / rect.height) * 2 + 1,
+            );
+            onStartDrag({ lineId: dl.id, endpoint: 'end', ndc });
+          }}
+        >
+          <sphereGeometry args={[isSelected ? 0.28 : 0.18, 10, 10]} />
+          <meshBasicMaterial color={isSelected ? GREEN : lineColor} />
+        </mesh>
+        {!isSelected && (
+          <mesh onPointerDown={(e) => {
+            e.stopPropagation();
+            onSelect(dl.id);
+          }}>
+            <sphereGeometry args={[0.38, 6, 6]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+        )}
+      </group>
 
       {dist > 0.1 && (
-        <Html position={[mid.x, mid.y + 0.2, mid.z]} center>
+        <Html position={[mid.x, mid.y + 0.2, mid.z]} center zIndexRange={[0, 10]}>
           <div
             className="px-2 py-0.5 rounded-full text-xs font-semibold text-white pointer-events-none select-none whitespace-nowrap"
             style={{
@@ -105,17 +145,8 @@ function DimensionLineItem({
         </Html>
       )}
 
-      <Html position={[end.x, end.y + 0.35, end.z]} center>
-        <div
-          className="px-1.5 py-0.5 rounded-full text-xs font-semibold pointer-events-none select-none whitespace-nowrap"
-          style={{ background: 'rgba(9,9,11,0.92)', color: lineColor }}
-        >
-          {dl.angleDegrees}°
-        </div>
-      </Html>
-
       {isSelected && (
-        <Html position={[mid.x, mid.y + 0.7, mid.z]} center>
+        <Html position={[mid.x, mid.y + 0.7, mid.z]} center zIndexRange={[0, 10]}>
           <button
             className="px-2 py-0.5 rounded text-xs font-semibold text-red-400 border border-red-500/50 bg-zinc-900/90 hover:bg-red-500/20 transition-colors"
             onClick={() => { onRemove(dl.id); onSelect(null); }}
@@ -136,6 +167,9 @@ export default function DimensionLineRenderer() {
   const removeDimensionLine = useAppStore((s) => s.removeDimensionLine);
   const updateDimensionLine = useAppStore((s) => s.updateDimensionLine);
   const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
+  const members = useAppStore((s) =>
+    s.project.members.map((m) => ({ id: m.id, position: m.position, rotation: m.rotation }))
+  );
 
   const { camera, gl } = useThree();
   const dragRef = useRef<DragState | null>(null);
@@ -161,12 +195,15 @@ export default function DimensionLineRenderer() {
       setDragLive(null);
       if (!dragRef.current) return;
       const { lineId, endpoint } = dragRef.current;
-      // commit final position from live drag
       setDragLive((live) => {
         if (live && live.lineId === lineId && live.endpoint === endpoint) {
           const pt = live.pt;
           updateDimensionLine(lineId, {
             [endpoint === 'start' ? 'startPoint' : 'endPoint']: { x: pt.x, y: pt.y - 0.05, z: pt.z },
+            // Clear anchor when manually dragging an endpoint
+            anchorMemberId: undefined,
+            localStart: undefined,
+            localEnd: undefined,
           });
         }
         return null;
@@ -188,12 +225,13 @@ export default function DimensionLineRenderer() {
       pt.y += 0.05;
       setDragLive({ lineId, endpoint, pt });
 
-      // Also commit on every frame to store for real-time update (skipHistory)
       updateDimensionLine(lineId, {
         [endpoint === 'start' ? 'startPoint' : 'endPoint']: { x: fp.x, y: fp.y, z: fp.z },
+        anchorMemberId: undefined,
+        localStart: undefined,
+        localEnd: undefined,
       });
 
-      // Update angleDegrees
       const dl = useAppStore.getState().project.dimensionLines.find((l) => l.id === lineId);
       if (dl) {
         const s = new THREE.Vector3(dl.startPoint.x, 0, dl.startPoint.z);
@@ -217,6 +255,7 @@ export default function DimensionLineRenderer() {
           onSelect={selectDimensionLine}
           onRemove={removeDimensionLine}
           onStartDrag={startDrag}
+          members={members}
         />
       ))}
     </>

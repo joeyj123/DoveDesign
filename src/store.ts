@@ -112,6 +112,7 @@ const DEFAULT_UI: UIState = {
   selectedJointMarkerId: null,
   rotationAxis: 'y',
   templatePickerOpen: false,
+  bomPanelOpen: false,
   drawDefaults: {
     species: 'Southern Yellow Pine',
     thickness: 1.5,
@@ -319,6 +320,12 @@ interface AppStore {
 
   // Template picker
   setTemplatePickerOpen: (open: boolean) => void;
+
+  // BOM panel
+  setBomPanelOpen: (open: boolean) => void;
+
+  // Clear all selections (FIX 5)
+  clearSelection: () => void;
 
   // Load project from template / object
   loadProjectData: (members: import('./types').WoodMember[], name: string) => void;
@@ -1446,6 +1453,23 @@ export const useAppStore = create<AppStore>()(
 
   setTemplatePickerOpen: (open) =>
     set((s) => ({ ui: { ...s.ui, templatePickerOpen: open } })),
+
+  setBomPanelOpen: (open) =>
+    set((s) => ({ ui: { ...s.ui, bomPanelOpen: open } })),
+
+  clearSelection: () =>
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        selectedMemberId: null,
+        multiSelection: [],
+        selectedDimensionLineId: null,
+        selectedJointMarkerId: null,
+        mateFaceA: null,
+        radialWheelOpen: false,
+        radialWheelAnchor: null,
+      },
+    })),
 
   loadProjectData: (members, name) => {
     set({

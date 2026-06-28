@@ -8,9 +8,11 @@ const AMBER = '#F59E0B';
 const AMBER_BRIGHT = '#FCD34D';
 const GREEN = '#22c55e';
 const GREEN_BRIGHT = '#4ade80';
+const BLUE = '#3b82f6';
 const SNAP_RADIUS = 0.5;
-const SNAP_ANGLES_DEG = [0, 45, 90, 135, 180, 225, 270, 315];
-const SNAP_THRESHOLD_DEG = 5;
+// Only snap to cardinal axes (0°, 90°, 180°, 270°) — no 45°
+const CARDINAL_ANGLES_DEG = [0, 90, 180, 270];
+const SNAP_THRESHOLD_DEG = 8;
 
 function snapAngle(
   start: THREE.Vector3,
@@ -22,7 +24,7 @@ function snapAngle(
   const dz = end.z - start.z;
   const rawDeg = ((Math.atan2(dz, dx) * 180) / Math.PI + 360) % 360;
   const dist = Math.sqrt(dx * dx + dz * dz);
-  for (const sd of SNAP_ANGLES_DEG) {
+  for (const sd of CARDINAL_ANGLES_DEG) {
     let diff = Math.abs(rawDeg - sd);
     if (diff > 180) diff = 360 - diff;
     if (diff < SNAP_THRESHOLD_DEG) {
@@ -48,27 +50,57 @@ type MemberSnap = {
   cuts: { type: string; targetWidth?: number }[];
 };
 
-function nearestSnapPoint(worldPt: THREE.Vector3, members: MemberSnap[]): THREE.Vector3 | null {
+type SnapKind = 'corner' | 'face' | 'edge' | 'grid';
+
+function nearestSnapPoint(
+  worldPt: THREE.Vector3,
+  members: MemberSnap[]
+): { point: THREE.Vector3; kind: SnapKind; memberId?: string } | null {
   let best: THREE.Vector3 | null = null;
   let bestD = SNAP_RADIUS;
+  let bestKind: SnapKind = 'grid';
+  let bestMemberId: string | undefined;
+
   for (const m of members) {
     let w = m.width;
     for (const c of m.cuts) { if (c.type === 'ripCut' && c.targetWidth) w = c.targetWidth; }
     const hL = m.length / 2, hT = m.thickness / 2, hW = w / 2;
-    const lps: [number, number, number][] = [
+
+    // 8 corners
+    const corners: [number, number, number][] = [
       [-hL,-hT,-hW],[-hL,-hT,hW],[-hL,hT,-hW],[-hL,hT,hW],
       [hL,-hT,-hW],[hL,-hT,hW],[hL,hT,-hW],[hL,hT,hW],
-      [-hL,0,0],[hL,0,0],[0,-hT,0],[0,hT,0],[0,0,-hW],[0,0,hW],[0,0,0],
     ];
+    // 6 face centers
+    const faceCenters: [number, number, number][] = [
+      [-hL,0,0],[hL,0,0],[0,-hT,0],[0,hT,0],[0,0,-hW],[0,0,hW],
+    ];
+    // 12 edge midpoints
+    const edgeMids: [number, number, number][] = [
+      // 4 edges along X axis (at each combo of Y and Z extremes)
+      [0,-hT,-hW],[0,-hT,hW],[0,hT,-hW],[0,hT,hW],
+      // 4 edges along Y axis
+      [-hL,0,-hW],[-hL,0,hW],[hL,0,-hW],[hL,0,hW],
+      // 4 edges along Z axis
+      [-hL,-hT,0],[-hL,hT,0],[hL,-hT,0],[hL,hT,0],
+    ];
+
     const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...(m.rotation as [number,number,number])));
     const pos = new THREE.Vector3(...m.position);
-    for (const lp of lps) {
+
+    const check = (lp: [number,number,number], kind: SnapKind) => {
       const wp = new THREE.Vector3(lp[0],lp[1],lp[2]).applyQuaternion(q).add(pos);
       const d = wp.distanceTo(worldPt);
-      if (d < bestD) { bestD = d; best = wp; }
-    }
+      if (d < bestD) { bestD = d; best = wp; bestKind = kind; bestMemberId = m.id; }
+    };
+
+    for (const c of corners) check(c, 'corner');
+    for (const f of faceCenters) check(f, 'face');
+    for (const e of edgeMids) check(e, 'edge');
+    // center
+    check([0,0,0], 'face');
   }
-  return best;
+  return best ? { point: best, kind: bestKind, memberId: bestMemberId } : null;
 }
 
 const FLOOR = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
@@ -84,18 +116,17 @@ export default function MeasureTool() {
 
   const { camera, gl, scene } = useThree();
 
-  // Track mouse in NDC coordinates via native listener
   const ndc    = useRef(new THREE.Vector2());
   const shiftRef = useRef(false);
   const rc     = useRef(new THREE.Raycaster());
+  const startMemberIdRef = useRef<string | undefined>(undefined);
 
-  // Live cursor world position (updated in useFrame)
   const [cursor, setCursor] = useState<THREE.Vector3 | null>(null);
-  const [cursorSnapped, setCursorSnapped] = useState(false);
+  const [cursorKind, setCursorKind] = useState<SnapKind>('grid');
   const cursorRef = useRef<THREE.Vector3 | null>(null);
-  const cursorSnappedRef = useRef(false);
+  const cursorKindRef = useRef<SnapKind>('grid');
+  const cursorMemberIdRef = useRef<string | undefined>(undefined);
 
-  // Collect board meshes from scene
   const boardMeshesRef = useRef<THREE.Mesh[]>([]);
 
   useEffect(() => {
@@ -116,17 +147,46 @@ export default function MeasureTool() {
       const start = useAppStore.getState().ui.measureStartPoint;
       if (!start) {
         setMeasureStartPoint({ x: pt.x, y: pt.y, z: pt.z });
+        startMemberIdRef.current = cursorMemberIdRef.current;
       } else {
         const sv = new THREE.Vector3(start.x, start.y, start.z);
         const { point: end } = snapAngle(sv, pt, e.shiftKey);
+
+        // Determine if both endpoints are on the same board for anchoring
+        const clickMemberId = cursorMemberIdRef.current;
+        const startMemberId = startMemberIdRef.current;
+        let anchorMemberId: string | undefined;
+        let localStart: { x: number; y: number; z: number } | undefined;
+        let localEnd: { x: number; y: number; z: number } | undefined;
+
+        if (clickMemberId && clickMemberId === startMemberId) {
+          const anchor = members.find((m) => m.id === clickMemberId);
+          if (anchor) {
+            anchorMemberId = clickMemberId;
+            const mat = new THREE.Matrix4().compose(
+              new THREE.Vector3(...anchor.position),
+              new THREE.Quaternion().setFromEuler(new THREE.Euler(...anchor.rotation)),
+              new THREE.Vector3(1, 1, 1)
+            );
+            const inv = mat.invert();
+            const ls = sv.clone().applyMatrix4(inv);
+            const le = end.clone().applyMatrix4(inv);
+            localStart = { x: ls.x, y: ls.y, z: ls.z };
+            localEnd = { x: le.x, y: le.y, z: le.z };
+          }
+        }
+
         addDimensionLine({
           id: crypto.randomUUID(),
           startPoint: { x: sv.x, y: sv.y, z: sv.z },
           endPoint:   { x: end.x, y: end.y, z: end.z },
           angleDegrees: Math.round(angleDeg(sv, end)),
+          anchorMemberId,
+          localStart,
+          localEnd,
         });
         setMeasureStartPoint(null);
-        // stay in measure mode for next line
+        startMemberIdRef.current = undefined;
       }
     }
 
@@ -137,12 +197,11 @@ export default function MeasureTool() {
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('click', onClick);
     };
-  }, [activeTool, gl, setMeasureStartPoint, addDimensionLine]);
+  }, [activeTool, gl, setMeasureStartPoint, addDimensionLine, members]);
 
   useFrame(() => {
     if (activeTool !== 'measure') return;
 
-    // Collect board meshes every frame (handles additions/removals)
     boardMeshesRef.current = [];
     scene.traverse((obj) => {
       if (obj instanceof THREE.Mesh && obj.userData.memberId) {
@@ -153,33 +212,32 @@ export default function MeasureTool() {
     rc.current.setFromCamera(ndc.current, camera);
 
     let hitPt: THREE.Vector3 | null = null;
-    let snapped = false;
+    let snapKind: SnapKind = 'grid';
+    let snapMemberId: string | undefined;
 
-    // 1. Try board mesh intersection
     const hits = rc.current.intersectObjects(boardMeshesRef.current, false);
     if (hits.length > 0) {
       hitPt = hits[0].point.clone();
     } else {
-      // 2. Fall back to floor plane
       const fp = new THREE.Vector3();
       if (rc.current.ray.intersectPlane(FLOOR, fp)) hitPt = fp;
     }
 
     if (hitPt) {
-      // Snap to nearest board point
       const snap = nearestSnapPoint(hitPt, members);
-      if (snap) { hitPt = snap; snapped = true; }
+      if (snap) {
+        hitPt = snap.point;
+        snapKind = snap.kind;
+        snapMemberId = snap.memberId;
+      }
     }
 
     cursorRef.current = hitPt;
-    cursorSnappedRef.current = snapped;
+    cursorKindRef.current = snapKind;
+    cursorMemberIdRef.current = snapMemberId;
 
-    // Only update React state if something changed (avoids excessive re-renders)
-    const prev = cursorRef.current;
-    if (!prev || !hitPt || prev.distanceTo(hitPt) > 0.001 || snapped !== cursorSnappedRef.current) {
-      setCursor(hitPt ? hitPt.clone() : null);
-      setCursorSnapped(snapped);
-    }
+    setCursor(hitPt ? hitPt.clone() : null);
+    setCursorKind(snapKind);
   });
 
   if (activeTool !== 'measure') return null;
@@ -199,7 +257,6 @@ export default function MeasureTool() {
     : [];
 
   const liveDist  = startVec && snappedCursor ? startVec.distanceTo(snappedCursor) : 0;
-  const liveAngle = startVec && snappedCursor ? angleDeg(startVec, snappedCursor) : 0;
   const midPt     = startVec && snappedCursor
     ? new THREE.Vector3(
         (startVec.x + snappedCursor.x) / 2,
@@ -210,9 +267,14 @@ export default function MeasureTool() {
 
   const lineColor = lineSnapped ? AMBER_BRIGHT : AMBER;
 
+  // Cursor dot color by snap kind
+  const cursorColor =
+    cursorKind === 'edge' || cursorKind === 'corner' ? BLUE :
+    startVec ? (cursorKind !== 'grid' ? AMBER_BRIGHT : AMBER) :
+    (cursorKind !== 'grid' ? GREEN_BRIGHT : GREEN);
+
   return (
     <>
-      {/* Start anchor — green dot when locked */}
       {startVec && (
         <mesh position={[startVec.x, startVec.y + 0.06, startVec.z]}>
           <sphereGeometry args={[0.18, 12, 12]} />
@@ -220,39 +282,23 @@ export default function MeasureTool() {
         </mesh>
       )}
 
-      {/* Live dashed amber line from start to cursor */}
       {livePoints.length === 2 && (
         <Line points={livePoints} color={lineColor} lineWidth={2} dashed dashSize={0.35} gapSize={0.18} />
       )}
 
-      {/* Cursor dot — green in idle, amber when drawing */}
       {cursor && (
         <mesh position={[cursor.x, cursor.y + 0.06, cursor.z]}>
-          <sphereGeometry args={[cursorSnapped ? 0.18 : 0.11, 10, 10]} />
-          <meshBasicMaterial
-            color={startVec ? (cursorSnapped ? AMBER_BRIGHT : AMBER) : (cursorSnapped ? GREEN_BRIGHT : GREEN)}
-            transparent
-            opacity={0.85}
-          />
+          <sphereGeometry args={[cursorKind !== 'grid' ? 0.18 : 0.11, 10, 10]} />
+          <meshBasicMaterial color={cursorColor} transparent opacity={0.85} />
         </mesh>
       )}
 
-      {/* Distance label */}
+      {/* Distance label only — no angle label during placement */}
       {midPt && liveDist > 0.05 && (
-        <Html position={[midPt.x, midPt.y, midPt.z]} center>
+        <Html position={[midPt.x, midPt.y, midPt.z]} center zIndexRange={[0, 10]}>
           <div className="px-2 py-0.5 rounded-full text-xs font-semibold text-white pointer-events-none select-none whitespace-nowrap"
             style={{ background:'rgba(24,24,27,0.92)', border:`1px solid ${lineColor}` }}>
             {liveDist.toFixed(2)}&quot;
-          </div>
-        </Html>
-      )}
-
-      {/* Angle label */}
-      {snappedCursor && liveDist > 0.05 && (
-        <Html position={[snappedCursor.x, snappedCursor.y + 0.45, snappedCursor.z]} center>
-          <div className="px-1.5 py-0.5 rounded-full text-xs font-semibold pointer-events-none select-none whitespace-nowrap"
-            style={{ background:'rgba(9,9,11,0.92)', color: lineColor }}>
-            {Math.round(liveAngle)}°
           </div>
         </Html>
       )}

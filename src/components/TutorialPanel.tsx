@@ -55,6 +55,7 @@ const ALL_SECTION_TITLES = [
   'Rotation Axis Lock & Type-to-Snap',
   'Project Save & Open',
   'Project Templates',
+  'Bill of Materials',
 ];
 
 export default function TutorialPanel() {
@@ -200,7 +201,8 @@ export default function TutorialPanel() {
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Space</kbd> — Open / close the radial tool wheel on selected board</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Escape</kbd> — Cancel current tool, deselect all, close wheel</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">S</kbd> — Switch to Select tool</li>
-          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">B</kbd> — Switch to Draw Board tool</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">B</kbd> — Open / close Bill of Materials panel</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">W</kbd> — Switch to Draw Board tool</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">M</kbd> — Activate Move (shows transform arrows on selected board)</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">R</kbd> — Switch to Rip Cut tool</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">D</kbd> — Measure tool (click two points to measure distance; press D again or Escape to exit)</li>
@@ -212,7 +214,7 @@ export default function TutorialPanel() {
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Tab</kbd> — Cycle through Move / Rotate / Scale when move arrows are active</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Delete</kbd> — Delete selected board</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Z</kbd> — Undo</li>
-          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Y</kbd> — Redo</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Y</kbd> / <kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+Shift+Z</kbd> — Redo</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Shift+drag</kbd> — Box select multiple boards</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Shift+Delete</kbd> — Clear all boards (with confirmation)</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Ctrl+S</kbd> — Save project to .wcad file</li>
@@ -810,6 +812,22 @@ export default function TutorialPanel() {
         </ul>
         <p className="text-base text-zinc-500 mt-2">
           <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What templates are available?&quot; · &quot;Workbench template&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Bill of Materials" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          Generate a full lumber shopping list from your project — see exactly what to buy at the lumber yard, with estimated costs.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">B</kbd> or click the <strong className="text-zinc-300">BOM</strong> button in the toolbar to open the Bill of Materials panel.</li>
+          <li>The table shows each species and nominal size (e.g., 2x4, 1x6), quantity, board feet, and estimated cost.</li>
+          <li><strong className="text-zinc-300">Click any Price/BF cell</strong> to type your local lumber price — the total updates instantly.</li>
+          <li>Use the <strong className="text-zinc-300">Hardware</strong> section to add screws, brackets, or any other items to the total.</li>
+          <li>Click <strong className="text-zinc-300">Export CSV</strong> to download a spreadsheet you can take to the store.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How much lumber do I need?&quot; · &quot;How do I export a shopping list?&quot;
         </p>
       </Section>
 

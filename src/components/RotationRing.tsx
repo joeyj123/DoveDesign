@@ -55,8 +55,8 @@ export default function RotationRing() {
         const angleRad = (angleDeg * Math.PI) / 180;
         const isBold = BOLD_TICKS.has(i);
         const isHovered = hoveredTick === i;
-        const tickLen = isBold ? 0.45 : 0.25;
-        const tickWidth = isBold ? 0.07 : 0.04;
+        const tickLen = isBold ? 0.6 : 0.35;
+        const tickWidth = isBold ? 0.1 : 0.06;
         const innerR = RING_RADIUS - tickLen / 2;
 
         // Position ticks in XZ plane (Y-axis rotation)
@@ -88,6 +88,17 @@ export default function RotationRing() {
                 opacity={isHovered ? 1 : isBold ? 0.9 : 0.6}
               />
             </mesh>
+            {/* Invisible hitbox for easier clicking */}
+            <mesh
+              position={tickPos}
+              rotation={tickRot}
+              onPointerEnter={() => setHoveredTick(i)}
+              onPointerLeave={() => setHoveredTick(null)}
+              onPointerDown={(e) => { e.stopPropagation(); snapToTickDeg(angleDeg); }}
+            >
+              <boxGeometry args={[0.4, 0.12, tickLen + 0.2]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
 
             {isHovered && isBold && (
               <Html
@@ -111,7 +122,7 @@ export default function RotationRing() {
       })}
 
       {/* Live rotation label */}
-      <Html position={[0, member.thickness / 2 + 0.5, 0]} center>
+      <Html position={[0, member.thickness / 2 + 0.5, 0]} center zIndexRange={[0, 10]}>
         <div
           className="px-2 py-0.5 rounded-full text-sm font-bold pointer-events-none select-none whitespace-nowrap"
           style={{ background: 'rgba(9,9,11,0.92)', color: ringColor, border: `1px solid ${ringColor}` }}

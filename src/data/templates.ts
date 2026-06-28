@@ -1,7 +1,5 @@
 import type { WoodMember } from '../types';
 
-const PINE_T = 0.75; // standard 1x board thickness
-
 function board(
   label: string,
   length: number,
@@ -44,73 +42,67 @@ export interface ProjectTemplate {
 }
 
 function buildWorkbench(): WoodMember[] {
-  const legH = 33, legW = 3.5, legT = 3.5;
   return [
-    board('Bench Top', 72, 1.5, 24, [0, 33.75, 0]),
-    board('Leg - Front Left',  legT, legH, legW, [-33, legH / 2, -10]),
-    board('Leg - Front Right', legT, legH, legW, [ 33, legH / 2, -10]),
-    board('Leg - Back Left',   legT, legH, legW, [-33, legH / 2,  10]),
-    board('Leg - Back Right',  legT, legH, legW, [ 33, legH / 2,  10]),
-    board('Long Stretcher - Front', 60, 1.5, 3.5, [0, 6, -10]),
-    board('Long Stretcher - Back',  60, 1.5, 3.5, [0, 6,  10]),
-    board('Short Stretcher - Left',  17, 1.5, 3.5, [-33, 6, 0]),
-    board('Short Stretcher - Right', 17, 1.5, 3.5, [ 33, 6, 0]),
+    board('Bench Top',                72,   1.5, 24,  [0,    34.5, 0   ]),
+    board('Leg - Front Left',         3.5,  33,  3.5, [-33,  16.5, -9  ]),
+    board('Leg - Front Right',        3.5,  33,  3.5, [ 33,  16.5, -9  ]),
+    board('Leg - Back Left',          3.5,  33,  3.5, [-33,  16.5,  9  ]),
+    board('Leg - Back Right',         3.5,  33,  3.5, [ 33,  16.5,  9  ]),
+    board('Long Stretcher - Front',   65,   3.5, 1.5, [0,    6,    -9  ]),
+    board('Long Stretcher - Back',    65,   3.5, 1.5, [0,    6,     9  ]),
+    board('Short Stretcher - Left',   1.5,  3.5, 17,  [-33,  6,     0  ]),
+    board('Short Stretcher - Right',  1.5,  3.5, 17,  [ 33,  6,     0  ]),
   ];
 }
 
 function buildBookshelf(): WoodMember[] {
-  const sideH = 72, sideD = 12, sideT = 0.75;
-  const shelfW = 34.5;
-  const shelfY = [4.5, 18, 32, 46, 60];
-  const sides: WoodMember[] = [
-    board('Side - Left',  sideD, sideH, sideT, [-17.625, sideH / 2,  0], [0, 0, Math.PI / 2]),
-    board('Side - Right', sideD, sideH, sideT, [ 17.625, sideH / 2,  0], [0, 0, Math.PI / 2]),
+  return [
+    board('Side - Left',   0.75,  72,  12, [-17.625, 36,     0]),
+    board('Side - Right',  0.75,  72,  12, [ 17.625, 36,     0]),
+    board('Top',           34.5,  0.75,12, [0,       71.625, 0]),
+    board('Bottom',        34.5,  0.75,12, [0,       0.375,  0]),
+    board('Shelf 1',       34.5,  0.75,12, [0,       18,     0]),
+    board('Shelf 2',       34.5,  0.75,12, [0,       36,     0]),
+    board('Shelf 3',       34.5,  0.75,12, [0,       54,     0]),
   ];
-  const shelves = shelfY.map((y, i) =>
-    board(i === 0 ? 'Bottom' : i === shelfY.length - 1 ? 'Top' : `Shelf ${i}`, shelfW, sideD, sideT, [0, y, 0])
-  );
-  const back = board('Back Panel', 36, 72, 0.25, [0, 36, 6.125]);
-  return [...sides, ...shelves, back];
 }
 
 function buildCabinet(): WoodMember[] {
-  const t = 0.75;
   return [
-    board('Side - Left',   18, 36, t,   [-11.625, 18, 0], [0, 0, Math.PI / 2]),
-    board('Side - Right',  18, 36, t,   [ 11.625, 18, 0], [0, 0, Math.PI / 2]),
-    board('Top',           22.5, 18, t, [0, 35.625, 0]),
-    board('Bottom',        22.5, 18, t, [0,  0.375, 0]),
-    board('Shelf',         22.5, 18, t, [0,     18, 0]),
-    board('Back Panel',    24, 36, 0.25,[0,     18, 9.125]),
-    board('Door - Left',   11, 34.5, t, [-5.75, 18, -9.375]),
-    board('Door - Right',  11, 34.5, t, [ 5.75, 18, -9.375]),
+    board('Side - Left',   0.75, 36,  18,   [-11.625, 18,     0     ]),
+    board('Side - Right',  0.75, 36,  18,   [ 11.625, 18,     0     ]),
+    board('Top',           22.5, 0.75,18,   [0,       35.625, 0     ]),
+    board('Bottom',        22.5, 0.75,18,   [0,       0.375,  0     ]),
+    board('Door - Left',   11,   34.5,0.75, [-5.625,  18,    -9.375 ]),
+    board('Door - Right',  11,   34.5,0.75, [ 5.625,  18,    -9.375 ]),
+    board('Back Panel',    22.5, 36,  0.25, [0,       18,     9.125 ]),
+    board('Shelf',         22.5, 0.75,17.5, [0,       18,     0     ]),
   ];
 }
 
 function buildSideTable(): WoodMember[] {
-  const legH = 24, legS = 1.5;
   return [
-    board('Top',          18, 1.5, 18, [0, 25.75, 0]),
-    board('Leg - FL', legS, legH, legS, [-7.25, legH / 2, -7.25]),
-    board('Leg - FR', legS, legH, legS, [ 7.25, legH / 2, -7.25]),
-    board('Leg - BL', legS, legH, legS, [-7.25, legH / 2,  7.25]),
-    board('Leg - BR', legS, legH, legS, [ 7.25, legH / 2,  7.25]),
-    board('Apron - Front', 15, 3, PINE_T, [0, 21, -7.25]),
-    board('Apron - Back',  15, 3, PINE_T, [0, 21,  7.25]),
-    board('Apron - Left',  15, 3, PINE_T, [-7.25, 21, 0], [0, Math.PI / 2, 0]),
-    board('Apron - Right', 15, 3, PINE_T, [ 7.25, 21, 0], [0, Math.PI / 2, 0]),
+    board('Top',          18,   1.5,  18,   [0,      25.25, 0     ]),
+    board('Leg - FL',     1.5,  24,   1.5,  [-7.25,  12,   -7.25  ]),
+    board('Leg - FR',     1.5,  24,   1.5,  [ 7.25,  12,   -7.25  ]),
+    board('Leg - BL',     1.5,  24,   1.5,  [-7.25,  12,    7.25  ]),
+    board('Leg - BR',     1.5,  24,   1.5,  [ 7.25,  12,    7.25  ]),
+    board('Apron - Front',15,   3,    0.75, [0,      22,   -7.625 ]),
+    board('Apron - Back', 15,   3,    0.75, [0,      22,    7.625 ]),
+    board('Apron - Left', 0.75, 3,    15,   [-7.625, 22,    0     ]),
+    board('Apron - Right',0.75, 3,    15,   [ 7.625, 22,    0     ]),
   ];
 }
 
 function buildBedFrame(): WoodMember[] {
   return [
-    board('Headboard',      62, 36, 0.75, [0, 30, -41]),
-    board('Side Rail - Left',  80, 6, 1.5, [-31.25, 7, 0], [0, Math.PI / 2, 0]),
-    board('Side Rail - Right', 80, 6, 1.5, [ 31.25, 7, 0], [0, Math.PI / 2, 0]),
-    board('Footboard',      62, 18, 0.75, [0, 12, 41]),
-    board('Support Slat 1', 60, 3.5, 0.75,[0, 14, -20]),
-    board('Support Slat 2', 60, 3.5, 0.75,[0, 14,   0]),
-    board('Support Slat 3', 60, 3.5, 0.75,[0, 14,  20]),
+    board('Headboard',        62,   36,  0.75, [0,       24,  -41]),
+    board('Side Rail - Left', 1.5,  6,   80,   [-30.625, 8,     0]),
+    board('Side Rail - Right',1.5,  6,   80,   [ 30.625, 8,     0]),
+    board('Footboard',        62,   18,  0.75, [0,       14,   41]),
+    board('Slat 1',           59,   0.75,3.5,  [0,       5,   -20]),
+    board('Slat 2',           59,   0.75,3.5,  [0,       5,     0]),
+    board('Slat 3',           59,   0.75,3.5,  [0,       5,    20]),
   ];
 }
 
@@ -126,7 +118,7 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
   {
     id: 'bookshelf',
     name: 'Bookshelf',
-    description: '36" wide bookcase with sides, top, bottom, and four shelves.',
+    description: '36" wide bookcase with sides, top, bottom, and three shelves.',
     icon: '📚',
     dimensions: '36" × 12" × 72" tall',
     members: buildBookshelf(),

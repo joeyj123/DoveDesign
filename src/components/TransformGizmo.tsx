@@ -91,7 +91,15 @@ export default function TransformGizmo({ member, objectRef }: Props) {
 
   if (activeTool !== 'select' || !transformGizmoActive || !attached || !objectRef.current) return null;
 
+  const gridSnap = snapToGrid ? 1 : undefined;
+
   return (
-    <TransformControls ref={tcRef as never} object={objectRef.current} mode={transformMode} size={0.75} />
+    <TransformControls
+      ref={tcRef as never}
+      object={objectRef.current}
+      mode={transformMode}
+      size={0.75}
+      translationSnap={gridSnap}
+    />
   );
 }

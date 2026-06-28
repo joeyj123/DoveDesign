@@ -120,6 +120,11 @@ export default function KeyboardShortcuts() {
 
         case 'b':
         case 'B':
+          store.setBomPanelOpen(!store.ui.bomPanelOpen);
+          break;
+
+        case 'w':
+        case 'W':
           store.setActiveTool('drawBoard');
           break;
 

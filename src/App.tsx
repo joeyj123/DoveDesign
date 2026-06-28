@@ -6,6 +6,7 @@ import RightSidebar from './components/RightSidebar';
 import AssemblyGuidePanel from './components/AssemblyGuidePanel';
 import EdgeTreatmentPanel from './components/EdgeTreatmentPanel';
 import TemplatePickerModal from './components/TemplatePickerModal';
+import BomPanel from './components/BomPanel';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <RightSidebar />
       </div>
       <TemplatePickerModal />
+      <BomPanel />
     </div>
   );
 }

@@ -63,6 +63,7 @@ export default function Viewport() {
   const setBoxSelectPending = useAppStore((s) => s.setBoxSelectPending);
   const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
   const setRadialWheelOpen = useAppStore((s) => s.setRadialWheelOpen);
+  const clearSelection = useAppStore((s) => s.clearSelection);
   const activeTool        = useAppStore((s) => s.ui.activeTool);
   const mateFaceA         = useAppStore((s) => s.ui.mateFaceA);
   const measureStartPoint = useAppStore((s) => s.ui.measureStartPoint);
@@ -120,15 +121,19 @@ export default function Viewport() {
           if (ui.radialWheelOpen) {
             setRadialWheelOpen(false);
           }
-          if (activeTool !== 'select') return;
-          if (ui.boxSelectRect) return;
-          if (!e.shiftKey) return; // non-shift left-drag goes to orbit; shift+drag = box-select
-          setOrbitControlsEnabled(false);
-          setBoxSelectPending({
-            x: e.clientX,
-            y: e.clientY,
-            shiftKey: e.shiftKey,
-          });
+          if (activeTool === 'select') {
+            if (!ui.boxSelectRect && !e.shiftKey) {
+              clearSelection();
+            }
+            if (ui.boxSelectRect) return;
+            if (!e.shiftKey) return;
+            setOrbitControlsEnabled(false);
+            setBoxSelectPending({
+              x: e.clientX,
+              y: e.clientY,
+              shiftKey: e.shiftKey,
+            });
+          }
         }}
       >
         <AdaptiveCamera />

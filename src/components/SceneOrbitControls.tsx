@@ -67,6 +67,8 @@ export default function SceneOrbitControls() {
       panSpeed={1.65}
       rotateSpeed={0.85}
       zoomSpeed={1.1}
+      minDistance={0.5}
+      maxDistance={500}
       screenSpacePanning
       mouseButtons={{
         LEFT: MOUSE.ROTATE,
