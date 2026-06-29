@@ -156,22 +156,14 @@ export default function KeyboardShortcuts() {
         case 'f':
         case 'F':
           if (store.ui.selectedMemberId) {
-            const m = store.project.members.find((mem) => mem.id === store.ui.selectedMemberId);
-            if (m) {
-              const currentRy = m.rotation[1];
-              const normalized = ((currentRy % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-              const isFlipped = normalized > 0.1 && Math.abs(normalized - Math.PI) < 0.5;
-              store.updateMember(store.ui.selectedMemberId, {
-                rotation: [m.rotation[0], isFlipped ? 0 : Math.PI, m.rotation[2]],
-              });
-            }
+            store.setFinishPanelOpen(!store.ui.finishPanelOpen);
           }
           break;
 
         case 'c':
         case 'C':
           if (!e.ctrlKey) {
-            store.setActiveTool('cut');
+            store.setActiveTool('centerline');
           }
           break;
 

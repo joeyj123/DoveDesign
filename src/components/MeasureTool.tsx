@@ -120,6 +120,8 @@ export default function MeasureTool() {
   const shiftRef = useRef(false);
   const rc     = useRef(new THREE.Raycaster());
   const startMemberIdRef = useRef<string | undefined>(undefined);
+  const startFaceNormalRef = useRef<THREE.Vector3 | undefined>(undefined);
+  const cursorFaceNormalRef = useRef<THREE.Vector3 | undefined>(undefined);
 
   const [cursor, setCursor] = useState<THREE.Vector3 | null>(null);
   const [cursorKind, setCursorKind] = useState<SnapKind>('grid');
@@ -148,6 +150,7 @@ export default function MeasureTool() {
       if (!start) {
         setMeasureStartPoint({ x: pt.x, y: pt.y, z: pt.z });
         startMemberIdRef.current = cursorMemberIdRef.current;
+        startFaceNormalRef.current = cursorFaceNormalRef.current?.clone();
       } else {
         const sv = new THREE.Vector3(start.x, start.y, start.z);
         const { point: end } = snapAngle(sv, pt, e.shiftKey);
@@ -176,6 +179,7 @@ export default function MeasureTool() {
           }
         }
 
+        const faceNormal = startFaceNormalRef.current ?? cursorFaceNormalRef.current;
         addDimensionLine({
           id: crypto.randomUUID(),
           startPoint: { x: sv.x, y: sv.y, z: sv.z },
@@ -184,9 +188,11 @@ export default function MeasureTool() {
           anchorMemberId,
           localStart,
           localEnd,
+          faceNormal: faceNormal ? { x: faceNormal.x, y: faceNormal.y, z: faceNormal.z } : undefined,
         });
         setMeasureStartPoint(null);
         startMemberIdRef.current = undefined;
+        startFaceNormalRef.current = undefined;
       }
     }
 
@@ -215,10 +221,19 @@ export default function MeasureTool() {
     let snapKind: SnapKind = 'grid';
     let snapMemberId: string | undefined;
 
-    const hits = rc.current.intersectObjects(boardMeshesRef.current, false);
+    const hits = rc.current.intersectObjects(boardMeshesRef.current, true);
     if (hits.length > 0) {
       hitPt = hits[0].point.clone();
+      if (hits[0].face) {
+        const worldNormal = hits[0].face.normal.clone()
+          .transformDirection(hits[0].object.matrixWorld)
+          .normalize();
+        cursorFaceNormalRef.current = worldNormal;
+      } else {
+        cursorFaceNormalRef.current = undefined;
+      }
     } else {
+      cursorFaceNormalRef.current = undefined;
       const fp = new THREE.Vector3();
       if (rc.current.ray.intersectPlane(FLOOR, fp)) hitPt = fp;
     }

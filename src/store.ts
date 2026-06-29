@@ -113,6 +113,8 @@ const DEFAULT_UI: UIState = {
   rotationAxis: 'y',
   templatePickerOpen: false,
   bomPanelOpen: false,
+  selectedDrawMaterial: 'Southern Yellow Pine',
+  finishPanelOpen: false,
   drawDefaults: {
     species: 'Southern Yellow Pine',
     thickness: 1.5,
@@ -326,6 +328,18 @@ interface AppStore {
 
   // Clear all selections (FIX 5)
   clearSelection: () => void;
+
+  // Centerline markers
+  addCenterlineMarker: (memberId: string, marker: import('./types').CenterlineMarker) => void;
+  removeCenterlineMarker: (memberId: string, markerId: string) => void;
+  clearCenterlineMarkers: (memberId: string) => void;
+
+  // Draw material picker
+  setDrawMaterial: (species: string) => void;
+
+  // Finishing panel
+  setFinishPanelOpen: (open: boolean) => void;
+  updateMemberFinish: (memberId: string, finish: import('./types').BoardFinish | undefined) => void;
 
   // Load project from template / object
   loadProjectData: (members: import('./types').WoodMember[], name: string) => void;
@@ -1561,6 +1575,61 @@ export const useAppStore = create<AppStore>()(
       future: [],
     });
   },
+
+  addCenterlineMarker: (memberId, marker) =>
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) =>
+        m.id === memberId
+          ? { ...m, centerlineMarkers: [...(m.centerlineMarkers ?? []), marker] }
+          : m
+      ),
+    }),
+
+  removeCenterlineMarker: (memberId, markerId) =>
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) =>
+        m.id === memberId
+          ? { ...m, centerlineMarkers: (m.centerlineMarkers ?? []).filter((c) => c.id !== markerId) }
+          : m
+      ),
+    }),
+
+  clearCenterlineMarkers: (memberId) =>
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) =>
+        m.id === memberId ? { ...m, centerlineMarkers: [] } : m
+      ),
+    }),
+
+  setDrawMaterial: (species) => {
+    const mat = getMaterialByName(species);
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        selectedDrawMaterial: species,
+        drawDefaults: {
+          ...s.ui.drawDefaults,
+          species,
+          category: mat?.category ?? s.ui.drawDefaults.category,
+          color: mat?.color ?? s.ui.drawDefaults.color,
+        },
+      },
+    }));
+  },
+
+  setFinishPanelOpen: (open) =>
+    set((s) => ({ ui: { ...s.ui, finishPanelOpen: open } })),
+
+  updateMemberFinish: (memberId, finish) =>
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) =>
+        m.id === memberId ? { ...m, finish } : m
+      ),
+    }),
     }),
     {
       name: 'dovedesign-autosave-v1',

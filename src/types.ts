@@ -90,6 +90,29 @@ export type WoodShapeType =
   | 'hexagonalPrism'
   | 'customPolygon';
 
+// ─── Centerline Markers ───────────────────────────────────────────────────
+
+export interface CenterlineMarker {
+  id: string;
+  /** Which face (0=xMin 1=xMax 2=yMin 3=yMax 4=zMin 5=zMax) */
+  faceIndex: number;
+  /** Which axis the centerline runs along */
+  axis: 'x' | 'y' | 'z';
+  /** Face normal direction (face index converted) */
+  faceNormal: [number, number, number];
+}
+
+// ─── Board Finish ────────────────────────────────────────────────────────
+
+export type BoardFinishType = 'none' | 'stain' | 'paint' | 'clear_coat' | 'oil';
+export type FinishSheen = 'matte' | 'satin' | 'gloss';
+
+export interface BoardFinish {
+  type: BoardFinishType;
+  color?: string;   // hex (for stain and paint)
+  sheen?: FinishSheen;
+}
+
 export interface WoodMember {
   id: string;
   label: string;
@@ -124,6 +147,10 @@ export interface WoodMember {
   inScrapBox?: boolean;
   /** Visual-only joint planning markers on this board. */
   jointMarkers?: JointMarker[];
+  /** Visual-only centerline markers on this board. */
+  centerlineMarkers?: CenterlineMarker[];
+  /** Surface finish for 3D preview */
+  finish?: BoardFinish;
 }
 
 // ─── Assembly Mates ─────────────────────────────────────────────────────────
@@ -312,6 +339,8 @@ export interface DimensionLine {
   localStart?: { x: number; y: number; z: number };
   /** End point in the anchor board's local space */
   localEnd?: { x: number; y: number; z: number };
+  /** Face normal of the surface the line was drawn on (world space at creation time) */
+  faceNormal?: { x: number; y: number; z: number };
 }
 
 // ─── Project Root ──────────────────────────────────────────────────────────
@@ -343,7 +372,8 @@ export type ActiveTool =
   | 'trimExtend' | 'mate' | 'edge'
   | 'shapeCylinder' | 'shapeSphere' | 'shapeCone'
   | 'shapeTriPrism' | 'shapeHexPrism' | 'shapePolygon'
-  | 'placeHardware' | 'measure' | 'joint';
+  | 'placeHardware' | 'measure' | 'joint'
+  | 'centerline';
 
 export type ViewportMode = 'design' | 'assembly';
 
@@ -491,6 +521,10 @@ export interface UIState {
   templatePickerOpen: boolean;
   /** Bill of Materials panel open */
   bomPanelOpen: boolean;
+  /** Currently selected draw material species */
+  selectedDrawMaterial: string;
+  /** Finishing panel open */
+  finishPanelOpen: boolean;
 }
 
 export interface DesignSuggestion {

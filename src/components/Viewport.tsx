@@ -29,6 +29,7 @@ import RotationRing from './RotationRing';
 import CrossCutPreviewLine from './CrossCutPreviewLine';
 import RipCutPreviewLine from './RipCutPreviewLine';
 import ScrapBox from './ScrapBox';
+import NavCube from './NavCube';
 
 function ShadowFloor() {
   return (
@@ -92,6 +93,11 @@ export default function Viewport() {
           }
         </div>
       )}
+      {activeTool === 'centerline' && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg bg-zinc-900/90 border border-cyan-500/40 text-base text-cyan-100 pointer-events-none text-center">
+          Click any face of a board to add a <strong>centerline marker</strong>
+        </div>
+      )}
       {activeTool === 'mate' && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg bg-zinc-900/90 border border-amber-500/40 text-base text-amber-100 pointer-events-none text-center">
           {mateFaceA
@@ -101,6 +107,7 @@ export default function Viewport() {
         </div>
       )}
       {showWelcome && <ViewportWelcome />}
+      <NavCube />
       <QuickDimensionsPanel />
       <RadialOrbitalSelector />
       <FastenerPlacementBar />
@@ -159,13 +166,13 @@ export default function Viewport() {
         {gridVisible && (
           <Grid
             cellSize={1}
-            cellThickness={0.6}
-            cellColor="#27272a"
+            cellThickness={0.8}
+            cellColor="#383838"
             sectionSize={12}
-            sectionThickness={1}
-            sectionColor="#3f3f46"
-            fadeDistance={350}
-            fadeStrength={1.2}
+            sectionThickness={1.5}
+            sectionColor="#555555"
+            fadeDistance={400}
+            fadeStrength={1.0}
             followCamera={false}
             infiniteGrid
           />

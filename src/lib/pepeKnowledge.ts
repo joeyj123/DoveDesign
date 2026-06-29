@@ -28,7 +28,7 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     topic: 'Keyboard shortcuts',
     keywords: ['keyboard', 'shortcut', 'hotkey', 'key', 'shortcuts', 'ctrl', 'escape', 'delete', 'undo', 'redo', 'space'],
     answer:
-      'DoveDesign shortcuts: Space = open radial wheel, Escape = cancel/deselect, S = select tool, B = draw board, C = cross cut, M = move (shows transform arrows), Tab = cycle Move/Rotate/Scale, R = rip cut, J = mate/join boards, F = flip board (toggle), D = measure tool (dimension lines), G = toggle grid, U = unmate most recent connection, Delete = delete board, Ctrl+Z = undo, Ctrl+Y = redo, Shift+drag = box select.',
+      'DoveDesign shortcuts: Space = open radial wheel, Escape = cancel/deselect, S = select tool, W = draw board, C = centerline tool, M = move arrows, Tab = cycle Move/Rotate/Scale, R = rip cut, J = mate/join boards, F = finishing panel, D = measure tool (dimension lines), G = toggle snap grid, B = bill of materials, U = unmate most recent connection, Delete = delete board, Ctrl+Z = undo, Ctrl+Y = redo, Shift+drag = box select, Ctrl+S = save, Ctrl+O = open.',
   },
   {
     id: 'how-move-board',
@@ -960,6 +960,111 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     keywords: ['duplicate', 'copy board', 'copy', 'clone'],
     answer:
       'Right-click the board and choose Duplicate, or use the context menu. The D key is now the Measure tool — to duplicate, use the right-click context menu instead.',
+  },
+  {
+    id: 'grid-visibility',
+    topic: 'Grid visibility and major/minor lines',
+    keywords: ['grid', 'visibility', 'minor', 'major', 'lines', 'inch', 'foot', 'see grid'],
+    answer:
+      'The grid shows major 1-foot sections (12 inch squares) and minor 1-inch squares. Turn on Snap to Grid with the G key to lock board movement to these intersections.',
+  },
+  {
+    id: 'snap-grid-fine',
+    topic: 'Fine snap to grid when zoomed in',
+    keywords: ['snap', 'grid', 'fine', 'quarter inch', 'precise', 'zoomed', 'close up'],
+    answer:
+      'When zoomed in close, snap-to-grid switches to 1/4-inch precision automatically so you can place boards more precisely.',
+  },
+  {
+    id: 'dimension-line-board-face',
+    topic: 'How to measure on a board face',
+    keywords: ['dimension', 'line', 'board', 'face', 'measure', 'surface', 'on board'],
+    answer:
+      'Press D to activate the measure tool. Click directly on a board face — a dashed amber line stretches to your cursor. Click again on the same face to place the dimension line right on the surface.',
+  },
+  {
+    id: 'dimension-line-edge-snap',
+    topic: 'Dimension line snaps to board edges',
+    keywords: ['dimension', 'edge', 'snap', 'corner', 'blue dot', 'exact'],
+    answer:
+      'While placing a dimension line, the dot turns blue when you hover near a board edge or corner — that means it\'s snapping exactly to that edge.',
+  },
+  {
+    id: 'deselect-board',
+    topic: 'How to deselect a board',
+    keywords: ['deselect', 'clear selection', 'click empty', 'unselect', 'deselect board'],
+    answer:
+      'Click anywhere on the grid floor or empty space to deselect the current board or dimension line. Everything clears on an empty click.',
+  },
+  {
+    id: 'join-boards-mate-dots',
+    topic: 'Joining boards using face dots',
+    keywords: ['join', 'mate', 'dots', 'face dots', 'snap together', 'connect boards'],
+    answer:
+      'Make sure you\'re in Select mode (press Escape or S). Click a face dot on the first board — it turns green. Then click a face dot on the second board. They snap together face-to-face.',
+  },
+  {
+    id: 'centerline-tool',
+    topic: 'Centerline tool — add a CL marker to a board face',
+    keywords: ['centerline', 'cl', 'center line', 'center mark', 'centerline tool', 'c key'],
+    answer:
+      'Press C to activate the Centerline tool. Click any face of a board to add a dashed cyan centerline marker running through the center of that face. Great for locating drill points or reference lines.',
+  },
+  {
+    id: 'remove-centerline',
+    topic: 'How to remove a centerline marker',
+    keywords: ['remove', 'delete', 'centerline', 'cl marker', 'clear centerline'],
+    answer:
+      'Select the board, then use the Clear Centerlines button in the tool panel, or press C again to activate the centerline tool and click the same face — markers are managed in the Inspector.',
+  },
+  {
+    id: 'dimension-line-to-cut',
+    topic: 'Convert a dimension line into a cut',
+    keywords: ['dimension', 'line', 'cut', 'convert', 'cross cut', 'rip cut', 'measurement cut'],
+    answer:
+      'Draw a dimension line on a board face, click to select it, then look for "Convert to Cross Cut" or "Convert to Rip Cut" in the tool panel. It cuts the board right at that measurement.',
+  },
+  {
+    id: 'choose-wood-species-draw',
+    topic: 'Choose wood species before drawing a board',
+    keywords: ['species', 'material', 'draw', 'wood type', 'oak', 'pine', 'walnut', 'choose material'],
+    answer:
+      'When the Draw tool is active (W key), pick a wood species from the material swatches in the tool panel before drawing. Your board will use that species automatically.',
+  },
+  {
+    id: 'apply-finish-to-board',
+    topic: 'How to apply a finish to a board',
+    keywords: ['finish', 'stain', 'paint', 'clear coat', 'oil', 'apply finish', 'f key', 'finishing'],
+    answer:
+      'Select a board and press F to open the Finishing panel. Choose stain, paint, clear coat, or oil — the board updates in real time in the 3D view.',
+  },
+  {
+    id: 'stain-vs-paint',
+    topic: 'Stain vs paint — what is the difference',
+    keywords: ['stain', 'paint', 'difference', 'vs', 'texture', 'grain', 'solid color'],
+    answer:
+      'Stain blends with the wood grain — you still see the texture underneath. Paint covers it completely with a solid color. Both let you pick from preset colors.',
+  },
+  {
+    id: 'clear-coat-finish',
+    topic: 'Clear coat finish for a glossy look',
+    keywords: ['clear coat', 'gloss', 'sheen', 'matte', 'satin', 'finish', 'shine'],
+    answer:
+      'Choose Clear Coat in the Finishing panel to keep the natural wood look but add gloss. Pick Matte, Satin, or Gloss sheen.',
+  },
+  {
+    id: 'nav-cube',
+    topic: 'Nav cube — click to set camera view',
+    keywords: ['nav cube', 'camera view', 'top view', 'front view', 'right view', 'cube', 'navigation'],
+    answer:
+      'The small 3D cube in the top-right corner shows face labels (TOP, FRONT, RIGHT). Click any face to instantly jump the camera to that view with a smooth animation.',
+  },
+  {
+    id: 'top-view-camera',
+    topic: 'How to get a top-down view',
+    keywords: ['top view', 'top down', 'overhead', 'look down', 'bird eye', 'camera top'],
+    answer:
+      'Click the TOP face on the Nav Cube (top-right corner of the viewport) to look straight down at your project. Click FRONT, BACK, LEFT, or RIGHT for side views.',
   },
 ];
 

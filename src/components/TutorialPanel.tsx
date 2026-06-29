@@ -56,6 +56,11 @@ const ALL_SECTION_TITLES = [
   'Project Save & Open',
   'Project Templates',
   'Bill of Materials',
+  'Centerline Tool',
+  'Dimension Line to Cut',
+  'Material Picker — Draw Tool',
+  'Finishing Planner',
+  'Nav Cube — Camera Views',
 ];
 
 export default function TutorialPanel() {
@@ -828,6 +833,84 @@ export default function TutorialPanel() {
         </ul>
         <p className="text-base text-zinc-500 mt-2">
           <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How much lumber do I need?&quot; · &quot;How do I export a shopping list?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Centerline Tool" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          Add a dashed centerline marker to any face of a board — useful for locating center points before drilling, joining, or as a reference line.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">C</kbd> to activate the Centerline tool, or pick it from the radial wheel (CL segment).</li>
+          <li>Click any face of a board in the viewport — a dashed cyan line appears down the center of that face.</li>
+          <li>The line runs along the longest edge of that face automatically.</li>
+          <li>To remove, use <strong className="text-zinc-300">Clear Centerlines</strong> in the Inspector panel.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What is the centerline tool?&quot; · &quot;How do I add a centerline?&quot; · &quot;How do I remove a centerline?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Dimension Line to Cut" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          After measuring on a board face, you can convert that dimension line directly into a cross cut or rip cut at that exact position.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>Use the Measure tool (<kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">D</kbd>) and draw a line on a board face — both endpoints must land on the same board.</li>
+          <li>Click the dimension line to select it (it turns bright amber).</li>
+          <li>Look in the tool panel for <strong className="text-zinc-300">Convert to Cross Cut</strong> or <strong className="text-zinc-300">Convert to Rip Cut</strong>.</li>
+          <li>Click the button — the board splits at that measurement and the dimension line is removed.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I cut at a measurement?&quot; · &quot;Convert dimension line to cut&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Material Picker — Draw Tool" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          Before drawing a new board, choose what wood species it should be. The board immediately shows that species&apos; color and grain.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">W</kbd> to activate the Draw Board tool.</li>
+          <li>In the left tool panel, the <strong className="text-zinc-300">Material</strong> swatches appear below the instruction text.</li>
+          <li>Click a species (Pine, Oak, Walnut, etc.) — the selected one gets an amber border.</li>
+          <li>Draw your board — it uses that species. The selection stays active for all subsequent boards.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I choose the wood species before drawing?&quot; · &quot;Set material on draw tool&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Finishing Planner" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          Apply a stain, paint, clear coat, or oil to any board and see it update in real time in the 3D view.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>Select a board, then press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">F</kbd> to open the Finishing panel.</li>
+          <li><strong className="text-zinc-300">Stain</strong> — blends with the wood grain. Pick a stain color from the preset swatches.</li>
+          <li><strong className="text-zinc-300">Paint</strong> — covers the grain with a solid color. Choose white, black, navy, green, red, or gray.</li>
+          <li><strong className="text-zinc-300">Clear Coat</strong> — keeps the natural wood look but adds sheen. Pick Matte, Satin, or Gloss.</li>
+          <li><strong className="text-zinc-300">Oil</strong> — warm tint that enhances the grain with a satin finish.</li>
+          <li>Use <strong className="text-zinc-300">Apply to All Boards</strong> to match the entire project at once.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I stain a board?&quot; · &quot;Difference between stain and paint?&quot; · &quot;What does clear coat do?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} title="Nav Cube — Camera Views" onMatch={registerMatch}>
+        <p className="text-base text-zinc-400">
+          The small 3D cube in the top-right corner of the viewport shows your current viewing direction. Click any face to jump to that standard camera angle.
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li><strong className="text-zinc-300">TOP</strong> — look straight down at your project (plan view).</li>
+          <li><strong className="text-zinc-300">FRONT</strong> — look at the scene from the front.</li>
+          <li><strong className="text-zinc-300">RIGHT</strong> — look from the right side.</li>
+          <li>Small corner buttons give access to BACK, LEFT, and BOTTOM views.</li>
+          <li>The camera animates smoothly to the selected view.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I get a top view?&quot; · &quot;What is the nav cube?&quot; · &quot;Switch to front view&quot;
         </p>
       </Section>
 

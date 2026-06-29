@@ -52,8 +52,13 @@ function DimensionLineItem({
     }
   }
 
-  const start = startWorld.clone().setY(startWorld.y + 0.05);
-  const end = endWorld.clone().setY(endWorld.y + 0.05);
+  // Offset along face normal (if available) so line sits on surface, not z-fighting
+  const normal = dl.faceNormal
+    ? new THREE.Vector3(dl.faceNormal.x, dl.faceNormal.y, dl.faceNormal.z).normalize()
+    : new THREE.Vector3(0, 1, 0);
+  const OFFSET = 0.06;
+  const start = startWorld.clone().addScaledVector(normal, OFFSET);
+  const end = endWorld.clone().addScaledVector(normal, OFFSET);
   const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
   const dist = start.distanceTo(end);
   const isCardinal = dl.angleDegrees % 90 === 0;

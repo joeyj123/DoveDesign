@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store';
 
 const SEGMENTS = [
-  { id: 'dimensions', label: 'Dims',   title: 'Quick Dimensions' },
-  { id: 'move',       label: 'Move',   title: 'Move / Rotate / Scale' },
-  { id: 'mate',       label: 'Mate',   title: 'Mate faces' },
-  { id: 'edge',       label: 'Edge',   title: 'Edge treatment' },
-  { id: 'flip',       label: 'Flip',   title: 'Flip across longest axis' },
-  { id: 'delete',     label: 'Delete', title: 'Delete board' },
+  { id: 'dimensions', label: 'Dims',       title: 'Quick Dimensions' },
+  { id: 'move',       label: 'Move',       title: 'Move / Rotate / Scale' },
+  { id: 'mate',       label: 'Mate',       title: 'Mate faces' },
+  { id: 'centerline', label: 'CL',         title: 'Add centerline marker' },
+  { id: 'edge',       label: 'Edge',       title: 'Edge treatment' },
+  { id: 'flip',       label: 'Flip',       title: 'Flip across longest axis' },
+  { id: 'delete',     label: 'Delete',     title: 'Delete board' },
 ] as const;
 
 type SegId = (typeof SEGMENTS)[number]['id'];
@@ -16,7 +17,7 @@ const WHEEL_SIZE = 240;
 const CENTER = WHEEL_SIZE / 2;
 const OUTER_R = 118;
 const INNER_R = 34;
-const SEG_COUNT = 6;
+const SEG_COUNT = 7;
 const SEG_ANGLE = 360 / SEG_COUNT;
 
 function polar(cx: number, cy: number, r: number, deg: number) {
@@ -79,6 +80,14 @@ function SegmentIcon({ id }: { id: SegId }) {
           <rect x="2" y="5" width="7" height="10" rx="0.5" />
           <rect x="11" y="5" width="7" height="10" rx="0.5" />
           <path d="M9 10 L11 10" />
+        </svg>
+      );
+    case 'centerline':
+      return (
+        <svg {...props}>
+          <path d="M3 10 L17 10" strokeDasharray="2 1.5" />
+          <path d="M10 3 L10 6" />
+          <path d="M10 14 L10 17" />
         </svg>
       );
     case 'edge':
@@ -269,6 +278,10 @@ export default function RadialOrbitalSelector() {
         setActiveTool('mate');
         setMatePickTarget('A');
         setMateFaceA(null);
+        setRadialWheelOpen(false);
+        break;
+      case 'centerline':
+        setActiveTool('centerline');
         setRadialWheelOpen(false);
         break;
       case 'edge':

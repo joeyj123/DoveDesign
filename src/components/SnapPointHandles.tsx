@@ -55,6 +55,7 @@ export default function SnapPointHandles({ member, meshRef, forMate }: Props) {
   const applyMate     = useAppStore((s) => s.applyMate);
   const setMateGridOffset = useAppStore((s) => s.setMateGridOffset);
 
+  const mateFaceA = useAppStore((s) => s.ui.mateFaceA);
   const isSelected = selectedId === member.id;
   const isMateMode = activeTool === 'mate';
   const show = isSelected || (forMate && isMateMode);
@@ -69,6 +70,7 @@ export default function SnapPointHandles({ member, meshRef, forMate }: Props) {
 
   const color    = isMateMode ? '#fbbf24' : '#ffffff';
   const emissive = isMateMode ? '#d97706' : '#cccccc';
+  const mateFaceAFace = mateFaceA?.memberId === member.id ? mateFaceA.face : null;
 
   useFrame(() => {
     if (!show || !meshRef.current) return;
@@ -111,17 +113,26 @@ export default function SnapPointHandles({ member, meshRef, forMate }: Props) {
         const clickable = isMateMode && !!FACE_CENTER_MAP[i];
         return (
           <group key={i} ref={(el) => { dotRefs.current[i] = el; }} position={[0, 0, 0]}>
-            {/* Visible dot */}
-            <mesh>
-              <sphereGeometry args={[0.18, 8, 8]} />
-              <meshStandardMaterial
-                color={color}
-                emissive={emissive}
-                emissiveIntensity={0.5}
-                transparent
-                opacity={0.8}
-              />
-            </mesh>
+            {/* Visible dot — green if this face is mateFaceA */}
+            {(() => {
+              const thisFace = FACE_CENTER_MAP[i];
+              const isFirst = mateFaceAFace !== null && thisFace === mateFaceAFace;
+              const dotColor = isFirst ? '#22c55e' : color;
+              const dotEmissive = isFirst ? '#16a34a' : emissive;
+              const dotScale = isFirst ? 0.22 : 0.18;
+              return (
+                <mesh>
+                  <sphereGeometry args={[dotScale, 8, 8]} />
+                  <meshStandardMaterial
+                    color={dotColor}
+                    emissive={dotEmissive}
+                    emissiveIntensity={isFirst ? 0.8 : 0.5}
+                    transparent
+                    opacity={0.9}
+                  />
+                </mesh>
+              );
+            })()}
             {/* Invisible hitbox for easier clicking */}
             {clickable && (
               <mesh onClick={(e) => { e.stopPropagation(); handleDotClick(i); }}>

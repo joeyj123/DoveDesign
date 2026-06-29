@@ -91,12 +91,29 @@ export default function ToolPanel() {
   const rotationAxis = useAppStore((s) => s.ui.rotationAxis);
   const setRotationAxis = useAppStore((s) => s.setRotationAxis);
   const updateMember = useAppStore((s) => s.updateMember);
+  const selectedDimensionLineId = useAppStore((s) => s.ui.selectedDimensionLineId);
+  const dimensionLines = useAppStore((s) => s.project.dimensionLines ?? []);
+  const removeDimensionLine = useAppStore((s) => s.removeDimensionLine);
+  const selectDimensionLine = useAppStore((s) => s.selectDimensionLine);
+  const selectedDrawMaterial = useAppStore((s) => s.ui.selectedDrawMaterial);
+  const setDrawMaterial = useAppStore((s) => s.setDrawMaterial);
+  const setFinishPanelOpen = useAppStore((s) => s.setFinishPanelOpen);
+  const finishPanelOpen = useAppStore((s) => s.ui.finishPanelOpen);
+  const updateMemberFinish = useAppStore((s) => s.updateMemberFinish);
   const [degInput, setDegInput] = useState('');
 
   const showRotationPanel =
     activeTool === 'select' && transformGizmoActive && transformMode === 'rotate' && !!selectedMember;
 
-  if ((activeTool === 'select' || activeTool === 'measure') && !showRotationPanel) return null;
+  // Dim-to-cut panel: selected dimension line anchored to a board
+  const selectedDimLine = selectedDimensionLineId
+    ? dimensionLines.find((l) => l.id === selectedDimensionLineId)
+    : null;
+  const dimLineAnchorMember = selectedDimLine?.anchorMemberId
+    ? allMembers.find((m) => m.id === selectedDimLine.anchorMemberId)
+    : null;
+
+  if ((activeTool === 'select' || activeTool === 'measure') && !showRotationPanel && !selectedDimLine && !finishPanelOpen) return null;
 
   if (showRotationPanel) {
     const axisIdx = rotationAxis === 'x' ? 0 : rotationAxis === 'y' ? 1 : 2;
@@ -176,6 +193,176 @@ export default function ToolPanel() {
             </button>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  // Dim-to-cut: convert selected dimension line into a cross cut or rip cut
+  if (selectedDimLine && dimLineAnchorMember) {
+    const ls = selectedDimLine.localStart;
+    const le = selectedDimLine.localEnd;
+    if (ls && le) {
+      const dx = Math.abs(le.x - ls.x);
+      const dz = Math.abs(le.z - ls.z);
+      const isCrosswise = dx > dz; // line runs along X axis = perpendicular to board length = cross cut
+      const isRipwise = dz > dx;   // line runs along Z axis = along board width = rip cut
+      const midX = (ls.x + le.x) / 2;
+      const midZ = (ls.z + le.z) / 2;
+      // Convert local coords to position from board start
+      const cutPos = midX + dimLineAnchorMember.length / 2; // local x=0 is center
+      const ripWidth = midZ + dimLineAnchorMember.width / 2;
+
+      return (
+        <div className="mb-4 rounded-xl border border-amber-700/50 bg-zinc-900/50 p-3 space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-amber-500/90">Dimension Line → Cut</p>
+          <p className="text-sm text-zinc-300">
+            Board: <strong>{dimLineAnchorMember.label}</strong>
+          </p>
+          {isCrosswise && cutPos > 0 && cutPos < dimLineAnchorMember.length && (
+            <button
+              type="button"
+              className="btn-primary w-full text-sm"
+              onClick={() => {
+                splitMemberByCrossCut(dimLineAnchorMember.id, cutPos);
+                removeDimensionLine(selectedDimLine.id);
+                selectDimensionLine(null);
+              }}
+            >
+              Convert to Cross Cut at {cutPos.toFixed(2)}&quot;
+            </button>
+          )}
+          {isRipwise && ripWidth > 0 && ripWidth < dimLineAnchorMember.width && (
+            <button
+              type="button"
+              className="btn-secondary w-full text-sm"
+              onClick={() => {
+                splitMemberByRipCut(dimLineAnchorMember.id, ripWidth);
+                removeDimensionLine(selectedDimLine.id);
+                selectDimensionLine(null);
+              }}
+            >
+              Convert to Rip Cut at {ripWidth.toFixed(2)}&quot;
+            </button>
+          )}
+          {!isCrosswise && !isRipwise && (
+            <p className="text-xs text-zinc-500">Line is diagonal — align it with the board axis to convert to a cut.</p>
+          )}
+          <button
+            type="button"
+            className="text-xs text-zinc-500 hover:text-zinc-300 w-full text-center"
+            onClick={() => selectDimensionLine(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      );
+    }
+  }
+
+  // Finishing panel
+  if (finishPanelOpen && selectedMember) {
+    const finish = selectedMember.finish ?? { type: 'none' as const };
+    const STAIN_COLORS = [
+      { label: 'Natural', color: '#c4a265' },
+      { label: 'Golden Oak', color: '#b5813b' },
+      { label: 'Early American', color: '#8b5e3c' },
+      { label: 'Dark Walnut', color: '#5c3a1e' },
+      { label: 'Ebony', color: '#2a1a0e' },
+      { label: 'Provincial', color: '#7a4f2e' },
+      { label: 'Red Mahogany', color: '#7b2d1c' },
+    ];
+    const PAINT_COLORS = [
+      { label: 'White', color: '#f5f5f5' },
+      { label: 'Black', color: '#1c1c1c' },
+      { label: 'Gray', color: '#6b7280' },
+      { label: 'Navy', color: '#1e3a5f' },
+      { label: 'Green', color: '#2d6a4f' },
+      { label: 'Red', color: '#9b2335' },
+    ];
+    const swatchList = finish.type === 'stain' ? STAIN_COLORS : finish.type === 'paint' ? PAINT_COLORS : [];
+
+    return (
+      <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wider text-amber-500/90">Finishing</p>
+          <button type="button" className="text-xs text-zinc-500 hover:text-zinc-300" onClick={() => setFinishPanelOpen(false)}>✕</button>
+        </div>
+        <p className="text-sm text-zinc-400">{selectedMember.label}</p>
+
+        <div>
+          <p className="text-xs text-zinc-500 mb-1">Finish Type</p>
+          <div className="grid grid-cols-2 gap-1">
+            {(['none', 'stain', 'paint', 'clear_coat', 'oil'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => updateMemberFinish(selectedMember.id, { ...finish, type: t })}
+                className={[
+                  'text-sm py-1.5 rounded border capitalize transition-colors',
+                  finish.type === t
+                    ? 'border-amber-500 bg-amber-500/20 text-amber-200'
+                    : 'border-zinc-700 text-zinc-400 hover:border-zinc-500',
+                ].join(' ')}
+              >
+                {t === 'clear_coat' ? 'Clear Coat' : t.charAt(0).toUpperCase() + t.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {swatchList.length > 0 && (
+          <div>
+            <p className="text-xs text-zinc-500 mb-1">Color</p>
+            <div className="flex flex-wrap gap-1.5">
+              {swatchList.map((sw) => (
+                <button
+                  key={sw.label}
+                  type="button"
+                  title={sw.label}
+                  onClick={() => updateMemberFinish(selectedMember.id, { ...finish, color: sw.color })}
+                  className={[
+                    'w-7 h-7 rounded-full border-2 transition-all',
+                    finish.color === sw.color ? 'border-amber-400 scale-110' : 'border-zinc-600',
+                  ].join(' ')}
+                  style={{ background: sw.color }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(finish.type === 'stain' || finish.type === 'paint' || finish.type === 'clear_coat') && (
+          <div>
+            <p className="text-xs text-zinc-500 mb-1">Sheen</p>
+            <div className="flex gap-1">
+              {(['matte', 'satin', 'gloss'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => updateMemberFinish(selectedMember.id, { ...finish, sheen: s })}
+                  className={[
+                    'flex-1 text-sm py-1 rounded border capitalize transition-colors',
+                    finish.sheen === s
+                      ? 'border-amber-500 bg-amber-500/20 text-amber-200'
+                      : 'border-zinc-700 text-zinc-400 hover:border-zinc-500',
+                  ].join(' ')}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="btn-secondary w-full text-sm"
+          onClick={() => {
+            allMembers.forEach((m) => updateMemberFinish(m.id, { ...finish }));
+          }}
+        >
+          Apply to All Boards
+        </button>
       </div>
     );
   }
@@ -268,9 +455,35 @@ export default function ToolPanel() {
       </p>
 
       {activeTool === 'drawBoard' && (
-        <p className="text-sm text-zinc-400">
-          Click and drag on the grid to draw a board footprint. Camera locks while dragging.
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm text-zinc-400">
+            Click and drag on the grid to draw a board footprint.
+          </p>
+          <div>
+            <p className="text-xs text-zinc-500 mb-2">Material</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {MATERIAL_CATALOG.slice(0, 8).map((mat) => (
+                <button
+                  key={mat.id}
+                  type="button"
+                  onClick={() => setDrawMaterial(mat.name)}
+                  className={[
+                    'flex items-center gap-2 text-sm py-1.5 px-2 rounded border transition-colors text-left',
+                    selectedDrawMaterial === mat.name
+                      ? 'border-amber-500 bg-amber-500/10 text-amber-200'
+                      : 'border-zinc-700 text-zinc-300 hover:border-zinc-500',
+                  ].join(' ')}
+                >
+                  <span
+                    className="w-4 h-4 rounded-sm flex-shrink-0 border border-zinc-600"
+                    style={{ background: mat.color }}
+                  />
+                  <span className="truncate text-xs">{mat.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {activeTool === 'addBoard' && (
@@ -553,8 +766,21 @@ function MatePanel({
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-zinc-400">
-        Click a board face in the viewport or use the dropdowns below, then Apply Mate to snap flush.
+      {!mateFaceA ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-sm text-amber-200">
+          <span className="font-bold">Step 1:</span> Click a face dot on the <strong>first board</strong> — it stays still.
+        </div>
+      ) : !mateFaceB ? (
+        <div className="rounded-lg border border-green-500/40 bg-green-500/5 p-2.5 text-sm text-green-200">
+          <span className="font-bold">Step 2:</span> Click a face dot on the <strong>second board</strong> — it moves to snap flush.
+        </div>
+      ) : (
+        <div className="rounded-lg border border-zinc-700 p-2.5 text-sm text-zinc-300">
+          Both faces selected — click <strong>Apply Mate</strong> to snap them together.
+        </div>
+      )}
+      <p className="text-xs text-zinc-500">
+        Click a face on a board in the 3D viewport, or use the dropdowns below.
       </p>
       <div className="grid grid-cols-2 gap-2">
         {(['A', 'B'] as const).map((slot) => (

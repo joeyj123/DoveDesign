@@ -19,6 +19,7 @@ import { consumeBoxSelectClickSuppress } from '../lib/boxSelectGuard';
 import TransformGizmo from './TransformGizmo';
 import SnapPointHandles from './SnapPointHandles';
 import JointMarkerRenderer from './JointMarkerRenderer';
+import CenterlineRenderer from './CenterlineRenderer';
 
 interface Props {
   member: WoodMember;
@@ -56,6 +57,7 @@ export default function WoodBlock({ member }: Props) {
   const viewportMode = useAppStore((s) => s.ui.viewportMode);
   const selectedJointType = useAppStore((s) => s.ui.selectedJointType);
   const addJointMarker = useAppStore((s) => s.addJointMarker);
+  const addCenterlineMarker = useAppStore((s) => s.addCenterlineMarker);
   const isSelected   = selectedId === member.id || multiSelection.includes(member.id);
   const isHighlighted = suggestionHighlightIds.includes(member.id);
   const isHidden     = isolatedMemberId !== null && isolatedMemberId !== member.id;
@@ -129,6 +131,34 @@ export default function WoodBlock({ member }: Props) {
     const ui = useAppStore.getState().ui;
     if (ui.boxSelectRect || ui.boxSelectPending) return;
     if (activeTool === 'drawBoard') return;
+
+    if (activeTool === 'centerline' && e.face) {
+      e.stopPropagation();
+      const matrix = meshRef.current?.matrixWorld ?? e.object.matrixWorld;
+      const worldNormal = e.face.normal.clone().transformDirection(matrix).normalize();
+      const face = pickFaceFromWorldNormal(member, worldNormal);
+      const faceIndexMap: Record<string, number> = {
+        xMin: 0, xMax: 1, yMin: 2, yMax: 3, zMin: 4, zMax: 5,
+      };
+      const fi = faceIndexMap[face ?? 'yMax'] ?? 3;
+      // Determine centerline axis: the longest dimension on this face
+      const faceAxes: Record<number, 'x' | 'y' | 'z'> = {
+        0: member.width >= member.thickness ? 'z' : 'y', // xMin/xMax face
+        1: member.width >= member.thickness ? 'z' : 'y',
+        2: member.length >= member.width ? 'x' : 'z',   // yMin/yMax face
+        3: member.length >= member.width ? 'x' : 'z',
+        4: member.length >= member.thickness ? 'x' : 'y', // zMin/zMax face
+        5: member.length >= member.thickness ? 'x' : 'y',
+      };
+      const fn: [number, number, number] = [worldNormal.x, worldNormal.y, worldNormal.z];
+      addCenterlineMarker(member.id, {
+        id: crypto.randomUUID(),
+        faceIndex: fi,
+        axis: faceAxes[fi] ?? 'x',
+        faceNormal: fn,
+      });
+      return;
+    }
 
     if (activeTool === 'joint' && selectedJointType && e.face) {
       e.stopPropagation();
@@ -318,27 +348,83 @@ export default function WoodBlock({ member }: Props) {
         castShadow={viewportMode === 'assembly' || viewportMode === 'design'}
         receiveShadow
       >
-        <meshStandardMaterial
-          map={wireframe || xray ? undefined : grainTex}
-          roughnessMap={wireframe ? undefined : roughTex}
-          roughness={0.82}
-          metalness={0}
-          wireframe={wireframe}
-          transparent={xray}
-          opacity={xray ? 0.3 : 1}
-          depthWrite={!xray}
-          emissive={
+        {(() => {
+          const finish = member.finish;
+          const ft = finish?.type ?? 'none';
+          const sheenRoughness = finish?.sheen === 'gloss' ? 0.05 : finish?.sheen === 'satin' ? 0.4 : 0.9;
+          const emissiveColor =
             isSelected || isHighlighted ? '#ffaa00' :
-            isMateCandidate ? '#0066ff' :
-            '#000000'
+            isMateCandidate ? '#0066ff' : '#000000';
+          const emissiveInt =
+            isSelected ? 0.28 : isHighlighted ? 0.22 : isMateCandidate ? 0.15 : 0;
+
+          if (ft === 'paint' && finish?.color) {
+            return (
+              <meshStandardMaterial
+                color={finish.color}
+                roughness={sheenRoughness}
+                metalness={0}
+                wireframe={wireframe}
+                transparent={xray}
+                opacity={xray ? 0.3 : 1}
+                depthWrite={!xray}
+                emissive={emissiveColor}
+                emissiveIntensity={emissiveInt}
+              />
+            );
           }
-          emissiveIntensity={
-            isSelected ? 0.28 :
-            isHighlighted ? 0.22 :
-            isMateCandidate ? 0.15 :
-            0
+          if (ft === 'clear_coat') {
+            return (
+              <meshStandardMaterial
+                map={wireframe || xray ? undefined : grainTex}
+                roughnessMap={wireframe ? undefined : roughTex}
+                roughness={sheenRoughness}
+                metalness={0.05}
+                envMapIntensity={1.4}
+                wireframe={wireframe}
+                transparent={xray}
+                opacity={xray ? 0.3 : 1}
+                depthWrite={!xray}
+                emissive={emissiveColor}
+                emissiveIntensity={emissiveInt}
+              />
+            );
           }
-        />
+          if (ft === 'oil') {
+            return (
+              <meshStandardMaterial
+                map={wireframe || xray ? undefined : grainTex}
+                roughnessMap={wireframe ? undefined : roughTex}
+                color="#c8884a"
+                roughness={0.4}
+                metalness={0}
+                wireframe={wireframe}
+                transparent={xray}
+                opacity={xray ? 0.3 : 1}
+                depthWrite={!xray}
+                emissive={emissiveColor}
+                emissiveIntensity={emissiveInt}
+              />
+            );
+          }
+          // default / stain
+          const stainColor = (ft === 'stain' && finish?.color) ? finish.color : member.color;
+          return (
+            <meshStandardMaterial
+              map={wireframe || xray ? undefined : grainTex}
+              roughnessMap={wireframe ? undefined : roughTex}
+              color={stainColor}
+              roughness={ft === 'stain' ? (sheenRoughness * 0.85) : 0.82}
+              metalness={0}
+              wireframe={wireframe}
+              transparent={xray}
+              opacity={xray ? 0.3 : 1}
+              depthWrite={!xray}
+              emissive={emissiveColor}
+              emissiveIntensity={emissiveInt}
+            />
+          );
+        })()}
 
         <Geometry>
           <Base>
@@ -426,6 +512,7 @@ export default function WoodBlock({ member }: Props) {
       {isSelected && <TransformGizmo member={member} objectRef={meshRef} />}
       <SnapPointHandles member={member} meshRef={meshRef} forMate />
       <JointMarkerRenderer member={member} />
+      <CenterlineRenderer member={member} />
     </>
   );
 }
