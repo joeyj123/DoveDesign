@@ -52,10 +52,24 @@ function DimensionLineItem({
     }
   }
 
-  // Offset along face normal (if available) so line sits on surface, not z-fighting
-  const normal = dl.faceNormal
-    ? new THREE.Vector3(dl.faceNormal.x, dl.faceNormal.y, dl.faceNormal.z).normalize()
-    : new THREE.Vector3(0, 1, 0);
+  // Offset along face normal so line sits on surface
+  // For anchored lines, transform localFaceNormal to world space; otherwise use stored world faceNormal
+  let normal = new THREE.Vector3(0, 1, 0);
+  if (dl.anchorMemberId && dl.localFaceNormal) {
+    const anchor = members.find((m) => m.id === dl.anchorMemberId);
+    if (anchor) {
+      const mat = new THREE.Matrix4().compose(
+        new THREE.Vector3(...anchor.position),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...anchor.rotation)),
+        new THREE.Vector3(1, 1, 1)
+      );
+      normal = new THREE.Vector3(dl.localFaceNormal.x, dl.localFaceNormal.y, dl.localFaceNormal.z)
+        .transformDirection(mat)
+        .normalize();
+    }
+  } else if (dl.faceNormal) {
+    normal = new THREE.Vector3(dl.faceNormal.x, dl.faceNormal.y, dl.faceNormal.z).normalize();
+  }
   const OFFSET = 0.06;
   const start = startWorld.clone().addScaledVector(normal, OFFSET);
   const end = endWorld.clone().addScaledVector(normal, OFFSET);

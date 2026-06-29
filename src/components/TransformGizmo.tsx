@@ -26,6 +26,7 @@ export default function TransformGizmo({ member, objectRef }: Props) {
   const angleSnapIncrement = useAppStore((s) => s.ui.angleSnapIncrement);
   const snapToGrid = useAppStore((s) => s.ui.snapToGrid);
   const updateMember = useAppStore((s) => s.updateMember);
+  const moveMateGroup = useAppStore((s) => s.moveMateGroup);
   const allMembers = useAppStore((s) => s.project.members);
   const viewportMode = useAppStore((s) => s.ui.viewportMode);
   const controls = useThree((s) => s.controls) as { enabled?: boolean } | null;
@@ -53,6 +54,7 @@ export default function TransformGizmo({ member, objectRef }: Props) {
         let rot: [number, number, number] = [obj.rotation.x, obj.rotation.y, obj.rotation.z];
 
         if (transformMode === 'translate') {
+          const oldPos = member.position;
           if (viewportMode === 'assembly') {
             pos = snapAssemblyPos(pos);
           } else {
@@ -66,6 +68,12 @@ export default function TransformGizmo({ member, objectRef }: Props) {
             pos = [Math.round(pos[0]), pos[1], Math.round(pos[2])];
           }
           obj.position.set(pos[0], pos[1], pos[2]);
+          const delta: [number, number, number] = [
+            pos[0] - oldPos[0],
+            pos[1] - oldPos[1],
+            pos[2] - oldPos[2],
+          ];
+          moveMateGroup(member.id, delta);
         }
 
         if (transformMode === 'rotate' && angleSnapEnabled) {
@@ -87,7 +95,7 @@ export default function TransformGizmo({ member, objectRef }: Props) {
     };
     tc.addEventListener('dragging-changed', handler);
     return () => tc.removeEventListener('dragging-changed', handler);
-  }, [controls, member, objectRef, transformMode, allMembers, updateMember, angleSnapEnabled, angleSnapIncrement, viewportMode, setOrbitControlsEnabled, snapToGrid]);
+  }, [controls, member, objectRef, transformMode, allMembers, updateMember, moveMateGroup, angleSnapEnabled, angleSnapIncrement, viewportMode, setOrbitControlsEnabled, snapToGrid]);
 
   if (activeTool !== 'select' || !transformGizmoActive || !attached || !objectRef.current) return null;
 

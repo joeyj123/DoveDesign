@@ -341,6 +341,15 @@ export interface DimensionLine {
   localEnd?: { x: number; y: number; z: number };
   /** Face normal of the surface the line was drawn on (world space at creation time) */
   faceNormal?: { x: number; y: number; z: number };
+  /** Face normal in board local space (for anchored lines — transforms with the board) */
+  localFaceNormal?: { x: number; y: number; z: number };
+}
+
+// ─── Mate Groups ──────────────────────────────────────────────────────────
+
+export interface MateGroup {
+  id: string;
+  memberIds: string[];
 }
 
 // ─── Project Root ──────────────────────────────────────────────────────────
@@ -362,6 +371,7 @@ export interface Project {
   placedHardware: PlacedHardwareItem[];
   assemblySteps: AssemblyStep[];
   dimensionLines: DimensionLine[];
+  mateGroups: MateGroup[];
 }
 
 // ─── UI State (not persisted to disk) ─────────────────────────────────────

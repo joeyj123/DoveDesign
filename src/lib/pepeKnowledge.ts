@@ -1280,4 +1280,52 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
     keywords: ['export bom', 'export csv', 'download shopping list', 'lumber yard list', 'csv'],
     answer: 'In the Bill of Materials panel, click "Export CSV" to download a spreadsheet-ready shopping list you can take to the lumber yard.',
   },
+  {
+    id: 'dimension-line-vertical-face',
+    topic: 'Dimension line on vertical face',
+    keywords: ['dimension line vertical', 'measure side face', 'measure front face', 'measure wall', 'measure vertical'],
+    answer: 'The measure tool (press D) works on any face — top, bottom, front, back, or side. Just click directly on the face you want to measure. The line draws right on that surface.',
+  },
+  {
+    id: 'dimension-line-follow-board',
+    topic: 'Dimension line follows board',
+    keywords: ['dimension line move', 'measurement follow', 'dim line attached', 'measure moves with board'],
+    answer: 'Dimension lines placed on a board face are anchored to that board. When you move the board, the dimension line moves with it automatically.',
+  },
+  {
+    id: 'centerline-follow-board',
+    topic: 'Centerline follows board',
+    keywords: ['centerline move', 'centerline follow', 'cl marker move', 'centerline attached'],
+    answer: 'Centerline markers are attached to their board and follow it wherever it goes. Move the board and the centerline moves too.',
+  },
+  {
+    id: 'rotation-ring-how-to-use',
+    topic: 'Rotation ring how to use',
+    keywords: ['rotation ring', 'how to rotate', 'rotate board', 'spin board', 'rotate tool'],
+    answer: 'Select a board and press Tab to switch to rotate mode. Three colored rings appear: red for X, green for Y, blue for Z. Drag any ring to rotate. A floating badge shows the current angle.',
+  },
+  {
+    id: 'snap-rotation-to-angle',
+    topic: 'Snap rotation to angle',
+    keywords: ['snap rotation', 'rotate 45', 'rotate 90', 'exact angle', 'set rotation degree'],
+    answer: 'While in rotate mode, use the quick-snap buttons (0, 45, 90, 135, 180 degrees) in the tool panel on the left, or type a number in the degree field and press Enter.',
+  },
+  {
+    id: 'mate-boards-group',
+    topic: 'Mated boards move together',
+    keywords: ['mate group', 'boards move together', 'mated move', 'group boards', 'snap together move'],
+    answer: 'After mating two boards together, they move as one group. Grab either board and the other follows. The tool panel shows an Unmate button when a grouped board is selected.',
+  },
+  {
+    id: 'unmate-boards',
+    topic: 'Unmate boards',
+    keywords: ['unmate', 'separate boards', 'ungroup boards', 'remove mate', 'break mate'],
+    answer: 'Select a mated board and look at the tool panel on the left. Click "Unmate This Board" to remove just that one from the group, or "Unmate All" to fully separate the group. Boards stay in place.',
+  },
+  {
+    id: 'dimension-line-to-cut-not-showing',
+    topic: 'Dimension line to cut button not showing',
+    keywords: ['convert to cut', 'dim to cut', 'dimension line cut button', 'cross cut from line', 'rip cut from line'],
+    answer: 'Make sure the dimension line was placed on a board face (not the floor). Select the line — if it is anchored to a board, the Convert to Cross Cut or Convert to Rip Cut button will appear in the tool panel.',
+  },
 ];

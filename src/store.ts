@@ -7,7 +7,7 @@ import type {
   MemberMate, AttachmentPoint, Fastener, JoinMethod,
   DesignSuggestion, EdgeTreatment, PlacedHardwareItem, AssemblyStep,
   HardwareLibraryId, DisplayMode, ViewportMode, DimensionLine,
-  JointMarker, JointMarkerType,
+  JointMarker, JointMarkerType, MateGroup,
 } from './types';
 import { trimToBoundary, extendToBoundary } from './lib/trimExtend';
 import { inferMaterialKind, getMaterialByName } from './lib/materials';
@@ -42,6 +42,7 @@ const DEFAULT_PROJECT: Project = {
   placedHardware: [],
   assemblySteps: [],
   dimensionLines: [],
+  mateGroups: [],
 };
 
 const DEFAULT_UI: UIState = {
@@ -151,6 +152,7 @@ function migrateProject(p: Project): Project {
     placedHardware: p.placedHardware ?? [],
     assemblySteps: p.assemblySteps ?? [],
     dimensionLines: p.dimensionLines ?? [],
+    mateGroups: p.mateGroups ?? [],
     members: p.members.map(migrateMember),
   };
 }
@@ -340,6 +342,12 @@ interface AppStore {
   // Finishing panel
   setFinishPanelOpen: (open: boolean) => void;
   updateMemberFinish: (memberId: string, finish: import('./types').BoardFinish | undefined) => void;
+
+  // Mate groups
+  moveMateGroup: (anchorMemberId: string, delta: [number, number, number]) => void;
+  unmateAll: (groupId: string) => void;
+  unmateBoard: (memberId: string) => void;
+  getMateGroupForMember: (memberId: string) => MateGroup | undefined;
 
   // Load project from template / object
   loadProjectData: (members: import('./types').WoodMember[], name: string) => void;
@@ -785,12 +793,42 @@ export const useAppStore = create<AppStore>()(
     };
 
     const steps = get().project.assemblySteps;
+    // Update mate groups: merge A and B into one group
+    const existingGroups = get().project.mateGroups ?? [];
+    const groupA = existingGroups.find((g) => g.memberIds.includes(a.id));
+    const groupB = existingGroups.find((g) => g.memberIds.includes(b.id));
+    let newGroups: MateGroup[];
+    if (groupA && groupB && groupA.id !== groupB.id) {
+      // Merge two groups
+      const merged: MateGroup = {
+        id: groupA.id,
+        memberIds: [...new Set([...groupA.memberIds, ...groupB.memberIds])],
+      };
+      newGroups = existingGroups
+        .filter((g) => g.id !== groupA.id && g.id !== groupB.id)
+        .concat(merged);
+    } else if (groupA) {
+      // Add B to A's group
+      newGroups = existingGroups.map((g) =>
+        g.id === groupA.id ? { ...g, memberIds: [...new Set([...g.memberIds, b.id])] } : g
+      );
+    } else if (groupB) {
+      // Add A to B's group
+      newGroups = existingGroups.map((g) =>
+        g.id === groupB.id ? { ...g, memberIds: [...new Set([...g.memberIds, a.id])] } : g
+      );
+    } else {
+      // New group
+      newGroups = [...existingGroups, { id: crypto.randomUUID(), memberIds: [a.id, b.id] }];
+    }
+
     const nextProject = {
       ...get().project,
       members: get().project.members.map((m) =>
         m.id === b.id ? migrateMember({ ...m, ...patch }) : m
       ),
       mates: [...get().project.mates, mate],
+      mateGroups: newGroups,
       ...(get().ui.viewportMode === 'assembly'
         ? {
             assemblySteps: [
@@ -821,6 +859,48 @@ export const useAppStore = create<AppStore>()(
 
     return mate.id;
   },
+
+  moveMateGroup: (anchorMemberId, delta) => {
+    const group = get().project.mateGroups?.find((g) => g.memberIds.includes(anchorMemberId));
+    if (!group) return;
+    const otherIds = group.memberIds.filter((id) => id !== anchorMemberId);
+    if (otherIds.length === 0) return;
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) => {
+        if (!otherIds.includes(m.id)) return m;
+        return migrateMember({
+          ...m,
+          position: [
+            m.position[0] + delta[0],
+            m.position[1] + delta[1],
+            m.position[2] + delta[2],
+          ] as [number, number, number],
+        });
+      }),
+    });
+  },
+
+  unmateAll: (groupId) => {
+    commitProject(set, get, {
+      ...get().project,
+      mateGroups: (get().project.mateGroups ?? []).filter((g) => g.id !== groupId),
+    });
+  },
+
+  unmateBoard: (memberId) => {
+    const groups = get().project.mateGroups ?? [];
+    const newGroups = groups
+      .map((g) => ({ ...g, memberIds: g.memberIds.filter((id) => id !== memberId) }))
+      .filter((g) => g.memberIds.length > 1);
+    commitProject(set, get, {
+      ...get().project,
+      mateGroups: newGroups,
+    });
+  },
+
+  getMateGroupForMember: (memberId) =>
+    get().project.mateGroups?.find((g) => g.memberIds.includes(memberId)),
 
   setMemberScreenBounds: (bounds) =>
     set((s) => ({ ui: { ...s.ui, memberScreenBounds: bounds } })),

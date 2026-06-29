@@ -29,7 +29,6 @@ import RotationRing from './RotationRing';
 import CrossCutPreviewLine from './CrossCutPreviewLine';
 import RipCutPreviewLine from './RipCutPreviewLine';
 import ScrapBox from './ScrapBox';
-import NavCube from './NavCube';
 
 function ShadowFloor() {
   return (
@@ -107,7 +106,6 @@ export default function Viewport() {
         </div>
       )}
       {showWelcome && <ViewportWelcome />}
-      <NavCube />
       <QuickDimensionsPanel />
       <RadialOrbitalSelector />
       <FastenerPlacementBar />

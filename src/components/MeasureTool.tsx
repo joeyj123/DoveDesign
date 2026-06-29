@@ -10,30 +10,64 @@ const GREEN = '#22c55e';
 const GREEN_BRIGHT = '#4ade80';
 const BLUE = '#3b82f6';
 const SNAP_RADIUS = 0.5;
-// Only snap to cardinal axes (0°, 90°, 180°, 270°) — no 45°
-const CARDINAL_ANGLES_DEG = [0, 90, 180, 270];
 const SNAP_THRESHOLD_DEG = 8;
 
-function snapAngle(
+function projectOntoPlane(P: THREE.Vector3, O: THREE.Vector3, N: THREE.Vector3): THREE.Vector3 {
+  const d = P.clone().sub(O).dot(N);
+  return P.clone().sub(N.clone().multiplyScalar(d));
+}
+
+// Snap end point to cardinal axes of the work plane
+function snapOnPlane(
   start: THREE.Vector3,
   end: THREE.Vector3,
+  normal: THREE.Vector3,
   shift: boolean
 ): { point: THREE.Vector3; snapped: boolean } {
   if (shift) return { point: end.clone(), snapped: false };
-  const dx = end.x - start.x;
-  const dz = end.z - start.z;
-  const rawDeg = ((Math.atan2(dz, dx) * 180) / Math.PI + 360) % 360;
-  const dist = Math.sqrt(dx * dx + dz * dz);
-  for (const sd of CARDINAL_ANGLES_DEG) {
-    let diff = Math.abs(rawDeg - sd);
-    if (diff > 180) diff = 360 - diff;
-    if (diff < SNAP_THRESHOLD_DEG) {
-      const rad = (sd * Math.PI) / 180;
-      return {
-        point: new THREE.Vector3(start.x + Math.cos(rad) * dist, start.y, start.z + Math.sin(rad) * dist),
-        snapped: true,
-      };
+
+  const up = new THREE.Vector3(0, 1, 0);
+  const isHorizontal = Math.abs(normal.dot(up)) > 0.85;
+
+  if (isHorizontal) {
+    // Horizontal face: snap to world X or Z
+    const dx = end.x - start.x;
+    const dz = end.z - start.z;
+    const rawDeg = ((Math.atan2(dz, dx) * 180) / Math.PI + 360) % 360;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    for (const sd of [0, 90, 180, 270]) {
+      let diff = Math.abs(rawDeg - sd);
+      if (diff > 180) diff = 360 - diff;
+      if (diff < SNAP_THRESHOLD_DEG) {
+        const rad = (sd * Math.PI) / 180;
+        return {
+          point: new THREE.Vector3(start.x + Math.cos(rad) * dist, start.y, start.z + Math.sin(rad) * dist),
+          snapped: true,
+        };
+      }
     }
+    return { point: end.clone(), snapped: false };
+  }
+
+  // Vertical face: snap to face-local horizontal (faceRight) or vertical (faceUp)
+  const faceRight = new THREE.Vector3().crossVectors(normal, up).normalize();
+  const faceUp = new THREE.Vector3().crossVectors(faceRight, normal).normalize();
+
+  const dir = end.clone().sub(start);
+  const dist = dir.length();
+  if (dist < 0.001) return { point: end.clone(), snapped: false };
+  const dirN = dir.clone().normalize();
+
+  const angleToRight = Math.acos(Math.min(1, Math.abs(dirN.dot(faceRight)))) * 180 / Math.PI;
+  const angleToUp = Math.acos(Math.min(1, Math.abs(dirN.dot(faceUp)))) * 180 / Math.PI;
+
+  if (angleToRight < SNAP_THRESHOLD_DEG) {
+    const s = dirN.dot(faceRight) >= 0 ? 1 : -1;
+    return { point: start.clone().addScaledVector(faceRight, s * dist), snapped: true };
+  }
+  if (angleToUp < SNAP_THRESHOLD_DEG) {
+    const s = dirN.dot(faceUp) >= 0 ? 1 : -1;
+    return { point: start.clone().addScaledVector(faceUp, s * dist), snapped: true };
   }
   return { point: end.clone(), snapped: false };
 }
@@ -66,22 +100,16 @@ function nearestSnapPoint(
     for (const c of m.cuts) { if (c.type === 'ripCut' && c.targetWidth) w = c.targetWidth; }
     const hL = m.length / 2, hT = m.thickness / 2, hW = w / 2;
 
-    // 8 corners
     const corners: [number, number, number][] = [
       [-hL,-hT,-hW],[-hL,-hT,hW],[-hL,hT,-hW],[-hL,hT,hW],
       [hL,-hT,-hW],[hL,-hT,hW],[hL,hT,-hW],[hL,hT,hW],
     ];
-    // 6 face centers
     const faceCenters: [number, number, number][] = [
       [-hL,0,0],[hL,0,0],[0,-hT,0],[0,hT,0],[0,0,-hW],[0,0,hW],
     ];
-    // 12 edge midpoints
     const edgeMids: [number, number, number][] = [
-      // 4 edges along X axis (at each combo of Y and Z extremes)
       [0,-hT,-hW],[0,-hT,hW],[0,hT,-hW],[0,hT,hW],
-      // 4 edges along Y axis
       [-hL,0,-hW],[-hL,0,hW],[hL,0,-hW],[hL,0,hW],
-      // 4 edges along Z axis
       [-hL,-hT,0],[-hL,hT,0],[hL,-hT,0],[hL,hT,0],
     ];
 
@@ -97,7 +125,6 @@ function nearestSnapPoint(
     for (const c of corners) check(c, 'corner');
     for (const f of faceCenters) check(f, 'face');
     for (const e of edgeMids) check(e, 'edge');
-    // center
     check([0,0,0], 'face');
   }
   return best ? { point: best, kind: bestKind, memberId: bestMemberId } : null;
@@ -122,6 +149,10 @@ export default function MeasureTool() {
   const startMemberIdRef = useRef<string | undefined>(undefined);
   const startFaceNormalRef = useRef<THREE.Vector3 | undefined>(undefined);
   const cursorFaceNormalRef = useRef<THREE.Vector3 | undefined>(undefined);
+
+  // Work plane: set on first click, used to project second click
+  const workPlaneNormalRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 1, 0));
+  const workPlaneOriginRef = useRef<THREE.Vector3 | null>(null);
 
   const [cursor, setCursor] = useState<THREE.Vector3 | null>(null);
   const [cursorKind, setCursorKind] = useState<SnapKind>('grid');
@@ -148,38 +179,45 @@ export default function MeasureTool() {
 
       const start = useAppStore.getState().ui.measureStartPoint;
       if (!start) {
+        // First click — set work plane from face normal
+        const faceNorm = cursorFaceNormalRef.current?.clone() ?? new THREE.Vector3(0, 1, 0);
+        workPlaneNormalRef.current = faceNorm;
+        workPlaneOriginRef.current = pt.clone();
         setMeasureStartPoint({ x: pt.x, y: pt.y, z: pt.z });
         startMemberIdRef.current = cursorMemberIdRef.current;
-        startFaceNormalRef.current = cursorFaceNormalRef.current?.clone();
+        startFaceNormalRef.current = faceNorm.clone();
       } else {
         const sv = new THREE.Vector3(start.x, start.y, start.z);
-        const { point: end } = snapAngle(sv, pt, e.shiftKey);
+        const wn = workPlaneNormalRef.current;
+        const { point: end } = snapOnPlane(sv, pt, wn, e.shiftKey);
 
-        // Determine if both endpoints are on the same board for anchoring
-        const clickMemberId = cursorMemberIdRef.current;
-        const startMemberId = startMemberIdRef.current;
+        // Always anchor to the first-clicked board (if it was a board hit)
+        const anchorId = startMemberIdRef.current;
         let anchorMemberId: string | undefined;
         let localStart: { x: number; y: number; z: number } | undefined;
         let localEnd: { x: number; y: number; z: number } | undefined;
+        let localFaceNormal: { x: number; y: number; z: number } | undefined;
 
-        if (clickMemberId && clickMemberId === startMemberId) {
-          const anchor = members.find((m) => m.id === clickMemberId);
+        if (anchorId) {
+          const anchor = members.find((m) => m.id === anchorId);
           if (anchor) {
-            anchorMemberId = clickMemberId;
+            anchorMemberId = anchorId;
             const mat = new THREE.Matrix4().compose(
               new THREE.Vector3(...anchor.position),
               new THREE.Quaternion().setFromEuler(new THREE.Euler(...anchor.rotation)),
               new THREE.Vector3(1, 1, 1)
             );
-            const inv = mat.invert();
+            const inv = mat.clone().invert();
             const ls = sv.clone().applyMatrix4(inv);
             const le = end.clone().applyMatrix4(inv);
             localStart = { x: ls.x, y: ls.y, z: ls.z };
             localEnd = { x: le.x, y: le.y, z: le.z };
+            // Transform face normal to local space
+            const localN = wn.clone().transformDirection(inv);
+            localFaceNormal = { x: localN.x, y: localN.y, z: localN.z };
           }
         }
 
-        const faceNormal = startFaceNormalRef.current ?? cursorFaceNormalRef.current;
         addDimensionLine({
           id: crypto.randomUUID(),
           startPoint: { x: sv.x, y: sv.y, z: sv.z },
@@ -188,11 +226,13 @@ export default function MeasureTool() {
           anchorMemberId,
           localStart,
           localEnd,
-          faceNormal: faceNormal ? { x: faceNormal.x, y: faceNormal.y, z: faceNormal.z } : undefined,
+          faceNormal: { x: wn.x, y: wn.y, z: wn.z },
+          localFaceNormal,
         });
         setMeasureStartPoint(null);
         startMemberIdRef.current = undefined;
         startFaceNormalRef.current = undefined;
+        workPlaneOriginRef.current = null;
       }
     }
 
@@ -232,10 +272,21 @@ export default function MeasureTool() {
       } else {
         cursorFaceNormalRef.current = undefined;
       }
+      // For move meshes (hit by member id), track which member
+      const meshMemberId = hits[0].object.userData.memberId as string | undefined;
+      if (!cursorMemberIdRef.current || meshMemberId) {
+        cursorMemberIdRef.current = meshMemberId;
+      }
     } else {
       cursorFaceNormalRef.current = undefined;
       const fp = new THREE.Vector3();
       if (rc.current.ray.intersectPlane(FLOOR, fp)) hitPt = fp;
+      cursorMemberIdRef.current = undefined;
+    }
+
+    // If work plane is established (first click done), project cursor onto it
+    if (hitPt && workPlaneOriginRef.current && measureStartPoint) {
+      hitPt = projectOntoPlane(hitPt, workPlaneOriginRef.current, workPlaneNormalRef.current);
     }
 
     if (hitPt) {
@@ -243,13 +294,13 @@ export default function MeasureTool() {
       if (snap) {
         hitPt = snap.point;
         snapKind = snap.kind;
-        snapMemberId = snap.memberId;
+        if (!measureStartPoint) snapMemberId = snap.memberId;
       }
     }
 
     cursorRef.current = hitPt;
     cursorKindRef.current = snapKind;
-    cursorMemberIdRef.current = snapMemberId;
+    if (!measureStartPoint) cursorMemberIdRef.current = snapMemberId;
 
     setCursor(hitPt ? hitPt.clone() : null);
     setCursorKind(snapKind);
@@ -261,28 +312,32 @@ export default function MeasureTool() {
     ? new THREE.Vector3(measureStartPoint.x, measureStartPoint.y, measureStartPoint.z)
     : null;
 
+  const wn = workPlaneNormalRef.current;
   const { point: snappedCursor, snapped: lineSnapped } =
     startVec && cursor
-      ? snapAngle(startVec, cursor, shiftRef.current)
+      ? snapOnPlane(startVec, cursor, wn, shiftRef.current)
       : { point: cursor, snapped: false };
 
+  // Offset along face normal for the live preview line
+  const OFFSET = 0.05;
   const livePoints: [number, number, number][] = startVec && snappedCursor
-    ? [[startVec.x, startVec.y + 0.05, startVec.z],
-       [snappedCursor.x, snappedCursor.y + 0.05, snappedCursor.z]]
+    ? [
+        [startVec.x + wn.x * OFFSET, startVec.y + wn.y * OFFSET, startVec.z + wn.z * OFFSET],
+        [snappedCursor.x + wn.x * OFFSET, snappedCursor.y + wn.y * OFFSET, snappedCursor.z + wn.z * OFFSET],
+      ]
     : [];
 
   const liveDist  = startVec && snappedCursor ? startVec.distanceTo(snappedCursor) : 0;
   const midPt     = startVec && snappedCursor
     ? new THREE.Vector3(
-        (startVec.x + snappedCursor.x) / 2,
-        Math.max(startVec.y, snappedCursor.y) + 0.25,
-        (startVec.z + snappedCursor.z) / 2
+        (startVec.x + snappedCursor.x) / 2 + wn.x * 0.25,
+        (startVec.y + snappedCursor.y) / 2 + wn.y * 0.25,
+        (startVec.z + snappedCursor.z) / 2 + wn.z * 0.25
       )
     : null;
 
   const lineColor = lineSnapped ? AMBER_BRIGHT : AMBER;
 
-  // Cursor dot color by snap kind
   const cursorColor =
     cursorKind === 'edge' || cursorKind === 'corner' ? BLUE :
     startVec ? (cursorKind !== 'grid' ? AMBER_BRIGHT : AMBER) :
@@ -291,7 +346,7 @@ export default function MeasureTool() {
   return (
     <>
       {startVec && (
-        <mesh position={[startVec.x, startVec.y + 0.06, startVec.z]}>
+        <mesh position={[startVec.x + wn.x * OFFSET, startVec.y + wn.y * OFFSET, startVec.z + wn.z * OFFSET]}>
           <sphereGeometry args={[0.18, 12, 12]} />
           <meshBasicMaterial color={GREEN} />
         </mesh>
@@ -302,13 +357,12 @@ export default function MeasureTool() {
       )}
 
       {cursor && (
-        <mesh position={[cursor.x, cursor.y + 0.06, cursor.z]}>
+        <mesh position={[cursor.x, cursor.y, cursor.z]}>
           <sphereGeometry args={[cursorKind !== 'grid' ? 0.18 : 0.11, 10, 10]} />
           <meshBasicMaterial color={cursorColor} transparent opacity={0.85} />
         </mesh>
       )}
 
-      {/* Distance label only — no angle label during placement */}
       {midPt && liveDist > 0.05 && (
         <Html position={[midPt.x, midPt.y, midPt.z]} center zIndexRange={[0, 10]}>
           <div className="px-2 py-0.5 rounded-full text-xs font-semibold text-white pointer-events-none select-none whitespace-nowrap"

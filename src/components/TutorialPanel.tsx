@@ -340,16 +340,16 @@ export default function TutorialPanel() {
 
       <Section search={searchLower} onMatch={registerMatch} title="Connections & Unmate">
         <p className="text-base text-zinc-400">
-          To see what a board is connected to, select it and check the <strong className="text-zinc-300">Inspector</strong> tab — Connections lists every mate. Click <strong className="text-zinc-300">Unmate</strong> next to any connection to detach those two boards.
+          When you mate two boards, they become a <strong className="text-zinc-300">group</strong> — moving either board moves all boards in the group together. This makes it easy to reposition assembled sections.
         </p>
-        <p className="text-base text-zinc-400 mt-1">
-          <strong className="text-zinc-300">Shortcut:</strong> Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">U</kbd> to instantly unmate the most recent connection on the selected board without opening the Inspector.
-        </p>
-        <p className="text-base text-zinc-400 mt-1">
-          This does <strong className="text-zinc-300">NOT</strong> undo the position change — use <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Ctrl+Z</kbd> if you want to fully reverse a mate including where the board moved.
-        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
+          <li>Select any board in the group — the left panel shows an <strong className="text-zinc-300">Unmate This Board</strong> button to remove just that board from the group.</li>
+          <li><strong className="text-zinc-300">Unmate All</strong> separates the entire group — all boards become independent again. They stay in their current positions.</li>
+          <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">U</kbd> to quickly unmate the most recent connection on the selected board.</li>
+          <li>Unmate does <strong className="text-zinc-300">not</strong> move any boards. Use <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Ctrl+Z</kbd> to fully reverse a mate including the position change.</li>
+        </ul>
         <p className="text-base text-zinc-500 mt-2">
-          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I unmate boards?&quot; · &quot;Can I undo a mate?&quot; · &quot;U key unmate&quot;
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I unmate boards?&quot; · &quot;Why do boards move together?&quot; · &quot;How do I separate mated boards?&quot;
         </p>
       </Section>
 
@@ -775,19 +775,18 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} title="Rotation Axis Lock &amp; Type-to-Snap" onMatch={registerMatch}>
+      <Section search={searchLower} title="Rotation — Move Gizmo Rotate Mode" onMatch={registerMatch}>
         <p className="text-base text-zinc-400">
-          When a board is selected and the rotation ring is visible, you can lock rotation to one axis and type an exact degree value.
+          Select a board, press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">M</kbd> to activate the move gizmo, then press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Tab</kbd> to switch to Rotate mode. Three colored rings appear in the viewport — red for X, green for Y, blue for Z.
         </p>
         <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
-          <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">M</kbd> to activate the gizmo, then <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Tab</kbd> to switch to Rotate mode.</li>
-          <li>In the left panel, click <strong className="text-zinc-300">X</strong>, <strong className="text-zinc-300">Y</strong>, or <strong className="text-zinc-300">Z</strong> to lock the rotation axis.</li>
-          <li>Type a degree value in the number field and press Enter to snap the board precisely.</li>
-          <li>Click any <strong className="text-zinc-300">tick mark on the amber ring</strong> to snap directly to that angle. Hover a tick to see its degree value.</li>
-          <li>Quick-snap buttons for 0° · 45° · 90° · 135° · 180° appear below the input.</li>
+          <li>Drag any colored ring to rotate the board around that axis.</li>
+          <li>A floating angle badge shows the current rotation degree live.</li>
+          <li>In the left panel, click <strong className="text-zinc-300">X</strong>, <strong className="text-zinc-300">Y</strong>, or <strong className="text-zinc-300">Z</strong> to select an axis, then type a degree value and press Enter to set an exact angle.</li>
+          <li>Quick-snap buttons for 0° · 45° · 90° · 135° · 180° appear at the bottom of the rotation panel.</li>
         </ul>
         <p className="text-base text-zinc-500 mt-2">
-          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;Rotate board to exact angle&quot; · &quot;Click tick mark rotation&quot;
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I rotate a board?&quot; · &quot;Snap rotation to 45 degrees&quot; · &quot;How do I use the rotate gizmo?&quot;
         </p>
       </Section>
 

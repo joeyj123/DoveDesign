@@ -95,6 +95,9 @@ export default function ToolPanel() {
   const dimensionLines = useAppStore((s) => s.project.dimensionLines ?? []);
   const removeDimensionLine = useAppStore((s) => s.removeDimensionLine);
   const selectDimensionLine = useAppStore((s) => s.selectDimensionLine);
+  const mateGroups = useAppStore((s) => s.project.mateGroups ?? []);
+  const unmateAll = useAppStore((s) => s.unmateAll);
+  const unmateBoard = useAppStore((s) => s.unmateBoard);
   const selectedDrawMaterial = useAppStore((s) => s.ui.selectedDrawMaterial);
   const setDrawMaterial = useAppStore((s) => s.setDrawMaterial);
   const setFinishPanelOpen = useAppStore((s) => s.setFinishPanelOpen);
@@ -105,6 +108,10 @@ export default function ToolPanel() {
   const showRotationPanel =
     activeTool === 'select' && transformGizmoActive && transformMode === 'rotate' && !!selectedMember;
 
+  const selectedMateGroup = selectedId
+    ? mateGroups.find((g) => g.memberIds.includes(selectedId))
+    : null;
+
   // Dim-to-cut panel: selected dimension line anchored to a board
   const selectedDimLine = selectedDimensionLineId
     ? dimensionLines.find((l) => l.id === selectedDimensionLineId)
@@ -113,7 +120,7 @@ export default function ToolPanel() {
     ? allMembers.find((m) => m.id === selectedDimLine.anchorMemberId)
     : null;
 
-  if ((activeTool === 'select' || activeTool === 'measure') && !showRotationPanel && !selectedDimLine && !finishPanelOpen) return null;
+  if ((activeTool === 'select' || activeTool === 'measure') && !showRotationPanel && !selectedDimLine && !finishPanelOpen && !selectedMateGroup) return null;
 
   if (showRotationPanel) {
     const axisIdx = rotationAxis === 'x' ? 0 : rotationAxis === 'y' ? 1 : 2;
@@ -193,6 +200,34 @@ export default function ToolPanel() {
             </button>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  // Mate group panel
+  if (selectedMateGroup && selectedMember && activeTool === 'select' && !showRotationPanel) {
+    return (
+      <div className="mb-4 rounded-xl border border-zinc-700 bg-zinc-900/50 p-3 space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-amber-500/90">Mated Group</p>
+        <p className="text-sm text-zinc-400">
+          This board is grouped with {selectedMateGroup.memberIds.length - 1} other board{selectedMateGroup.memberIds.length !== 2 ? 's' : ''}. Moving it will move the whole group.
+        </p>
+        <button
+          type="button"
+          className="btn-secondary w-full text-sm"
+          onClick={() => {
+            if (selectedId) unmateBoard(selectedId);
+          }}
+        >
+          Unmate This Board
+        </button>
+        <button
+          type="button"
+          className="btn-secondary w-full text-sm border-red-700/50 text-red-400 hover:border-red-500"
+          onClick={() => unmateAll(selectedMateGroup.id)}
+        >
+          Unmate All ({selectedMateGroup.memberIds.length} boards)
+        </button>
       </div>
     );
   }
