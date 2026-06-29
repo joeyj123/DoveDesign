@@ -261,22 +261,18 @@ export default function MeasureTool() {
     let snapKind: SnapKind = 'grid';
     let snapMemberId: string | undefined;
 
-    const hits = rc.current.intersectObjects(boardMeshesRef.current, true);
+    // Non-recursive: only test the parent board meshes, not CSG child objects
+    const hits = rc.current.intersectObjects(boardMeshesRef.current, false);
     if (hits.length > 0) {
       hitPt = hits[0].point.clone();
       if (hits[0].face) {
-        const worldNormal = hits[0].face.normal.clone()
-          .transformDirection(hits[0].object.matrixWorld)
-          .normalize();
+        const normalMatrix = new THREE.Matrix3().getNormalMatrix(hits[0].object.matrixWorld);
+        const worldNormal = hits[0].face.normal.clone().applyMatrix3(normalMatrix).normalize();
         cursorFaceNormalRef.current = worldNormal;
       } else {
         cursorFaceNormalRef.current = undefined;
       }
-      // For move meshes (hit by member id), track which member
-      const meshMemberId = hits[0].object.userData.memberId as string | undefined;
-      if (!cursorMemberIdRef.current || meshMemberId) {
-        cursorMemberIdRef.current = meshMemberId;
-      }
+      cursorMemberIdRef.current = hits[0].object.userData.memberId as string | undefined;
     } else {
       cursorFaceNormalRef.current = undefined;
       const fp = new THREE.Vector3();

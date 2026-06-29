@@ -95,7 +95,7 @@ export default function TransformGizmo({ member, objectRef }: Props) {
     };
     tc.addEventListener('dragging-changed', handler);
     return () => tc.removeEventListener('dragging-changed', handler);
-  }, [controls, member, objectRef, transformMode, allMembers, updateMember, moveMateGroup, angleSnapEnabled, angleSnapIncrement, viewportMode, setOrbitControlsEnabled, snapToGrid]);
+  }, [controls, member, objectRef, transformMode, allMembers, updateMember, moveMateGroup, angleSnapEnabled, angleSnapIncrement, viewportMode, setOrbitControlsEnabled, snapToGrid, transformGizmoActive]);
 
   if (activeTool !== 'select' || !transformGizmoActive || !attached || !objectRef.current) return null;
 

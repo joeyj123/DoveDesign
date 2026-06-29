@@ -473,6 +473,9 @@ export default function WoodBlock({ member }: Props) {
             <lineBasicMaterial color="#ff8800" />
           </lineSegments>
         )}
+
+        {/* CenterlineRenderer is a child of the mesh so its local coords auto-follow the board */}
+        <CenterlineRenderer member={member} />
       </mesh>
 
       {edgeToolActive &&
@@ -512,7 +515,6 @@ export default function WoodBlock({ member }: Props) {
       {isSelected && <TransformGizmo member={member} objectRef={meshRef} />}
       <SnapPointHandles member={member} meshRef={meshRef} forMate />
       <JointMarkerRenderer member={member} />
-      <CenterlineRenderer member={member} />
     </>
   );
 }
