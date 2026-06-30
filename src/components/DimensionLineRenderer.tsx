@@ -5,6 +5,7 @@ import { useThree, useFrame } from '@react-three/fiber';
 import { useAppStore } from '../store';
 import type { DimensionLine, WoodMember } from '../types';
 import { registerDimDragHandler, type DimDragState } from '../lib/dimDragManager';
+import { CADGeometryEngine, migrateWoodMemberToSolidBoard } from '../core/Engine';
 
 const AMBER = '#F59E0B';
 const AMBER_BRIGHT = '#FCD34D';
@@ -141,14 +142,41 @@ export function BoardDimensionLines({ member }: { member: WoodMember }) {
   );
   if (anchored.length === 0) return null;
 
+  // Per CAD_MANIFESTO.md Law 1: when (faceId, u, v) is present, that is the
+  // source of truth — derive the local-space render points fresh from it via
+  // inverse projection every render, rather than trusting stored localStart/
+  // localEnd. Boards mounted as a Three.js mesh child then carry this local
+  // point to world space automatically as the board moves/rotates.
+  const board = (dl: { anchorFaceId?: string; startUV?: { u: number; v: number }; endUV?: { u: number; v: number } }) =>
+    dl.anchorFaceId && dl.startUV && dl.endUV
+      ? migrateWoodMemberToSolidBoard({
+          id: member.id, label: member.label, species: member.species,
+          length: member.length, thickness: member.thickness, width: member.width,
+          position: member.position, rotation: member.rotation,
+        })
+      : null;
+
   return (
     <>
       {anchored.map((dl) => {
-        const start = new THREE.Vector3(dl.localStart!.x, dl.localStart!.y, dl.localStart!.z);
-        const end = new THREE.Vector3(dl.localEnd!.x, dl.localEnd!.y, dl.localEnd!.z);
-        const normal = dl.localFaceNormal
-          ? new THREE.Vector3(dl.localFaceNormal.x, dl.localFaceNormal.y, dl.localFaceNormal.z)
-          : new THREE.Vector3(0, 1, 0);
+        let start: THREE.Vector3;
+        let end: THREE.Vector3;
+        let normal: THREE.Vector3;
+        const b = board(dl);
+        const face = b?.faces.find((f) => f.id === dl.anchorFaceId);
+        if (b && face && dl.startUV && dl.endUV) {
+          const sLocal = CADGeometryEngine.projectUVToLocal(face, dl.startUV.u, dl.startUV.v);
+          const eLocal = CADGeometryEngine.projectUVToLocal(face, dl.endUV.u, dl.endUV.v);
+          start = new THREE.Vector3(sLocal.x, sLocal.y, sLocal.z);
+          end = new THREE.Vector3(eLocal.x, eLocal.y, eLocal.z);
+          normal = new THREE.Vector3(face.normal.x, face.normal.y, face.normal.z);
+        } else {
+          start = new THREE.Vector3(dl.localStart!.x, dl.localStart!.y, dl.localStart!.z);
+          end = new THREE.Vector3(dl.localEnd!.x, dl.localEnd!.y, dl.localEnd!.z);
+          normal = dl.localFaceNormal
+            ? new THREE.Vector3(dl.localFaceNormal.x, dl.localFaceNormal.y, dl.localFaceNormal.z)
+            : new THREE.Vector3(0, 1, 0);
+        }
         return (
           <DimensionLineVisual
             key={dl.id}

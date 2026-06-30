@@ -343,6 +343,15 @@ export interface DimensionLine {
   faceNormal?: { x: number; y: number; z: number };
   /** Face normal in board local space (for anchored lines — transforms with the board) */
   localFaceNormal?: { x: number; y: number; z: number };
+  /**
+   * Face-relative storage per CAD_MANIFESTO.md Law 1 / VECTOR_PROJECTION_MATH.md
+   * (Phase 16). When present, these are the SOURCE OF TRUTH and localStart/
+   * localEnd above are re-derived fresh from them every render via
+   * CADGeometryEngine.projectUVToLocal — never trusted as stored values.
+   */
+  anchorFaceId?: FaceId;
+  startUV?: { u: number; v: number };
+  endUV?: { u: number; v: number };
 }
 
 // ─── Mate Groups ──────────────────────────────────────────────────────────
@@ -351,6 +360,13 @@ export interface MateGroup {
   id: string;
   memberIds: string[];
 }
+
+// ─── Mate Constraints (CAD_MANIFESTO.md Law 1/2 — Phase 16) ───────────────
+// A standing relationship between two board faces, solved fresh every time
+// either board moves — never a one-time coordinate copy. See
+// src/core/Engine.ts (CADGeometryEngine.solveConstraints).
+import type { MateConstraint } from './core/Engine';
+export type { MateConstraint };
 
 // ─── Project Root ──────────────────────────────────────────────────────────
 
@@ -372,6 +388,8 @@ export interface Project {
   assemblySteps: AssemblyStep[];
   dimensionLines: DimensionLine[];
   mateGroups: MateGroup[];
+  /** Phase 16: standing face-to-face mate constraints, solved fresh every change. */
+  mateConstraints: MateConstraint[];
 }
 
 // ─── UI State (not persisted to disk) ─────────────────────────────────────

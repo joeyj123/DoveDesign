@@ -17,6 +17,7 @@ import { findCloseFacePairs, buildMateFromPair, lapJointPatch } from './lib/quic
 import { createCutOperation } from './lib/joinery';
 import { serializeWcad, parseWcad } from './lib/wcad';
 import { splitByCrossCut, splitByRipCut } from './lib/memberSplit';
+import { CADGeometryEngine, migrateWoodMemberToSolidBoard, type MateConstraint as EngineMateConstraint } from './core/Engine';
 
 const DEFAULT_ESTIMATING: EstimatingSettings = {
   taxRatePercent: 8.25,
@@ -43,6 +44,7 @@ const DEFAULT_PROJECT: Project = {
   assemblySteps: [],
   dimensionLines: [],
   mateGroups: [],
+  mateConstraints: [],
 };
 
 const DEFAULT_UI: UIState = {
@@ -154,6 +156,7 @@ function migrateProject(p: Project): Project {
     assemblySteps: p.assemblySteps ?? [],
     dimensionLines: p.dimensionLines ?? [],
     mateGroups: p.mateGroups ?? [],
+    mateConstraints: p.mateConstraints ?? [],
     members: p.members.map(migrateMember),
   };
 }
@@ -350,6 +353,22 @@ interface AppStore {
   unmateAll: (groupId: string) => void;
   unmateBoard: (memberId: string) => void;
   getMateGroupForMember: (memberId: string) => MateGroup | undefined;
+
+  /**
+   * Phase 16 — CAD_MANIFESTO.md Law 1 compliant mate movement. Given the
+   * board currently being dragged (with its LIVE position/rotation, which
+   * may not be committed to the store yet), solves every MateConstraint
+   * reachable from it via CADGeometryEngine.solveConstraints and writes
+   * the solved placements onto the other boards. This replaces the old
+   * "copy a remembered delta onto the group" approach — placements are
+   * derived fresh from the constraint graph every call, not nudged.
+   */
+  solveMateConstraints: (
+    movedMemberId: string,
+    livePosition: [number, number, number],
+    liveRotation: [number, number, number],
+    skipHistory?: boolean
+  ) => void;
 
   // Load project from template / object
   loadProjectData: (members: import('./types').WoodMember[], name: string) => void;
@@ -794,6 +813,16 @@ export const useAppStore = create<AppStore>()(
       offsetB,
     };
 
+    const newConstraint: EngineMateConstraint = {
+      id: mate.id,
+      solidAId: a.id,
+      faceAId: mateFaceA.face,
+      solidBId: b.id,
+      faceBId: mateFaceB.face,
+      type: 'flush',
+      offset: offsetB ? { x: offsetB[0], y: offsetB[1], z: 0 } : undefined,
+    };
+
     const steps = get().project.assemblySteps;
     // Update mate groups: merge A and B into one group
     const existingGroups = get().project.mateGroups ?? [];
@@ -831,6 +860,7 @@ export const useAppStore = create<AppStore>()(
       ),
       mates: [...get().project.mates, mate],
       mateGroups: newGroups,
+      mateConstraints: [...(get().project.mateConstraints ?? []), newConstraint],
       ...(get().ui.viewportMode === 'assembly'
         ? {
             assemblySteps: [
@@ -893,9 +923,14 @@ export const useAppStore = create<AppStore>()(
   },
 
   unmateAll: (groupId) => {
+    const group = get().project.mateGroups?.find((g) => g.id === groupId);
+    const memberIds = new Set(group?.memberIds ?? []);
     commitProject(set, get, {
       ...get().project,
       mateGroups: (get().project.mateGroups ?? []).filter((g) => g.id !== groupId),
+      mateConstraints: (get().project.mateConstraints ?? []).filter(
+        (c) => !memberIds.has(c.solidAId) || !memberIds.has(c.solidBId)
+      ),
     });
   },
 
@@ -907,11 +942,46 @@ export const useAppStore = create<AppStore>()(
     commitProject(set, get, {
       ...get().project,
       mateGroups: newGroups,
+      mateConstraints: (get().project.mateConstraints ?? []).filter(
+        (c) => c.solidAId !== memberId && c.solidBId !== memberId
+      ),
     });
   },
 
   getMateGroupForMember: (memberId) =>
     get().project.mateGroups?.find((g) => g.memberIds.includes(memberId)),
+
+  solveMateConstraints: (movedMemberId, livePosition, liveRotation, skipHistory) => {
+    const { project } = get();
+    const constraints = project.mateConstraints ?? [];
+    if (constraints.length === 0) return;
+
+    const boards = project.members.map((m) =>
+      m.id === movedMemberId
+        ? migrateWoodMemberToSolidBoard({ ...m, position: livePosition, rotation: liveRotation })
+        : migrateWoodMemberToSolidBoard(m)
+    );
+
+    const solved = CADGeometryEngine.solveConstraints(boards, constraints, movedMemberId);
+    if (solved.size === 0) return;
+
+    const nextMembers = project.members.map((m) => {
+      const s = solved.get(m.id);
+      if (!s) return m;
+      return migrateMember({
+        ...m,
+        position: [s.position.x, s.position.y, s.position.z],
+        rotation: [s.rotation.x, s.rotation.y, s.rotation.z],
+      });
+    });
+
+    const next = { ...project, members: nextMembers };
+    if (skipHistory) {
+      set({ project: next });
+    } else {
+      commitProject(set, get, next);
+    }
+  },
 
   setMemberScreenBounds: (bounds) =>
     set((s) => ({ ui: { ...s.ui, memberScreenBounds: bounds } })),
@@ -975,6 +1045,7 @@ export const useAppStore = create<AppStore>()(
       ...get().project,
       mates: get().project.mates.filter((m) => m.id !== mateId),
       fasteners: get().project.fasteners.filter((f) => f.mateId !== mateId),
+      mateConstraints: (get().project.mateConstraints ?? []).filter((c) => c.id !== mateId),
     }),
 
   addAttachmentPoint: (point) =>

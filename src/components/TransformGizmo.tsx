@@ -26,7 +26,7 @@ export default function TransformGizmo({ member, objectRef }: Props) {
   const angleSnapIncrement = useAppStore((s) => s.ui.angleSnapIncrement);
   const snapToGrid = useAppStore((s) => s.ui.snapToGrid);
   const updateMember = useAppStore((s) => s.updateMember);
-  const moveMateGroup = useAppStore((s) => s.moveMateGroup);
+  const solveMateConstraints = useAppStore((s) => s.solveMateConstraints);
   const allMembers = useAppStore((s) => s.project.members);
   const viewportMode = useAppStore((s) => s.ui.viewportMode);
   const controls = useThree((s) => s.controls) as { enabled?: boolean } | null;
@@ -79,18 +79,6 @@ export default function TransformGizmo({ member, objectRef }: Props) {
             pos = [Math.round(pos[0]), pos[1], Math.round(pos[2])];
           }
           obj.position.set(pos[0], pos[1], pos[2]);
-          // The mate group was already moved in real time on every 'change' event
-          // during the drag; only apply the final snap correction here, and commit
-          // it (with history) as the last step of the drag.
-          const lastLive = lastDragPosRef.current;
-          if (lastLive) {
-            const correction: [number, number, number] = [
-              pos[0] - lastLive.x,
-              pos[1] - lastLive.y,
-              pos[2] - lastLive.z,
-            ];
-            moveMateGroup(member.id, correction);
-          }
         }
 
         if (transformMode === 'rotate' && angleSnapEnabled) {
@@ -108,28 +96,28 @@ export default function TransformGizmo({ member, objectRef }: Props) {
         }
 
         updateMember(member.id, patch);
+        // Final settle: re-solve the constraint graph from this board's
+        // committed placement so mated boards land exactly in sync (this
+        // commits to history, same undo step as the updateMember above).
+        if (transformMode === 'translate' || transformMode === 'rotate') {
+          solveMateConstraints(member.id, pos, rot);
+        }
         draggingRef.current = false;
         lastDragPosRef.current = null;
       }
     };
 
-    // Fires continuously while dragging — used to move the rest of the mate group
-    // in real time instead of waiting for drag-end (dragging-changed only fires
-    // at start/end).
+    // Fires continuously while dragging — re-solves the mate constraint graph
+    // from this board's LIVE (uncommitted) position/rotation every frame, so
+    // mated boards move together in real time. Per CAD_MANIFESTO.md Law 1,
+    // this is a fresh constraint solve every call, not a remembered delta.
     const changeHandler = () => {
-      if (!draggingRef.current || transformMode !== 'translate' || !objectRef.current) return;
+      if (!draggingRef.current || !objectRef.current) return;
+      if (transformMode !== 'translate' && transformMode !== 'rotate') return;
       const obj = objectRef.current;
-      const last = lastDragPosRef.current;
-      if (!last) return;
-      const delta: [number, number, number] = [
-        obj.position.x - last.x,
-        obj.position.y - last.y,
-        obj.position.z - last.z,
-      ];
-      if (delta[0] !== 0 || delta[1] !== 0 || delta[2] !== 0) {
-        moveMateGroup(member.id, delta, true);
-        lastDragPosRef.current = obj.position.clone();
-      }
+      const pos: [number, number, number] = [obj.position.x, obj.position.y, obj.position.z];
+      const rot: [number, number, number] = [obj.rotation.x, obj.rotation.y, obj.rotation.z];
+      solveMateConstraints(member.id, pos, rot, true);
     };
 
     tc.addEventListener('dragging-changed', handler);
@@ -138,7 +126,7 @@ export default function TransformGizmo({ member, objectRef }: Props) {
       tc.removeEventListener('dragging-changed', handler);
       (tc as unknown as { removeEventListener: (e: string, h: () => void) => void }).removeEventListener('change', changeHandler);
     };
-  }, [controls, member, objectRef, transformMode, allMembers, updateMember, moveMateGroup, angleSnapEnabled, angleSnapIncrement, viewportMode, setOrbitControlsEnabled, snapToGrid, transformGizmoActive]);
+  }, [controls, member, objectRef, transformMode, allMembers, updateMember, solveMateConstraints, angleSnapEnabled, angleSnapIncrement, viewportMode, setOrbitControlsEnabled, snapToGrid, transformGizmoActive]);
 
   if (activeTool !== 'select' || !transformGizmoActive || !attached || !objectRef.current) return null;
 

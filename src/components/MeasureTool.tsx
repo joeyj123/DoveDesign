@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { useThree, useFrame } from '@react-three/fiber';
 import { Line, Html } from '@react-three/drei';
 import { useAppStore } from '../store';
+import { CADGeometryEngine, migrateWoodMemberToSolidBoard } from '../core/Engine';
+import type { FaceId } from '../types';
 
 const AMBER = '#F59E0B';
 const AMBER_BRIGHT = '#FCD34D';
@@ -231,14 +233,17 @@ export default function MeasureTool() {
         let localStart: { x: number; y: number; z: number } | undefined;
         let localEnd: { x: number; y: number; z: number } | undefined;
         let localFaceNormal: { x: number; y: number; z: number } | undefined;
+        let anchorFaceId: FaceId | undefined;
+        let startUV: { u: number; v: number } | undefined;
+        let endUV: { u: number; v: number } | undefined;
 
         if (anchorId) {
-          const anchor = members.find((m) => m.id === anchorId);
-          if (anchor) {
+          const anchorMember = members.find((m) => m.id === anchorId);
+          if (anchorMember) {
             anchorMemberId = anchorId;
             const mat = new THREE.Matrix4().compose(
-              new THREE.Vector3(...anchor.position),
-              new THREE.Quaternion().setFromEuler(new THREE.Euler(...anchor.rotation)),
+              new THREE.Vector3(...anchorMember.position),
+              new THREE.Quaternion().setFromEuler(new THREE.Euler(...anchorMember.rotation)),
               new THREE.Vector3(1, 1, 1)
             );
             const inv = mat.clone().invert();
@@ -249,6 +254,30 @@ export default function MeasureTool() {
             // Transform face normal to local space
             const localN = wn.clone().transformDirection(inv);
             localFaceNormal = { x: localN.x, y: localN.y, z: localN.z };
+
+            // Per VECTOR_PROJECTION_MATH.md Rule B: forward-project the raw hit
+            // points into (faceId, u, v) IMMEDIATELY, before storing anything.
+            const board = migrateWoodMemberToSolidBoard({
+              id: anchorMember.id,
+              label: anchorMember.id,
+              species: 'n/a',
+              length: anchorMember.length,
+              thickness: anchorMember.thickness,
+              width: anchorMember.width,
+              position: anchorMember.position,
+              rotation: anchorMember.rotation,
+            });
+            let bestFace = board.faces[0];
+            let bestDot = -Infinity;
+            for (const f of board.faces) {
+              const d = f.normal.x * localN.x + f.normal.y * localN.y + f.normal.z * localN.z;
+              if (d > bestDot) { bestDot = d; bestFace = f; }
+            }
+            anchorFaceId = bestFace.id as FaceId;
+            const rawStartUV = CADGeometryEngine.projectLocalToUV(bestFace, { x: ls.x, y: ls.y, z: ls.z });
+            const rawEndUV = CADGeometryEngine.projectLocalToUV(bestFace, { x: le.x, y: le.y, z: le.z });
+            startUV = CADGeometryEngine.clampUV(bestFace, rawStartUV.u, rawStartUV.v);
+            endUV = CADGeometryEngine.clampUV(bestFace, rawEndUV.u, rawEndUV.v);
           }
         }
 
@@ -262,6 +291,9 @@ export default function MeasureTool() {
           localEnd,
           faceNormal: { x: wn.x, y: wn.y, z: wn.z },
           localFaceNormal,
+          anchorFaceId,
+          startUV,
+          endUV,
         });
         setMeasureStartPoint(null);
         startMemberIdRef.current = undefined;
