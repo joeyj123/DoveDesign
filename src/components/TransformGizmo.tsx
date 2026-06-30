@@ -30,8 +30,13 @@ export default function TransformGizmo({ member, objectRef }: Props) {
   const allMembers = useAppStore((s) => s.project.members);
   const viewportMode = useAppStore((s) => s.ui.viewportMode);
   const controls = useThree((s) => s.controls) as { enabled?: boolean } | null;
-  const tcRef = useRef<{ addEventListener: (e: string, h: (v: { value: boolean }) => void) => void; removeEventListener: (e: string, h: (v: { value: boolean }) => void) => void } | null>(null);
+  const tcRef = useRef<{
+    addEventListener: (e: string, h: (v: { value: boolean }) => void) => void;
+    removeEventListener: (e: string, h: (v: { value: boolean }) => void) => void;
+  } | null>(null);
   const [attached, setAttached] = useState(false);
+  const draggingRef = useRef(false);
+  const lastDragPosRef = useRef<THREE.Vector3 | null>(null);
 
   const baseDims = useRef({ length: member.length, thickness: member.thickness, width: member.width });
   useEffect(() => {
@@ -48,13 +53,19 @@ export default function TransformGizmo({ member, objectRef }: Props) {
     const handler = (e: { value: boolean }) => {
       if (controls) controls.enabled = !e.value;
       setOrbitControlsEnabled(!e.value);
+
+      if (e.value && objectRef.current) {
+        // Drag start: begin tracking incremental position for real-time mate-group movement
+        draggingRef.current = true;
+        lastDragPosRef.current = objectRef.current.position.clone();
+      }
+
       if (!e.value && objectRef.current) {
         const obj = objectRef.current;
         let pos: [number, number, number] = [obj.position.x, obj.position.y, obj.position.z];
         let rot: [number, number, number] = [obj.rotation.x, obj.rotation.y, obj.rotation.z];
 
         if (transformMode === 'translate') {
-          const oldPos = member.position;
           if (viewportMode === 'assembly') {
             pos = snapAssemblyPos(pos);
           } else {
@@ -68,12 +79,18 @@ export default function TransformGizmo({ member, objectRef }: Props) {
             pos = [Math.round(pos[0]), pos[1], Math.round(pos[2])];
           }
           obj.position.set(pos[0], pos[1], pos[2]);
-          const delta: [number, number, number] = [
-            pos[0] - oldPos[0],
-            pos[1] - oldPos[1],
-            pos[2] - oldPos[2],
-          ];
-          moveMateGroup(member.id, delta);
+          // The mate group was already moved in real time on every 'change' event
+          // during the drag; only apply the final snap correction here, and commit
+          // it (with history) as the last step of the drag.
+          const lastLive = lastDragPosRef.current;
+          if (lastLive) {
+            const correction: [number, number, number] = [
+              pos[0] - lastLive.x,
+              pos[1] - lastLive.y,
+              pos[2] - lastLive.z,
+            ];
+            moveMateGroup(member.id, correction);
+          }
         }
 
         if (transformMode === 'rotate' && angleSnapEnabled) {
@@ -91,10 +108,36 @@ export default function TransformGizmo({ member, objectRef }: Props) {
         }
 
         updateMember(member.id, patch);
+        draggingRef.current = false;
+        lastDragPosRef.current = null;
       }
     };
+
+    // Fires continuously while dragging — used to move the rest of the mate group
+    // in real time instead of waiting for drag-end (dragging-changed only fires
+    // at start/end).
+    const changeHandler = () => {
+      if (!draggingRef.current || transformMode !== 'translate' || !objectRef.current) return;
+      const obj = objectRef.current;
+      const last = lastDragPosRef.current;
+      if (!last) return;
+      const delta: [number, number, number] = [
+        obj.position.x - last.x,
+        obj.position.y - last.y,
+        obj.position.z - last.z,
+      ];
+      if (delta[0] !== 0 || delta[1] !== 0 || delta[2] !== 0) {
+        moveMateGroup(member.id, delta, true);
+        lastDragPosRef.current = obj.position.clone();
+      }
+    };
+
     tc.addEventListener('dragging-changed', handler);
-    return () => tc.removeEventListener('dragging-changed', handler);
+    (tc as unknown as { addEventListener: (e: string, h: () => void) => void }).addEventListener('change', changeHandler);
+    return () => {
+      tc.removeEventListener('dragging-changed', handler);
+      (tc as unknown as { removeEventListener: (e: string, h: () => void) => void }).removeEventListener('change', changeHandler);
+    };
   }, [controls, member, objectRef, transformMode, allMembers, updateMember, moveMateGroup, angleSnapEnabled, angleSnapIncrement, viewportMode, setOrbitControlsEnabled, snapToGrid, transformGizmoActive]);
 
   if (activeTool !== 'select' || !transformGizmoActive || !attached || !objectRef.current) return null;

@@ -31,8 +31,28 @@ import RipCutPreviewLine from './RipCutPreviewLine';
 import ScrapBox from './ScrapBox';
 
 function ShadowFloor() {
+  const clearSelection = useAppStore((s) => s.clearSelection);
+  const setRadialWheelOpen = useAppStore((s) => s.setRadialWheelOpen);
+  const selectDimensionLine = useAppStore((s) => s.selectDimensionLine);
+  const setSelectedCenterlineId = useAppStore((s) => s.setSelectedCenterlineId);
+
+  // The grid/floor is a real mesh, so onPointerMissed on <Canvas> never fires when
+  // clicking it (the raycaster DOES hit something). Clicking the floor is the most
+  // common "empty space" click, so it gets its own explicit deselect handler.
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[0, -0.05, 0]}
+      receiveShadow
+      onClick={(e) => {
+        if (e.shiftKey) return;
+        e.stopPropagation();
+        clearSelection();
+        setRadialWheelOpen(false);
+        selectDimensionLine(null);
+        setSelectedCenterlineId(null);
+      }}
+    >
       <planeGeometry args={[2000, 2000]} />
       <shadowMaterial opacity={0.18} />
     </mesh>

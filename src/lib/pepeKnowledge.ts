@@ -1328,4 +1328,34 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
     keywords: ['convert to cut', 'dim to cut', 'dimension line cut button', 'cross cut from line', 'rip cut from line'],
     answer: 'Make sure the dimension line was placed on a board face (not the floor). Select the line — if it is anchored to a board, the Convert to Cross Cut or Convert to Rip Cut button will appear in the tool panel.',
   },
+  {
+    id: 'mate-boards-step-by-step',
+    topic: 'How to mate boards step by step',
+    keywords: ['mate boards step by step', 'how to mate', 'join boards', 'connect boards', 'mate tool'],
+    answer: 'Press J to turn on the mate tool, then click a face dot on the first board — it stays still. Click a face dot on the second board and it snaps to the first. The tool stays on so you can keep joining more boards.',
+  },
+  {
+    id: 'mated-boards-move-together-realtime',
+    topic: 'Mated boards move together in real time',
+    keywords: ['mated boards drag', 'group moves together', 'mate real time', 'mate lag', 'boards move at same time'],
+    answer: 'Boards that are mated move together as a group while you drag, not just after you let go. Select either board and drag — both move at the same time.',
+  },
+  {
+    id: 'deselect-click-grid',
+    topic: 'Deselect by clicking the grid',
+    keywords: ['deselect', 'click empty space', 'click grid floor', 'unselect board', 'close radial wheel'],
+    answer: 'Click anywhere on the grid floor to deselect the current board, dimension line, or centerline marker, and close the radial wheel.',
+  },
+  {
+    id: 'dimension-line-follows-board',
+    topic: 'Dimension line stays on the board face',
+    keywords: ['dimension line move with board', 'dim line stuck', 'measurement follows board', 'dimension line anchored'],
+    answer: 'Dimension lines placed on a board face are anchored directly to that board, so they now move and rotate with it automatically — no more lines left behind.',
+  },
+  {
+    id: 'new-boards-overlapping',
+    topic: 'New boards overlapping at the same spot',
+    keywords: ['new board overlapping', 'boards stacked', 'boards on top of each other', 'spawn position'],
+    answer: 'New boards added from the Shapes panel or the quick-add form now spawn in an open spot near your other boards instead of stacking on top of them at the center.',
+  },
 ];

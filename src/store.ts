@@ -104,6 +104,7 @@ const DEFAULT_UI: UIState = {
   quickJoinMiterAxis: null,
   measureStartPoint: null,
   selectedDimensionLineId: null,
+  selectedCenterlineId: null,
   dimensionLinesVisible: true,
   crossCutPreviewPosition: null,
   ripCutPreviewPosition: null,
@@ -290,6 +291,7 @@ interface AppStore {
   addDimensionLine: (line: DimensionLine) => void;
   removeDimensionLine: (id: string) => void;
   selectDimensionLine: (id: string | null) => void;
+  setSelectedCenterlineId: (id: string | null) => void;
   setDimensionLinesVisible: (visible: boolean) => void;
   setMeasureStartPoint: (pt: UIState['measureStartPoint']) => void;
 
@@ -344,7 +346,7 @@ interface AppStore {
   updateMemberFinish: (memberId: string, finish: import('./types').BoardFinish | undefined) => void;
 
   // Mate groups
-  moveMateGroup: (anchorMemberId: string, delta: [number, number, number]) => void;
+  moveMateGroup: (anchorMemberId: string, delta: [number, number, number], skipHistory?: boolean) => void;
   unmateAll: (groupId: string) => void;
   unmateBoard: (memberId: string) => void;
   getMateGroupForMember: (memberId: string) => MateGroup | undefined;
@@ -851,7 +853,8 @@ export const useAppStore = create<AppStore>()(
         mateFaceB: null,
         mateGridOffset: null,
         mateHoverFace: null,
-        activeTool: 'select',
+        // Stay on the mate tool so the user can chain more mates without re-pressing J
+        activeTool: 'mate',
         radialWheelOpen: false,
         selectedMateId: mate.id,
       },
@@ -860,12 +863,12 @@ export const useAppStore = create<AppStore>()(
     return mate.id;
   },
 
-  moveMateGroup: (anchorMemberId, delta) => {
+  moveMateGroup: (anchorMemberId, delta, skipHistory) => {
     const group = get().project.mateGroups?.find((g) => g.memberIds.includes(anchorMemberId));
     if (!group) return;
     const otherIds = group.memberIds.filter((id) => id !== anchorMemberId);
     if (otherIds.length === 0) return;
-    commitProject(set, get, {
+    const nextProject = {
       ...get().project,
       members: get().project.members.map((m) => {
         if (!otherIds.includes(m.id)) return m;
@@ -878,7 +881,15 @@ export const useAppStore = create<AppStore>()(
           ] as [number, number, number],
         });
       }),
-    });
+    };
+    // During a live drag, skip pushing each incremental frame onto the undo stack —
+    // the final updateMember() call at drag-end commits the whole project (including
+    // the already-moved partner board) as a single undo step.
+    if (skipHistory) {
+      set({ project: nextProject });
+    } else {
+      commitProject(set, get, nextProject);
+    }
   },
 
   unmateAll: (groupId) => {
@@ -1594,6 +1605,9 @@ export const useAppStore = create<AppStore>()(
 
   selectDimensionLine: (id) =>
     set((s) => ({ ui: { ...s.ui, selectedDimensionLineId: id } })),
+
+  setSelectedCenterlineId: (id) =>
+    set((s) => ({ ui: { ...s.ui, selectedCenterlineId: id } })),
 
   setDimensionLinesVisible: (visible) =>
     set((s) => ({ ui: { ...s.ui, dimensionLinesVisible: visible } })),

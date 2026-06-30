@@ -5,6 +5,7 @@ import type { NominalSize, WoodCategory } from '../types';
 import { radToDeg } from '../lib/angles';
 import { createCutOperation, CUT_TYPES, JOINERY_TYPES } from '../lib/joinery';
 import { MATERIAL_CATALOG, inferMaterialKind } from '../lib/materials';
+import { findOpenSpawnPosition } from '../lib/bounds';
 import { ALL_FACES, FACE_LABELS } from '../lib/mating';
 import type { FaceId } from '../types';
 
@@ -434,6 +435,7 @@ export default function ToolPanel() {
     if (!form.label.trim() || isNaN(thickness) || isNaN(width) || isNaN(length) || isNaN(cost)) return;
 
     const mat = MATERIAL_CATALOG.find((m) => m.name === form.species);
+    const position = findOpenSpawnPosition(allMembers, [length, thickness, width]);
     addMember({
       id: crypto.randomUUID(),
       label: form.label.trim(),
@@ -443,7 +445,7 @@ export default function ToolPanel() {
       thickness,
       width,
       length,
-      position: [0, thickness / 2, 0],
+      position,
       rotation: [0, 0, 0],
       costPerBoardFoot: cost,
       color: mat?.color ?? '#d4a96a',

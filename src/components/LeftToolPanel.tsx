@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAppStore } from '../store';
 import type { ActiveTool } from '../types';
 import { PepeEmbedded } from './PepeAssistant';
+import { findOpenSpawnPosition } from '../lib/bounds';
 
 type ToolTab = 'model' | 'modify' | 'joinery' | 'shapes';
 
@@ -51,6 +52,7 @@ export default function LeftToolPanel() {
   const setActiveTool = useAppStore((s) => s.setActiveTool);
   const setRightPanelTab = useAppStore((s) => s.setRightPanelTab);
   const addMember = useAppStore((s) => s.addMember);
+  const existingMembers = useAppStore((s) => s.project.members);
   const setMatePickTarget = useAppStore((s) => s.setMatePickTarget);
   const setMateFaceA = useAppStore((s) => s.setMateFaceA);
   const setMateFaceB = useAppStore((s) => s.setMateFaceB);
@@ -125,7 +127,8 @@ export default function LeftToolPanel() {
       shapeHexPrism: 'hexagonalPrism',
     };
     const id = crypto.randomUUID();
-    addMember({ ...base, id, shapeType: shapeMap[tool] ?? 'box' });
+    const position = findOpenSpawnPosition(existingMembers, [base.length, base.thickness, base.width]);
+    addMember({ ...base, id, position, shapeType: shapeMap[tool] ?? 'box' });
     setActiveTool('select');
   }
 

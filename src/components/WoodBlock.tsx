@@ -20,6 +20,7 @@ import TransformGizmo from './TransformGizmo';
 import SnapPointHandles from './SnapPointHandles';
 import JointMarkerRenderer from './JointMarkerRenderer';
 import CenterlineRenderer from './CenterlineRenderer';
+import { BoardDimensionLines } from './DimensionLineRenderer';
 
 interface Props {
   member: WoodMember;
@@ -474,8 +475,9 @@ export default function WoodBlock({ member }: Props) {
           </lineSegments>
         )}
 
-        {/* CenterlineRenderer is a child of the mesh so its local coords auto-follow the board */}
+        {/* CenterlineRenderer and BoardDimensionLines are children of the mesh so their local coords auto-follow the board */}
         <CenterlineRenderer member={member} />
+        <BoardDimensionLines member={member} />
       </mesh>
 
       {edgeToolActive &&

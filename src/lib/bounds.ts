@@ -33,6 +33,37 @@ export function getBoxFaces(box: THREE.Box3): FacePlane[] {
   ];
 }
 
+/**
+ * Finds an open spot near the origin for a newly-created board so it doesn't spawn
+ * stacked on top of existing boards. Walks outward along +X in fixed steps and uses
+ * an AABB overlap check against existing members.
+ */
+export function findOpenSpawnPosition(
+  existingMembers: WoodMember[],
+  newBoardSize: [number, number, number]
+): [number, number, number] {
+  const GRID_STEP = 6;
+  const maxAttempts = 50;
+  const [length, thickness, width] = newBoardSize;
+  const candidateMember = (x: number): WoodMember =>
+    ({
+      position: [x, thickness / 2, 0],
+      rotation: [0, 0, 0],
+      length,
+      thickness,
+      width,
+    }) as WoodMember;
+
+  let offset = 0;
+  for (let i = 0; i < maxAttempts; i++) {
+    const box = getMemberWorldBox(candidateMember(offset));
+    const overlaps = existingMembers.some((m) => box.intersectsBox(getMemberWorldBox(m)));
+    if (!overlaps) return [offset, thickness / 2, 0];
+    offset += GRID_STEP;
+  }
+  return [offset, thickness / 2, 0];
+}
+
 const SNAP_THRESHOLD = 0.5;
 
 /**

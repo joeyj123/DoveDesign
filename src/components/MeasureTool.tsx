@@ -76,6 +76,40 @@ function angleDeg(a: THREE.Vector3, b: THREE.Vector3) {
   return ((Math.atan2(b.z - a.z, b.x - a.x) * 180) / Math.PI + 360) % 360;
 }
 
+// Clamp a point to the bounding rectangle of the given face of `anchor`, so the
+// preview/end point never wanders off the board onto the grid.
+function clampToFaceBounds(
+  point: THREE.Vector3,
+  anchor: MemberSnap,
+  worldNormal: THREE.Vector3
+): THREE.Vector3 {
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...anchor.rotation));
+  const invQ = q.clone().invert();
+  const pos = new THREE.Vector3(...anchor.position);
+  const local = point.clone().sub(pos).applyQuaternion(invQ);
+
+  const hL = anchor.length / 2, hT = anchor.thickness / 2;
+  let w = anchor.width;
+  for (const c of anchor.cuts) { if (c.type === 'ripCut' && c.targetWidth) w = c.targetWidth; }
+  const hW = w / 2;
+
+  const localN = worldNormal.clone().applyQuaternion(invQ).normalize();
+  const ax = Math.abs(localN.x), ay = Math.abs(localN.y), az = Math.abs(localN.z);
+
+  if (ax >= ay && ax >= az) {
+    local.y = THREE.MathUtils.clamp(local.y, -hT, hT);
+    local.z = THREE.MathUtils.clamp(local.z, -hW, hW);
+  } else if (ay >= ax && ay >= az) {
+    local.x = THREE.MathUtils.clamp(local.x, -hL, hL);
+    local.z = THREE.MathUtils.clamp(local.z, -hW, hW);
+  } else {
+    local.x = THREE.MathUtils.clamp(local.x, -hL, hL);
+    local.y = THREE.MathUtils.clamp(local.y, -hT, hT);
+  }
+
+  return local.applyQuaternion(q).add(pos);
+}
+
 type MemberSnap = {
   id: string;
   position: [number, number, number];
@@ -261,6 +295,14 @@ export default function MeasureTool() {
     let snapKind: SnapKind = 'grid';
     let snapMemberId: string | undefined;
 
+    const onWorkPlane = !!(workPlaneOriginRef.current && measureStartPoint);
+    const workPlane = onWorkPlane
+      ? new THREE.Plane().setFromNormalAndCoplanarPoint(
+          workPlaneNormalRef.current,
+          workPlaneOriginRef.current!
+        )
+      : null;
+
     // Non-recursive: only test the parent board meshes, not CSG child objects
     const hits = rc.current.intersectObjects(boardMeshesRef.current, false);
     if (hits.length > 0) {
@@ -275,22 +317,35 @@ export default function MeasureTool() {
       cursorMemberIdRef.current = hits[0].object.userData.memberId as string | undefined;
     } else {
       cursorFaceNormalRef.current = undefined;
-      const fp = new THREE.Vector3();
-      if (rc.current.ray.intersectPlane(FLOOR, fp)) hitPt = fp;
       cursorMemberIdRef.current = undefined;
+      const fp = new THREE.Vector3();
+      // Once a work plane is set, never fall through to the grid floor — stay on the plane
+      if (workPlane) {
+        if (rc.current.ray.intersectPlane(workPlane, fp)) hitPt = fp;
+      } else if (rc.current.ray.intersectPlane(FLOOR, fp)) {
+        hitPt = fp;
+      }
     }
 
     // If work plane is established (first click done), project cursor onto it
-    if (hitPt && workPlaneOriginRef.current && measureStartPoint) {
-      hitPt = projectOntoPlane(hitPt, workPlaneOriginRef.current, workPlaneNormalRef.current);
+    if (hitPt && workPlane) {
+      hitPt = projectOntoPlane(hitPt, workPlaneOriginRef.current!, workPlaneNormalRef.current);
     }
 
+    // Same snap check runs for both the first click and the second click (and every preview frame)
     if (hitPt) {
       const snap = nearestSnapPoint(hitPt, members);
       if (snap) {
         hitPt = snap.point;
         snapKind = snap.kind;
-        if (!measureStartPoint) snapMemberId = snap.memberId;
+        snapMemberId = snap.memberId;
+      } else if (onWorkPlane && startMemberIdRef.current) {
+        // No snap target — clamp the preview to the clicked face's bounds instead of
+        // letting it wander onto the grid or off the board entirely
+        const anchor = members.find((m) => m.id === startMemberIdRef.current);
+        if (anchor) {
+          hitPt = clampToFaceBounds(hitPt, anchor, workPlaneNormalRef.current);
+        }
       }
     }
 

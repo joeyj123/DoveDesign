@@ -1,7 +1,9 @@
 import { Line, Html } from '@react-three/drei';
+import { useAppStore } from '../store';
 import type { WoodMember, CenterlineMarker } from '../types';
 
 const CYAN = '#22d3ee';
+const CYAN_BRIGHT = '#a5f3fc';
 const OFFSET = 0.025; // sit above surface
 
 // Returns LOCAL-space (board-relative) coordinates so this can be mounted as a child of the board mesh.
@@ -85,6 +87,9 @@ interface Props {
 // Must be rendered as a child of the board <mesh> so local coords follow the board automatically.
 export default function CenterlineRenderer({ member }: Props) {
   const markers = member.centerlineMarkers ?? [];
+  const selectedCenterlineId = useAppStore((s) => s.ui.selectedCenterlineId);
+  const setSelectedCenterlineId = useAppStore((s) => s.setSelectedCenterlineId);
+  const removeCenterlineMarker = useAppStore((s) => s.removeCenterlineMarker);
   if (markers.length === 0) return null;
 
   return (
@@ -93,29 +98,59 @@ export default function CenterlineRenderer({ member }: Props) {
         const pts = getCenterlineLocalPoints(member, marker);
         if (!pts) return null;
         const { start, end, mid } = pts;
+        const isSelected = selectedCenterlineId === marker.id;
+        const color = isSelected ? CYAN_BRIGHT : CYAN;
         return (
           <group key={marker.id}>
             <Line
               points={[start, end]}
-              color={CYAN}
-              lineWidth={1.5}
+              color={color}
+              lineWidth={isSelected ? 2.5 : 1.5}
               dashed
               dashSize={0.5}
               gapSize={0.25}
-              raycast={() => null}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedCenterlineId(isSelected ? null : marker.id);
+              }}
+            />
+            {/* Invisible thicker hitbox so the thin dashed line is easy to click */}
+            <Line
+              points={[start, end]}
+              color={color}
+              lineWidth={10}
+              transparent
+              opacity={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedCenterlineId(isSelected ? null : marker.id);
+              }}
             />
             <Html position={[mid[0], mid[1] + 0.15, mid[2]]} center zIndexRange={[0, 10]}>
               <div
                 className="px-1.5 py-0.5 rounded text-xs font-bold pointer-events-none select-none"
                 style={{
                   background: 'rgba(9,9,11,0.88)',
-                  color: CYAN,
-                  border: `1px solid ${CYAN}`,
+                  color,
+                  border: `1px solid ${color}`,
                 }}
               >
                 CL
               </div>
             </Html>
+            {isSelected && (
+              <Html position={[mid[0], mid[1] + 0.55, mid[2]]} center zIndexRange={[0, 10]}>
+                <button
+                  className="px-2 py-0.5 rounded text-xs font-semibold text-red-400 border border-red-500/50 bg-zinc-900/90 hover:bg-red-500/20 transition-colors"
+                  onClick={() => {
+                    removeCenterlineMarker(member.id, marker.id);
+                    setSelectedCenterlineId(null);
+                  }}
+                >
+                  Delete Centerline
+                </button>
+              </Html>
+            )}
           </group>
         );
       })}

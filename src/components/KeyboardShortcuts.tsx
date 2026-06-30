@@ -56,6 +56,12 @@ export default function KeyboardShortcuts() {
           } else if (store.ui.selectedDimensionLineId) {
             store.removeDimensionLine(store.ui.selectedDimensionLineId);
             store.selectDimensionLine(null);
+          } else if (store.ui.selectedCenterlineId) {
+            const owner = store.project.members.find((m) =>
+              (m.centerlineMarkers ?? []).some((cl) => cl.id === store.ui.selectedCenterlineId)
+            );
+            if (owner) store.removeCenterlineMarker(owner.id, store.ui.selectedCenterlineId);
+            store.setSelectedCenterlineId(null);
           } else if (store.ui.selectedMemberId) {
             store.removeMember(store.ui.selectedMemberId);
           }
@@ -96,10 +102,8 @@ export default function KeyboardShortcuts() {
           if (store.ui.activeTool === 'measure') {
             store.setActiveTool('select');
             store.setMeasureStartPoint(null);
-            store.setOrbitControlsEnabled(true);
           } else {
             store.setActiveTool('measure');
-            store.setOrbitControlsEnabled(false);
           }
           break;
 

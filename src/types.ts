@@ -511,6 +511,8 @@ export interface UIState {
   measureStartPoint: { x: number; y: number; z: number } | null;
   /** Selected dimension line id */
   selectedDimensionLineId: string | null;
+  /** Selected centerline marker id (for click-to-select + delete) */
+  selectedCenterlineId: string | null;
   /** Whether dimension lines are visible in the viewport */
   dimensionLinesVisible: boolean;
   /** Cross cut preview position along board length (inches from start), or null when not active */

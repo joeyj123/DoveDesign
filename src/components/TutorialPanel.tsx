@@ -327,6 +327,9 @@ export default function TutorialPanel() {
           <li><strong className="text-zinc-300">Step 5</strong> — Choose a join method from the sub-wheel (see Join Method Sub-Wheel below).</li>
         </ol>
         <p className="text-base text-zinc-400 mt-2">
+          <strong className="text-zinc-300">Chaining mates:</strong> The Mate tool stays on after a mate completes, so you can immediately click another pair of faces to join more boards — no need to press J again. Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Escape</kbd> or pick another tool when you're done.
+        </p>
+        <p className="text-base text-zinc-400 mt-2">
           <strong className="text-zinc-300">Controlling where boards attach:</strong> When you click a face, click near the EDGE of the face to attach there, or near the CENTER to attach at the center. The ¼&quot; snap grid on the face helps you place the joint precisely. The board will snap so that exact point on face B meets that exact point on face A.
         </p>
         <p className="text-base text-zinc-400 mt-2">
@@ -340,7 +343,7 @@ export default function TutorialPanel() {
 
       <Section search={searchLower} onMatch={registerMatch} title="Connections & Unmate">
         <p className="text-base text-zinc-400">
-          When you mate two boards, they become a <strong className="text-zinc-300">group</strong> — moving either board moves all boards in the group together. This makes it easy to reposition assembled sections.
+          When you mate two boards, they become a <strong className="text-zinc-300">group</strong> — moving either board moves all boards in the group together, in real time as you drag. This makes it easy to reposition assembled sections.
         </p>
         <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
           <li>Select any board in the group — the left panel shows an <strong className="text-zinc-300">Unmate This Board</strong> button to remove just that board from the group.</li>

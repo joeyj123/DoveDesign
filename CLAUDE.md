@@ -113,13 +113,13 @@ Do NOT refactor these unless fixing a specific bug in them.
 
 ## The 5 Most Broken Things (Fix These First)
 
-As of Phase 10 (2026-06-27), no critical known broken items remain.
-All Phase 10 features pass `npm run build` with zero TypeScript errors.
+As of Phase 15 (2026-06-29), no critical known broken items remain.
+All Phase 15 features pass `npm run build` with zero TypeScript errors.
 
 **Currently watch-out items (not critical, but worth a future pass):**
 
 ### 1. None known — build is clean
-No TypeScript errors. All Phase 10 features pass `npm run build`.
+No TypeScript errors. All Phase 11 features pass `npm run build`.
 
 ### 2. Placeholder
 **Fix:** 
@@ -306,16 +306,18 @@ Rules for Pepe entries:
 | `Space` | Open / close radial wheel on selected board |
 | `Escape` | Cancel tool, deselect all, close wheel |
 | `S` | Select tool |
-| `B` | Draw board tool |
+| `B` | Open / close Bill of Materials panel |
+| `W` | Draw board tool |
 | `M` | Activate move arrows on selected board |
 | `R` | Rip cut tool |
-| `D` | Duplicate selected board |
+| `D` | Measure tool (dimension lines) |
 | `G` | Toggle grid |
 | `Delete` | Delete selected board |
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` | Redo |
 | `J` | Mate tool (join boards) |
-| `F` | Flip selected board 180° |
+| `F` | Toggle Finishing panel (stain/paint/clear coat/oil) |
+| `C` | Centerline tool (click board face to add CL marker) |
 | `U` | Unmate most recent connection on selected board |
 | `Shift+drag` | Box select multiple boards |
 | `Shift+Delete` | Clear all boards (with confirm dialog) |
