@@ -350,6 +350,7 @@ export default function TutorialPanel() {
           <li><strong className="text-zinc-300">Unmate All</strong> separates the entire group — all boards become independent again. They stay in their current positions.</li>
           <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">U</kbd> to quickly unmate the most recent connection on the selected board.</li>
           <li>Unmate does <strong className="text-zinc-300">not</strong> move any boards. Use <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Ctrl+Z</kbd> to fully reverse a mate including the position change.</li>
+          <li><strong className="text-zinc-300">Rotating a mated board now works correctly</strong> (Phase 17) — rotate a board that's part of a mate group and the rest of the group rotates and follows with it, the same way it already did for moving/dragging.</li>
         </ul>
         <p className="text-base text-zinc-500 mt-2">
           <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I unmate boards?&quot; · &quot;Why do boards move together?&quot; · &quot;How do I separate mated boards?&quot;
@@ -671,9 +672,10 @@ export default function TutorialPanel() {
           <li><strong className="text-zinc-300">Select a dimension line</strong> (click the distance label) to see it highlighted. A Delete button appears to remove it.</li>
           <li><strong className="text-zinc-300">Toggle visibility</strong> in the View menu — turn all dimension lines on or off without deleting them.</li>
           <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">D</kbd> again or <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Escape</kbd> to exit the Measure tool.</li>
+          <li><strong className="text-zinc-300">Measuring across a board&apos;s width now works correctly</strong> (Phase 17) — dimension lines placed across the narrow side of a board follow it correctly when you move or rotate the board, the same as length-wise measurements always have.</li>
         </ul>
         <p className="text-base text-zinc-500 mt-2">
-          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I measure distance?&quot; · &quot;What is the measure tool?&quot; · &quot;How do I add dimension lines?&quot;
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I measure distance?&quot; · &quot;What is the measure tool?&quot; · &quot;How do I add dimension lines?&quot; · &quot;Why doesn&apos;t my width measurement follow the board?&quot;
         </p>
       </Section>
 

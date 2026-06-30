@@ -122,48 +122,99 @@ type MemberSnap = {
 
 type SnapKind = 'corner' | 'face' | 'edge' | 'grid';
 
+// Each candidate snap point (corner/edge-mid/face-center) is tagged with the
+// LOCAL-space normal of the face it actually lives on, so that overriding the
+// raw raycast hit point with a snapped point can also correctly override the
+// face normal used for the measurement's work plane. Per CAD_MANIFESTO.md Law
+// 4 (Vector Isolation Rule) — this is the actual root cause of Phase 17 Part
+// 2's "cross-axis dimension lines don't follow / are awkward to place" bug:
+// previously the work-plane normal was captured ONLY from the raw raycast hit
+// and never updated when the snap system relocated the click point, so a
+// click that snapped to a corner or edge (very common when measuring a
+// board's narrow width, since the snap radius easily reaches an edge) could
+// silently anchor the dimension line's face-relative (u,v) data to the WRONG
+// face — wrong uAxis/vAxis, so the line doesn't track the board correctly.
 function nearestSnapPoint(
   worldPt: THREE.Vector3,
   members: MemberSnap[]
-): { point: THREE.Vector3; kind: SnapKind; memberId?: string } | null {
+): { point: THREE.Vector3; kind: SnapKind; memberId?: string; localNormal?: THREE.Vector3 } | null {
   let best: THREE.Vector3 | null = null;
   let bestD = SNAP_RADIUS;
   let bestKind: SnapKind = 'grid';
   let bestMemberId: string | undefined;
+  let bestLocalNormal: [number, number, number] | undefined;
 
   for (const m of members) {
     let w = m.width;
     for (const c of m.cuts) { if (c.type === 'ripCut' && c.targetWidth) w = c.targetWidth; }
     const hL = m.length / 2, hT = m.thickness / 2, hW = w / 2;
 
-    const corners: [number, number, number][] = [
-      [-hL,-hT,-hW],[-hL,-hT,hW],[-hL,hT,-hW],[-hL,hT,hW],
-      [hL,-hT,-hW],[hL,-hT,hW],[hL,hT,-hW],[hL,hT,hW],
-    ];
-    const faceCenters: [number, number, number][] = [
-      [-hL,0,0],[hL,0,0],[0,-hT,0],[0,hT,0],[0,0,-hW],[0,0,hW],
-    ];
-    const edgeMids: [number, number, number][] = [
-      [0,-hT,-hW],[0,-hT,hW],[0,hT,-hW],[0,hT,hW],
-      [-hL,0,-hW],[-hL,0,hW],[hL,0,-hW],[hL,0,hW],
-      [-hL,-hT,0],[-hL,hT,0],[hL,-hT,0],[hL,hT,0],
+    // Each candidate point is paired with the normal of the face it sits on.
+    // Corners/edges that lie on two or three faces simultaneously pick a
+    // single reasonable representative face (the dominant one for that
+    // point), since the actual face is disambiguated later in onClick by
+    // re-matching against the work plane normal closest to the cursor's
+    // original raycast hit when available.
+    const tagged: { lp: [number, number, number]; kind: SnapKind; n: [number, number, number] }[] = [
+      // face centers — unambiguous, one face each
+      { lp: [-hL, 0, 0], kind: 'face', n: [-1, 0, 0] },
+      { lp: [hL, 0, 0], kind: 'face', n: [1, 0, 0] },
+      { lp: [0, -hT, 0], kind: 'face', n: [0, -1, 0] },
+      { lp: [0, hT, 0], kind: 'face', n: [0, 1, 0] },
+      { lp: [0, 0, -hW], kind: 'face', n: [0, 0, -1] },
+      { lp: [0, 0, hW], kind: 'face', n: [0, 0, 1] },
+      { lp: [0, 0, 0], kind: 'face', n: [0, 1, 0] },
+      // edge midpoints — tag with the face whose plane the edge most belongs
+      // to based on which axis is fixed at a board boundary (use the larger
+      // of the two non-edge-running faces meeting there as the default)
+      { lp: [0, -hT, -hW], kind: 'edge', n: [0, -1, 0] },
+      { lp: [0, -hT, hW], kind: 'edge', n: [0, -1, 0] },
+      { lp: [0, hT, -hW], kind: 'edge', n: [0, 1, 0] },
+      { lp: [0, hT, hW], kind: 'edge', n: [0, 1, 0] },
+      { lp: [-hL, 0, -hW], kind: 'edge', n: [-1, 0, 0] },
+      { lp: [-hL, 0, hW], kind: 'edge', n: [-1, 0, 0] },
+      { lp: [hL, 0, -hW], kind: 'edge', n: [1, 0, 0] },
+      { lp: [hL, 0, hW], kind: 'edge', n: [1, 0, 0] },
+      { lp: [-hL, -hT, 0], kind: 'edge', n: [0, -1, 0] },
+      { lp: [-hL, hT, 0], kind: 'edge', n: [0, 1, 0] },
+      { lp: [hL, -hT, 0], kind: 'edge', n: [0, -1, 0] },
+      { lp: [hL, hT, 0], kind: 'edge', n: [0, 1, 0] },
+      // corners — tag with the top/bottom face by default (most common
+      // measuring face); the work-plane resolution in onClick re-derives the
+      // best actual face anyway once a real anchor member is known
+      { lp: [-hL, -hT, -hW], kind: 'corner', n: [0, -1, 0] },
+      { lp: [-hL, -hT, hW], kind: 'corner', n: [0, -1, 0] },
+      { lp: [-hL, hT, -hW], kind: 'corner', n: [0, 1, 0] },
+      { lp: [-hL, hT, hW], kind: 'corner', n: [0, 1, 0] },
+      { lp: [hL, -hT, -hW], kind: 'corner', n: [0, -1, 0] },
+      { lp: [hL, -hT, hW], kind: 'corner', n: [0, -1, 0] },
+      { lp: [hL, hT, -hW], kind: 'corner', n: [0, 1, 0] },
+      { lp: [hL, hT, hW], kind: 'corner', n: [0, 1, 0] },
     ];
 
-    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...(m.rotation as [number,number,number])));
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...(m.rotation as [number, number, number])));
     const pos = new THREE.Vector3(...m.position);
 
-    const check = (lp: [number,number,number], kind: SnapKind) => {
-      const wp = new THREE.Vector3(lp[0],lp[1],lp[2]).applyQuaternion(q).add(pos);
+    for (const { lp, kind, n } of tagged) {
+      const wp = new THREE.Vector3(lp[0], lp[1], lp[2]).applyQuaternion(q).add(pos);
       const d = wp.distanceTo(worldPt);
-      if (d < bestD) { bestD = d; best = wp; bestKind = kind; bestMemberId = m.id; }
-    };
-
-    for (const c of corners) check(c, 'corner');
-    for (const f of faceCenters) check(f, 'face');
-    for (const e of edgeMids) check(e, 'edge');
-    check([0,0,0], 'face');
+      if (d < bestD) {
+        bestD = d;
+        best = wp;
+        bestKind = kind;
+        bestMemberId = m.id;
+        bestLocalNormal = n;
+      }
+    }
   }
-  return best ? { point: best, kind: bestKind, memberId: bestMemberId } : null;
+  return best
+    ? {
+        point: best,
+        kind: bestKind,
+        memberId: bestMemberId,
+        localNormal: bestLocalNormal ? new THREE.Vector3(...bestLocalNormal) : undefined,
+      }
+    : null;
 }
 
 const FLOOR = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
@@ -371,6 +422,23 @@ export default function MeasureTool() {
         hitPt = snap.point;
         snapKind = snap.kind;
         snapMemberId = snap.memberId;
+        // Phase 17 Part 2 fix: before the work plane is established (i.e. this
+        // is the FIRST click), the snap point can relocate the click onto a
+        // corner/edge that belongs to a different face than whatever the raw
+        // raycast last hit (especially likely for a board's narrow width,
+        // where the snap radius easily reaches an edge). Re-derive the work
+        // plane normal from the snap's own tagged local-space face normal so
+        // it always matches the point that actually gets stored, instead of
+        // a stale raycast normal from a different face. This keeps the
+        // forward-projection (faceId, u, v) correct at the source per
+        // CAD_MANIFESTO.md Law 4 / VECTOR_PROJECTION_MATH.md Rule B.
+        if (!onWorkPlane && snap.localNormal && snapMemberId) {
+          const snapMember = members.find((m) => m.id === snapMemberId);
+          if (snapMember) {
+            const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...snapMember.rotation));
+            cursorFaceNormalRef.current = snap.localNormal.clone().applyQuaternion(q).normalize();
+          }
+        }
       } else if (onWorkPlane && startMemberIdRef.current) {
         // No snap target — clamp the preview to the clicked face's bounds instead of
         // letting it wander onto the grid or off the board entirely

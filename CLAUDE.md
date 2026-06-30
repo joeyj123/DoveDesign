@@ -179,13 +179,27 @@ store.ts both creates the legacy `MemberMate`/`MateGroup` (UI bookkeeping — jo
 method, fasteners, assembly steps) AND a `MateConstraint`. `TransformGizmo.tsx`
 calls `store.solveMateConstraints(movedId, livePos, liveRot, skipHistory)` on
 every TransformControls `change` event during a drag (translate AND rotate, not
-just translate as before) and once more on drag-end to commit. Activation/
-instruction-flow UX clarity is still a lower-priority watch item.
+just translate as before) and once more on drag-end to commit.
 
-**Fix approach:** In `WoodBlock.tsx handleClick`, when `activeTool === 'mate'`:
-- Log `mateFaceA`, `mateFaceB`, and the result of `computeMateTransform()` to console
-- Verify the face normal `worldNormal` is correct after `transformDirection(matrixWorld)`
-- Verify `pickFaceFromWorldNormal()` returns the correct FaceId
+**RESOLVED Phase 17:** rotating a mated board was deselecting the whole group
+instead of rotating it together. Root cause was NOT the constraint solver (it
+was already wired correctly for rotate, same as translate) — it was an event
+propagation bug. drei's `TransformControls` attaches its own native
+`pointerdown`/`pointermove`/`pointerup` DOM listeners directly to the canvas
+and never calls `stopPropagation()`. R3F's own native pointerup listener on
+that same canvas runs its own raycast in the same event cycle and fires
+`Canvas`'s `onPointerMissed` whenever that raycast doesn't hit a mesh. The
+translate gizmo's arrow handles sit right against the board mesh, so a
+translate drag-end pointer-up almost always lands on (or very near) the mesh.
+The rotate gizmo's ring handles orbit at a radius around the board and are
+frequently released in empty space — so `onPointerMissed` fired far more
+often for rotate, incorrectly calling `clearSelection()`. Fixed via
+`src/lib/gizmoDragGuard.ts`: `TransformGizmo.tsx` arms a short (250ms)
+suppression flag the instant a drag ends, and `Viewport.tsx`'s
+`onPointerMissed` (and the floor mesh's `onClick` deselect handler) consume
+and ignore exactly one miss within that window. Normal click-to-deselect is
+unaffected — the guard only suppresses the specific miss event caused by a
+just-ended gizmo drag.
 
 ### 4. Draw mode adds unintended boards
 **Root cause:** `DrawBoardTool.tsx` commits a board on pointer-up, but also possibly
@@ -229,6 +243,25 @@ see `VECTOR_PROJECTION_MATH.md` section 6 for the full explanation.
 Per CAD_MANIFESTO.md Law 5: Joey is a non-technical hobbyist owner. All architecture
 decisions, math, and implementation are Claude Code's responsibility. Summaries given
 to Joey must lead with plain English before any technical detail.
+
+**RESOLVED Phase 17 — cross-axis (width) dimension lines didn't follow the board.**
+Static trace of `src/core/Engine.ts`'s `generateBasePrimitive`/`makeFace` confirmed
+all 6 faces already had correctly-defined, axis-agnostic `uAxis`/`vAxis` (this part
+of Phase 16 was NOT actually broken, contrary to the original hypothesis), and the
+forward/inverse `(u,v)` projection math in `projectLocalToUV`/`projectUVToLocal` was
+also already correct for every face. The real bug was upstream, in
+`src/components/MeasureTool.tsx`'s click-capture layer: `nearestSnapPoint()` could
+override the raw raycast hit point with a snapped corner/edge point (very likely
+when measuring a board's narrow width, since the snap radius easily reaches an
+edge), but `cursorFaceNormalRef` — used to set the work-plane normal that determines
+which face the click gets anchored to — was never updated to match the snap
+override, so it could stay pointed at whatever face the raycast last grazed. This
+silently anchored the dimension line's `(faceId, u, v)` data to the WRONG face,
+which has different `uAxis`/`vAxis`, so the line didn't track the board correctly.
+Fixed by tagging every snap candidate (corner/edge/face-center) with the local-space
+normal of the face it actually belongs to, and updating `cursorFaceNormalRef` from
+that tagged normal whenever a snap relocates the (first) click point before the work
+plane is established. No changes were needed in `Engine.ts` or `DimensionLineRenderer.tsx`.
 
 **Phase 16 status (what's actually built on the new foundation vs still pending):**
 - ✅ `src/core/Engine.ts` exists with a full, non-stub `CADGeometryEngine` (face
@@ -357,6 +390,7 @@ const [, get] = useKeyboardControls()
 | `src/lib/mating.ts` | Legacy face mate math (computeMateTransform) — still used for the one-shot `applyMate()` initial placement and quick-join; ongoing mate FOLLOWING during drag now goes through `src/core/Engine.ts` via `store.solveMateConstraints` |
 | `src/lib/joinery.ts` | CSG cut operations (buildCutSubtractions) |
 | `src/lib/bounds.ts` | Snap-to-position logic |
+| `src/lib/gizmoDragGuard.ts` | Phase 17: suppresses the one `onPointerMissed`/floor-click deselect that can fire immediately after a TransformControls (move/rotate/scale gizmo) drag ends — fixes the mate-rotation deselect bug |
 | `src/lib/bom.ts` | Bill of Materials calculation |
 
 ---

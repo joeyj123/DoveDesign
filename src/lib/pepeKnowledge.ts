@@ -1257,6 +1257,12 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
     answer: 'The measure tool snaps to board edges and corners — the dot turns blue when you\'re snapped to an edge or corner. Green means face-center snap.',
   },
   {
+    id: 'measure-width-now-follows',
+    topic: 'Measuring a board\'s width now follows correctly',
+    keywords: ['measure width', 'cross axis dimension', 'width measurement not following', 'dimension line width', 'measure across board'],
+    answer: 'As of Phase 17, measuring across a board\'s width (the narrow side, not the long edge) correctly follows the board when you move or rotate it, just like length measurements always have. If you placed a width measurement before this update, re-place it to get the fix.',
+  },
+  {
     id: 'rotation-live-angle',
     topic: 'Rotation live angle badge',
     keywords: ['rotation angle', 'rotation badge', 'live angle', 'current angle', 'degree badge'],
@@ -1315,6 +1321,12 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
     topic: 'Mated boards move together',
     keywords: ['mate group', 'boards move together', 'mated move', 'group boards', 'snap together move'],
     answer: 'After mating two boards together, they move as one group. Grab either board and the other follows. The tool panel shows an Unmate button when a grouped board is selected.',
+  },
+  {
+    id: 'mate-rotate-now-works',
+    topic: 'Rotating a mated board',
+    keywords: ['rotate mated board', 'rotate group', 'rotating deselects', 'mate rotate broken', 'rotate boards together'],
+    answer: 'As of Phase 17, rotating a board that is part of a mate group correctly rotates the whole group together, the same way moving it already did. Earlier versions could lose your selection when you rotated a mated board — that is now fixed.',
   },
   {
     id: 'unmate-boards',

@@ -11,6 +11,7 @@ function snapAssemblyPos(pos: [number, number, number]): [number, number, number
   return [snapToGrid(pos[0]), Math.max(pos[1], 0.25), snapToGrid(pos[2])];
 }
 import { snapEuler } from '../lib/angles';
+import { armGizmoDragClickSuppress } from '../lib/gizmoDragGuard';
 
 interface Props {
   member: WoodMember;
@@ -61,6 +62,14 @@ export default function TransformGizmo({ member, objectRef }: Props) {
       }
 
       if (!e.value && objectRef.current) {
+        // Arm the suppress guard FIRST, synchronously, before any state writes
+        // below. Per Phase 17 Part 1 root-cause trace: R3F's native canvas
+        // pointerup raycast can fire onPointerMissed in this same event cycle
+        // (drei's TransformControls never calls stopPropagation), especially
+        // for the rotate gizmo whose ring handles are frequently dragged
+        // through empty space away from the board mesh. See
+        // src/lib/gizmoDragGuard.ts for the full explanation.
+        armGizmoDragClickSuppress();
         const obj = objectRef.current;
         let pos: [number, number, number] = [obj.position.x, obj.position.y, obj.position.z];
         let rot: [number, number, number] = [obj.rotation.x, obj.rotation.y, obj.rotation.z];

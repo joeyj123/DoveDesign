@@ -29,6 +29,7 @@ import RotationRing from './RotationRing';
 import CrossCutPreviewLine from './CrossCutPreviewLine';
 import RipCutPreviewLine from './RipCutPreviewLine';
 import ScrapBox from './ScrapBox';
+import { consumeGizmoDragClickSuppress } from '../lib/gizmoDragGuard';
 
 function ShadowFloor() {
   const clearSelection = useAppStore((s) => s.clearSelection);
@@ -46,6 +47,7 @@ function ShadowFloor() {
       receiveShadow
       onClick={(e) => {
         if (e.shiftKey) return;
+        if (consumeGizmoDragClickSuppress()) return;
         e.stopPropagation();
         clearSelection();
         setRadialWheelOpen(false);
@@ -142,6 +144,14 @@ export default function Viewport() {
           gl.setClearColor('#09090b');
         }}
         onPointerMissed={(e) => {
+          // Phase 17 Part 1 fix: a gizmo (move/rotate/scale) drag that just
+          // ended can cause this same native pointerup to also be seen by
+          // R3F's own raycast as a "miss" (drei's TransformControls never
+          // calls stopPropagation, and rotate-ring handles are frequently
+          // released in empty space away from the board mesh). Ignore this
+          // particular miss so a legitimate gizmo interaction never clears
+          // the selection. See src/lib/gizmoDragGuard.ts.
+          if (consumeGizmoDragClickSuppress()) return;
           const ui = useAppStore.getState().ui;
           if (ui.radialWheelOpen) {
             setRadialWheelOpen(false);
