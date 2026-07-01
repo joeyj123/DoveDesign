@@ -26,7 +26,7 @@ export default function RightSidebar() {
   const updateProjectMeta = useAppStore((s) => s.updateProjectMeta);
 
   return (
-    <aside className="w-96 min-w-[24rem] bg-zinc-950 border-l border-zinc-800 flex flex-col shrink-0">
+    <aside className="w-96 min-w-[24rem] bg-zinc-950 border-l border-neutral-800 flex flex-col shrink-0">
       <div className="px-4 py-2 border-b border-zinc-800 shrink-0 space-y-2">
         <label className="flex flex-col gap-0.5 text-sm">
           <span className="text-xs text-zinc-500 uppercase tracking-wider">Project</span>
@@ -38,17 +38,19 @@ export default function RightSidebar() {
         </label>
       </div>
 
-      <div className="flex flex-wrap border-b border-zinc-800 shrink-0">
+      <div className="flex flex-nowrap border-b border-zinc-800 shrink-0">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setRightPanelTab(tab.id)}
+            title={tab.label}
+            aria-label={tab.label}
             className={[
-              'flex-1 min-w-[4.5rem] px-1 py-2 text-xs font-medium whitespace-nowrap transition-colors',
+              'flex-1 min-w-0 px-1.5 py-2 text-xs font-semibold truncate transition-colors border-b-2',
               activeTab === tab.id
-                ? 'text-amber-400 border-b-2 border-amber-500 bg-zinc-900'
-                : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent',
+                ? 'text-amber-400 border-amber-500'
+                : 'text-zinc-500 hover:text-zinc-300 border-transparent',
             ].join(' ')}
           >
             {tab.label}

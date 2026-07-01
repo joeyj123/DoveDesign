@@ -179,7 +179,7 @@ export default function LeftToolPanel() {
 
   return (
     <aside
-      className="shrink-0 flex bg-zinc-950 border-r border-zinc-800 min-h-0"
+      className="shrink-0 flex bg-zinc-950 border-r border-neutral-800 min-h-0"
       style={{ width: collapsed ? TAB_WIDTH : PANEL_WIDTH }}
       aria-label="Shop tools"
     >
@@ -218,7 +218,7 @@ export default function LeftToolPanel() {
 
       {!collapsed && (
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          <div className="flex-1 min-h-0 overflow-y-auto sidebar-scroll py-1">
+          <div className="flex-1 min-h-0 overflow-y-auto sidebar-scroll py-1 px-1.5">
             {toolsForTab}
           </div>
           <div className="shrink-0 border-t border-zinc-800 p-2">
@@ -244,7 +244,7 @@ function ToolButton({
       type="button"
       onClick={onClick}
       className={[
-        'w-full min-h-10 flex items-center px-2 py-1.5 text-base text-left transition-colors',
+        'w-full min-h-10 flex items-center my-0.5 px-2.5 py-1.5 rounded text-base text-left transition-colors',
         active
           ? 'bg-amber-500/25 text-amber-100 border border-amber-500/70'
           : 'text-zinc-300 border border-transparent hover:bg-zinc-900 hover:text-zinc-100',

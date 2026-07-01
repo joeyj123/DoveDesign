@@ -14,6 +14,43 @@
 
 ## Standalone Upgrades (not tied to phase numbering)
 
+### UI Polish — Right Sidebar + Left Toolbar (2026-07-01)
+
+Pure visual pass, no reference image available — worked from a written current-state
+description instead. CSS/className/JSX-attribute changes only across
+`RightSidebar.tsx`, `LeftToolPanel.tsx`, and `SystemRibbon.tsx`. Zero state, hooks,
+Three.js/canvas, click-handler, or store logic touched (confirmed via `git diff` before
+committing — every changed line is a `className` string, plus two new `title`/
+`aria-label` attributes).
+
+- **Right sidebar tabs:** the 7 tabs (Inspector/Estimating/Cut List/Optimizer/
+  Engineering/Hardware/Tutorial) previously wrapped onto 2 rows inside the 384px-wide
+  sidebar. Changed the row to `flex-nowrap` with `truncate` labels so all 7 now fit on
+  one row — long labels (e.g. "Engineering") ellipsis-truncate visually but keep their
+  full name accessible via a new `title` tooltip and `aria-label` (screen readers still
+  announce "Engineering", not "Engin…"). Active-tab styling changed from a background
+  fill + underline combo to text-color + underline only, per the "orange as indicator
+  only" ask; text bumped from `font-medium` to `font-semibold` at the existing `text-xs`
+  (this `text-xs` on tab labels was an explicitly pre-approved exception to the
+  project's `text-base` minimum, same category as the radial wheel).
+- **Left tool menu:** the selected tool button (e.g. "Select") was a flat, square-cornered
+  orange fill block. Added `rounded` (4px) plus tightened/evened padding (`px-2.5 py-1.5`,
+  `my-0.5` between buttons, `px-1.5` inset on the list container) so it reads as a docked
+  button rather than a raw highlight — no change to which element renders as "active"
+  or how selection is triggered.
+- **Panel/viewport separation:** the three borders that separate the left tool panel,
+  right sidebar, and top ribbon from the 3D viewport were switched from `border-zinc-800`
+  to `border-neutral-800` for a crisper edge, exactly as requested. Left everything else
+  (internal tab dividers, section borders within each panel) on the existing `zinc`
+  palette — only the panel/viewport seams changed, to avoid introducing a second gray
+  palette throughout the app.
+- Verified in the running dev server: tab bar now fits in one row down to 1100px wide,
+  clicking each right-sidebar tab still switches panels correctly, clicking each left
+  tool button still switches tools and still auto-flips the right sidebar to Inspector
+  (pre-existing `pickTool()` behavior, unaffected by this pass) — confirmed via
+  screenshot and accessibility snapshot, not just visual inspection.
+- `npm run build` clean, zero TypeScript errors. No functional/state impact.
+
 ### Pepe Pillars — Deep Content Audit & Expansion v2 (2026-07-01)
 
 Content-only pass per `PEPE_PILLARS_PROMPT_V2.md` covering four woodworking

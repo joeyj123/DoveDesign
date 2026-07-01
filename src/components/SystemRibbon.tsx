@@ -74,7 +74,7 @@ export default function SystemRibbon() {
   return (
     <header
       ref={ribbonRef}
-      className="h-9 shrink-0 flex items-center bg-zinc-900 border-b border-zinc-800 px-2 gap-1 relative z-40"
+      className="h-9 shrink-0 flex items-center bg-zinc-900 border-b border-neutral-800 px-2 gap-1 relative z-40"
     >
       <div className="px-2 hidden sm:block">
         <BrandLogo size="sm" />
