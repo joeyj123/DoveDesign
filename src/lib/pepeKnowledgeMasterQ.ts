@@ -102,8 +102,8 @@ export const PEPE_KNOWLEDGE_MASTER_Q: KnowledgeEntry[] = [
   {
     id: 'mq-measure-squaring-stock',
     topic: 'How to square up rough lumber',
-    keywords: ['square', 'stock', 'rough', 'lumber', 'jointer', 'planer', 'four', 'square'],
-    answer: 'Squaring ("four-squaring") rough lumber is the process of milling a board so all faces are flat and all edges are square to each other: (1) flatten one face on a jointer, (2) joint one edge square to that face, (3) run the flattened face through a planer to make the opposite face parallel, (4) rip the second edge parallel to the first on the table saw. Starting from a warped or twisted board without this process leads to inaccurate joints and parts that do not fit together squarely.',
+    keywords: ['square', 'stock', 'rough', 'lumber', 'jointer', 'planer', 'four', 'square', 'sequence', 'order', 'dimensioning', 'reference face', 'reference edge'],
+    answer: 'Squaring ("four-squaring") rough lumber is the process of milling a board so all faces are flat and all edges are square to each other: (1) flatten one face on a jointer — this becomes your reference face; (2) joint one edge square to that same face — this becomes your reference edge; (3) run the board through a planer with the reference face down, making the opposite face parallel to it; (4) rip the second edge parallel to the reference edge on the table saw. The order matters because each step measures or registers off the flat/square surface the previous step just created — skip or reorder a step and there is nothing reliable left to reference, so the error shows up later as parts that will not fit together squarely. Starting from a warped or twisted board without this process leads to inaccurate joints and parts that do not fit together squarely.',
   },
   {
     id: 'mq-measure-marking-gauge',

@@ -159,4 +159,37 @@ export const PEPE_KNOWLEDGE_MASTER_W: KnowledgeEntry[] = [
     keywords: ['story', 'pole', 'large', 'build', 'built', 'in', 'consistent'],
     answer: 'For a large project with many repeated measurements (a run of built-in cabinets, a staircase, a set of matching bookcases), a story pole — a single long reference stick marked with every key height and position — keeps every part consistent with the actual room and with each other, rather than relying on separately re-measuring each piece and risking small mismatches accumulating across the run.',
   },
+  // ── DIMENSIONING ROUGH LUMBER: WHY THE JOINTER/PLANER ORDER MATTERS ───────
+  {
+    id: 'mw-why-planer-cant-fix-warp',
+    topic: 'Why a thickness planer cannot flatten a warped or cupped board',
+    keywords: ['planer', 'warp', 'cup', 'flatten', 'cant', 'spring', 'back', 'twist', 'bow'],
+    answer: 'A thickness planer has spring-loaded rollers that press down hard on the board as it feeds through, and those rollers will squash a cupped or twisted board flat for the split second it is under the cutterhead — but the moment it clears the rollers, the wood fibers spring right back to their original warped shape, just now thinner. A planer only makes a board a consistent thickness relative to whatever face is riding on its bed; it cannot remove twist, cup, or bow on its own. That is why a board needs one truly flat reference face (established on a jointer, or with hand planes/winding sticks) before it ever goes through the planer.',
+  },
+  // ── CHISEL PHYSICS: BEVEL DIRECTION AND GRAIN READING ─────────────────────
+  {
+    id: 'mw-chisel-bevel-down-vs-up',
+    topic: 'Chopping bevel-down vs paring bevel-up — why the orientation matters',
+    keywords: ['chisel', 'bevel', 'down', 'up', 'chop', 'pare', 'orientation', 'why'],
+    answer: 'A chisel\'s bevel acts like a small wedge, and which way that wedge faces changes what the tool does. For chopping (mallet blows, hogging waste out of a mortise), the chisel rides bevel-down — the wedge shape pops chips up and out as you work toward your line in shallow bites. For paring (hand pressure only, fine trimming), the chisel flips bevel-up so the flat back rides flat along the work like a little skid plate, keeping the edge from diving in and letting you take controlled, wafer-thin shavings. Using the wrong orientation for the task — paring bevel-down, for instance — tends to let the tool dive or wander instead of following a flat reference.',
+  },
+  {
+    id: 'mw-chisel-grain-reading-splitting',
+    topic: 'Reading grain direction with a chisel to avoid splitting the workpiece',
+    keywords: ['chisel', 'grain', 'read', 'split', 'crack', 'wedge', 'direction', 'avoid'],
+    answer: 'Because the bevel acts as a wedge, driving a chisel down into a grain line that is angling deeper into the board can open a split that runs ahead of the edge, well past where you meant to cut — the wedge is doing what wedges do, prying the fibers apart along the grain instead of just severing them. The fix is to look at which way the grain lines dive before committing to a mallet blow, and work chiseling cuts so you are cutting into the grain or across it rather than driving straight down a line that runs off into the board\'s depth. When in doubt, take lighter, shallower passes from both directions and meet in the middle rather than one deep committed cut.',
+  },
+  // ── FASTENER DEPTH AND ADHESIVE CHEMISTRY (PILLAR 4 DEPTH) ────────────────
+  {
+    id: 'mw-fastener-depth-pull-out-vs-split',
+    topic: 'Balancing screw embedment depth against splitting risk',
+    keywords: ['screw', 'depth', 'embed', 'pull', 'out', 'split', 'balance', 'rule', 'thumb', 'penetration'],
+    answer: 'Screw length is really a balance between two opposite failure modes: too shallow and the screw strips out under load (pull-out failure) because too little thread is biting into solid wood; too deep — especially close to an edge or in a hard, brittle species — and the screw acts like a wedge that can split the receiving board. A commonly cited rule of thumb is aiming for roughly one and a half times the thickness of the top piece as your embedment depth into the piece underneath, as a starting point rather than an exact formula — always sanity-check that number against your actual combined material thickness and the wood\'s tendency to split (see the pilot-hole and clearance-hole guidance elsewhere in Pepe for how the two holes work together). Species matters too: dense hardwoods hold screws well at shallower depths but split more easily, while soft, low-density woods need more embedment depth to hold at all.',
+  },
+  {
+    id: 'mw-adhesive-chemistry-compare',
+    topic: 'PVA vs epoxy vs hide glue — how they actually bond, side by side',
+    keywords: ['pva', 'epoxy', 'hide', 'glue', 'chemistry', 'compare', 'difference', 'bond', 'gap', 'fill'],
+    answer: 'These three common shop glues bond wood in genuinely different ways, not just at different price points. PVA (yellow/white wood glue) cures by water evaporating out of a polymer emulsion, leaving a flexible plastic film — it has essentially no gap-filling ability and needs firm clamp pressure across a tight-fitting joint to work well. Epoxy is a two-part system that cures through its own internal chemical reaction between resin and hardener, not by drying out or by clamp pressure — it does not shrink as it sets, so unlike PVA it can genuinely fill gaps and bond well to non-wood materials, at the cost of being pricier and messier to mix. Hide glue is an animal-protein (collagen) glue that sets up as it cools and dries, and its standout property is reversibility — a little heat and moisture releases the bond cleanly, which is exactly why it is the traditional choice for antiques, instruments, and anything that may need future disassembly or repair. Pick PVA for everyday tight-fitting furniture joints, epoxy when a joint has gaps or touches metal/oily wood, and hide glue when future repairability matters more than raw strength.',
+  },
 ];

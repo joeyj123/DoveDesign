@@ -14,6 +14,54 @@
 
 ## Standalone Upgrades (not tied to phase numbering)
 
+### Pepe Pillars — Deep Content Audit & Expansion v2 (2026-07-01)
+
+Content-only pass per `PEPE_PILLARS_PROMPT_V2.md` covering four woodworking
+knowledge pillars (wood science, cut dynamics, surface prep, joinery/fasteners).
+No geometry/solver/topology code touched. Confirmed real schema first
+(`KnowledgeEntry { id, keywords, topic, answer }` in `src/lib/pepeKnowledge.ts`
+— the prompt's own attached draft used a different, incompatible
+`keywords/category/title/content` shape and was not usable as-is).
+
+**Audit finding:** the real knowledge base was already far deeper than the
+prompt's draft assumed. Direct reads (not just ID/keyword matching) confirmed
+Janka hardness, wood movement math, blade kerf cumulative-loss math, crosscut
+vs. rip tooth geometry (ATB/FTG), and kickback/riving-knife mechanics were all
+already SOLID, mechanism-level entries — not missing or shallow as the
+prompt's audit table claimed. Copying the draft's duplicate content for those
+topics would have bloated the KB with near-identical answers, so it was
+skipped in favor of only filling genuine gaps, found by direct-reading actual
+entry content rather than trusting ID/file existence:
+- Grain orientation had only a thin 2-sentence entry with no link to why
+  certain joints (mortise/tenon, dovetails) are chosen over butt joints —
+  deepened `grain-direction` in `pepeKnowledge.ts` in place.
+- The jointer→edge-jointer→planer→table-saw squaring sequence already existed
+  (`mq-measure-squaring-stock`) but didn't explain *why* the order matters
+  (each step depends on the flat/square reference the previous step made) —
+  enriched that entry in place rather than adding a duplicate.
+- Genuinely missing: the roller spring-back mechanism explaining why a planer
+  alone can't fix a warped/cupped board; chisel bevel-down (chopping) vs
+  bevel-up (paring) wedge mechanics and grain-reading to avoid splitting;
+  fastener embedment-depth scaling balanced against splitting risk (advisory
+  "commonly cited" framing, not a hard formula); and a single side-by-side
+  PVA/epoxy/hide-glue chemistry comparison (polymer film vs. thermoset
+  reaction vs. reversible collagen bond) — added as 4 new entries to
+  `src/lib/pepeKnowledgeMasterW.ts`.
+- Applied the prompt's precision-number fix throughout: no invented exact
+  coefficients (e.g. no fabricated tangential-expansion decimal) — ballpark/
+  rule-of-thumb framing only for anything not independently verifiable.
+- Net +5 entries (one draft duplicate was caught and removed after a broader
+  re-check, then merged into the existing entry instead). Total entry count:
+  1,884 (was ~1,879).
+- Verified in the running dev server (not just `npm run build`): confirmed
+  the new adhesive-comparison entry surfaces correctly for a realistic query,
+  and confirmed via the built bundle that all 4 new entries' text ships in
+  `dist/assets/pepeKnowledge-*.js`. Two test queries for the new chisel entry
+  hit an unrelated existing entry instead — this is the same lexical
+  keyword-overlap ranking behavior already noted as a known limitation in the
+  FlexSearch Expansion Pack entry below, not a defect introduced by this pass.
+- `npm run build` clean, zero TypeScript errors.
+
 ### Pepe Expansion Pack — FlexSearch matching + Personal Notebook (2026-07-01)
 
 Two independent, cleanly-separable upgrades to Pepe, built per
@@ -196,6 +244,13 @@ Across Phases 9–15, three systems were repeatedly "fixed" and repeatedly broke
     pass prioritized breadth elsewhere per the phase prompt's instruction).
 - Target: 2,000–2,500 (now at 1,877; ~123–623 entries short depending on which end of
   the range — worth another expansion pass before calling this fully done)
+- **Pillars v2 pass (2026-07-01):** +5 net entries (deepened 2 existing entries
+  in place, added 4 new to `pepeKnowledgeMasterW.ts`, caught and removed 1
+  duplicate found during a broader re-check) → **1,884 total**. Content-only,
+  scoped to wood science / cut dynamics / surface prep / joinery pillars — see
+  Standalone Upgrades section above for detail. Still short of the 2,000–2,500
+  target; a future pass could push further into router-bit, hand-plane, and
+  finishing-chemistry depth without duplicating the already-solid coverage.
 
 ---
 

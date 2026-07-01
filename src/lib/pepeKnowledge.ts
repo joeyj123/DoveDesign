@@ -511,9 +511,9 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
   {
     id: 'grain-direction',
     topic: 'Wood grain direction',
-    keywords: ['grain', 'direction', 'tearout', 'strength', 'what is'],
+    keywords: ['grain', 'direction', 'tearout', 'strength', 'what is', 'orientation', 'fiber'],
     answer:
-      'Grain runs along the length of a board. Long-grain glue joints are strongest. Cross-grain joints need allowance for wood movement. Route and plane with the grain when possible to reduce tear-out.',
+      'Wood fibers run mostly one way along a board, like a bundle of parallel straws — cutting, planing, or routing "with the grain" slices along the straws cleanly, while going against it catches the fiber ends and tears them out. This same fiber orientation is why long-grain-to-long-grain glue joints (like a mortise and tenon or an edge glue-up) are strong while end-grain joints are weak — the open straw ends soak up glue instead of holding it as a film. It is also why boards move (expand/shrink) across the grain but barely at all along its length. Choosing joinery in DoveDesign — favoring mortise-and-tenon or dovetails over plain butt joints wherever a joint carries real load — is really about keeping glue surfaces long-grain-to-long-grain rather than fighting the grain\'s natural strength and movement behavior.',
   },
   {
     id: 'board-feet',
