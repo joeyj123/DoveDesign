@@ -34,6 +34,7 @@ export default function SystemRibbon() {
   const setDisplayMode = useAppStore((s) => s.setDisplayMode);
   const clearAllMembers = useAppStore((s) => s.clearAllMembers);
   const setTemplatePickerOpen = useAppStore((s) => s.setTemplatePickerOpen);
+  const recentFiles = useAppStore((s) => s.recentFiles);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -86,6 +87,19 @@ export default function SystemRibbon() {
         <MenuItem label="Save Project  Ctrl+S" onClick={() => { saveProjectToFile(); setOpenMenu(null); }} />
         <MenuItem label="Open Project  Ctrl+O" onClick={() => { fileRef.current?.click(); setOpenMenu(null); }} />
         <input ref={fileRef} type="file" accept=".wcad,.woodproject" className="hidden" onChange={handleLoad} />
+        {recentFiles.length > 0 && (
+          <>
+            <MenuDivider />
+            <div className="px-3 py-1 text-sm text-zinc-500 uppercase tracking-wider">Recent Projects</div>
+            {recentFiles.map((f) => (
+              <MenuItem
+                key={f.name + f.savedAt}
+                label={f.name}
+                onClick={() => { fileRef.current?.click(); setOpenMenu(null); }}
+              />
+            ))}
+          </>
+        )}
       </RibbonMenu>
 
       <RibbonMenu label="Edit" open={openMenu === 'edit'} onToggle={() => toggle('edit')}>

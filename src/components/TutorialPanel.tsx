@@ -673,9 +673,10 @@ export default function TutorialPanel() {
           <li><strong className="text-zinc-300">Toggle visibility</strong> in the View menu — turn all dimension lines on or off without deleting them.</li>
           <li>Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">D</kbd> again or <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Escape</kbd> to exit the Measure tool.</li>
           <li><strong className="text-zinc-300">Measuring across a board&apos;s width now works correctly</strong> (Phase 17) — dimension lines placed across the narrow side of a board follow it correctly when you move or rotate the board, the same as length-wise measurements always have.</li>
+          <li><strong className="text-zinc-300">Edge and corner snapping</strong> (Phase 18) works the same way on every face of a board, for both the start and end point — just move the cursor near an edge or corner and the dot changes color: <span className="text-emerald-400">green</span> means you&apos;re snapped to the middle of a face, <span className="text-blue-400">blue</span> means you&apos;re snapped to the middle of an edge, and <span className="text-yellow-300">bright yellow</span> means you&apos;re snapped exactly to a corner. A plain gray dot means free placement — you&apos;re not snapped to anything, and the point goes exactly where you clicked.</li>
         </ul>
         <p className="text-base text-zinc-500 mt-2">
-          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I measure distance?&quot; · &quot;What is the measure tool?&quot; · &quot;How do I add dimension lines?&quot; · &quot;Why doesn&apos;t my width measurement follow the board?&quot;
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I measure distance?&quot; · &quot;What is the measure tool?&quot; · &quot;How do I add dimension lines?&quot; · &quot;How do I snap to a corner or edge?&quot;
         </p>
       </Section>
 
@@ -797,15 +798,17 @@ export default function TutorialPanel() {
 
       <Section search={searchLower} title="Project Save &amp; Open" onMatch={registerMatch}>
         <p className="text-base text-zinc-400">
-          Save your project to a file so you can come back to it later — even on a different computer.
+          As of Phase 18, DoveDesign always opens to a <strong className="text-zinc-300">blank canvas</strong> — it no longer reopens wherever you left off. Saving to a named <em>.wcad</em> file is now the real way to keep and return to your work.
         </p>
         <ul className="space-y-1.5 list-disc pl-4 text-zinc-400 mt-2">
-          <li><strong className="text-zinc-300">Save:</strong> Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Ctrl+S</kbd> or File → Save Project. Downloads a <em>.wcad</em> file.</li>
+          <li><strong className="text-zinc-300">Save:</strong> Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Ctrl+S</kbd> or File → Save Project. The first time you save a new project, a box pops up asking for a name — type one and press Save, and it downloads a <em>.wcad</em> file with that name. After that, Ctrl+S saves immediately with no prompt.</li>
           <li><strong className="text-zinc-300">Open:</strong> Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Ctrl+O</kbd> or File → Open Project, then pick your .wcad file.</li>
-          <li>DoveDesign <strong className="text-zinc-300">auto-saves in the browser</strong> so a page refresh will not lose your work.</li>
+          <li><strong className="text-zinc-300">Recent Projects:</strong> File menu shows your last 3 saved project names — clicking one opens the file picker so you can find and load it.</li>
+          <li><strong className="text-zinc-300">Closing the tab</strong> with unsaved boards on the canvas shows your browser&apos;s standard &quot;leave page?&quot; warning, so you never lose work by accident.</li>
+          <li>DoveDesign still <strong className="text-zinc-300">auto-saves quietly in the background</strong> as a crash-recovery backup only — it is never loaded automatically. If the app finds a backup from a session that never got a real save, a banner appears at the top offering to <strong className="text-zinc-300">Recover</strong> it or <strong className="text-zinc-300">Dismiss</strong> it.</li>
         </ul>
         <p className="text-base text-zinc-500 mt-2">
-          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I save my project?&quot; · &quot;What is a .wcad file?&quot;
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I save my project?&quot; · &quot;What is a .wcad file?&quot; · &quot;Why did the app open blank?&quot; · &quot;What is the recover unsaved work banner?&quot;
         </p>
       </Section>
 

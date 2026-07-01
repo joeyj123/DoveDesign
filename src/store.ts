@@ -119,6 +119,7 @@ const DEFAULT_UI: UIState = {
   bomPanelOpen: false,
   selectedDrawMaterial: 'Southern Yellow Pine',
   finishPanelOpen: false,
+  saveNameModalOpen: false,
   drawDefaults: {
     species: 'Southern Yellow Pine',
     thickness: 1.5,
@@ -170,6 +171,19 @@ interface AppStore {
   ui: UIState;
   past: Project[];
   future: Project[];
+
+  // Phase 18: crash-recovery banner state. The autosave in localStorage is
+  // NEVER auto-loaded into `project` on startup (see persist `merge` below) —
+  // this is only the metadata needed to offer a dismissible recovery prompt.
+  recoveryAvailable: boolean;
+  recoveryTimestamp: string | null;
+  recoverableProjectSnapshot: Project | null;
+  dismissRecovery: () => void;
+  recoverAutosave: () => void;
+
+  /** Phase 18: last 3 saved .wcad filenames + dates — metadata only, not project data. */
+  recentFiles: { name: string; savedAt: string }[];
+  addRecentFile: (name: string) => void;
 
   // History
   undo: () => void;
@@ -376,6 +390,19 @@ interface AppStore {
   // Persistence
   saveProjectToFile:   () => void;
   loadProjectFromFile: (file: File) => Promise<void>;
+  setSaveNameModalOpen: (open: boolean) => void;
+  saveProjectAs: (name: string) => void;
+}
+
+function downloadWcadFile(project: Project) {
+  const payload = serializeWcad(project);
+  const blob = new Blob([payload], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${project.name.replace(/\s+/g, '_')}.wcad`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function commitProject(
@@ -398,6 +425,27 @@ export const useAppStore = create<AppStore>()(
   ui: DEFAULT_UI,
   past: [],
   future: [],
+
+  recoveryAvailable: false,
+  recoveryTimestamp: null,
+  recoverableProjectSnapshot: null,
+  recentFiles: [],
+
+  dismissRecovery: () =>
+    set({ recoveryAvailable: false, recoveryTimestamp: null, recoverableProjectSnapshot: null }),
+
+  recoverAutosave: () => {
+    const snap = get().recoverableProjectSnapshot;
+    if (!snap) return;
+    set({
+      project: migrateProject(snap),
+      past: [],
+      future: [],
+      recoveryAvailable: false,
+      recoveryTimestamp: null,
+      recoverableProjectSnapshot: null,
+    });
+  },
 
   undo: () => {
     const { past, project, future } = get();
@@ -925,12 +973,26 @@ export const useAppStore = create<AppStore>()(
   unmateAll: (groupId) => {
     const group = get().project.mateGroups?.find((g) => g.id === groupId);
     const memberIds = new Set(group?.memberIds ?? []);
+    // Any legacy MemberMate/Fastener record fully inside this group must be
+    // dropped alongside the constraint, or its marker (MateMarkers /
+    // FastenerMeshes) keeps rendering a "connection" that no longer exists —
+    // it would still derive a live world position every frame (Law 1), just
+    // for a relationship that was supposed to have been severed (Law 2).
+    const removedMateIds = new Set(
+      get().project.mates
+        .filter((m) => memberIds.has(m.memberAId) && memberIds.has(m.memberBId))
+        .map((m) => m.id)
+    );
     commitProject(set, get, {
       ...get().project,
       mateGroups: (get().project.mateGroups ?? []).filter((g) => g.id !== groupId),
       mateConstraints: (get().project.mateConstraints ?? []).filter(
         (c) => !memberIds.has(c.solidAId) || !memberIds.has(c.solidBId)
       ),
+      mates: get().project.mates.filter(
+        (m) => !(memberIds.has(m.memberAId) && memberIds.has(m.memberBId))
+      ),
+      fasteners: get().project.fasteners.filter((f) => !removedMateIds.has(f.mateId)),
     });
   },
 
@@ -939,12 +1001,21 @@ export const useAppStore = create<AppStore>()(
     const newGroups = groups
       .map((g) => ({ ...g, memberIds: g.memberIds.filter((id) => id !== memberId) }))
       .filter((g) => g.memberIds.length > 1);
+    const removedMateIds = new Set(
+      get().project.mates
+        .filter((m) => m.memberAId === memberId || m.memberBId === memberId)
+        .map((m) => m.id)
+    );
     commitProject(set, get, {
       ...get().project,
       mateGroups: newGroups,
       mateConstraints: (get().project.mateConstraints ?? []).filter(
         (c) => c.solidAId !== memberId && c.solidBId !== memberId
       ),
+      mates: get().project.mates.filter(
+        (m) => m.memberAId !== memberId && m.memberBId !== memberId
+      ),
+      fasteners: get().project.fasteners.filter((f) => !removedMateIds.has(f.mateId)),
     });
   },
 
@@ -1719,16 +1790,37 @@ export const useAppStore = create<AppStore>()(
   updateProjectMeta: (patch) =>
     commitProject(set, get, { ...get().project, ...patch }),
 
+  // Phase 18 FIX 3: Ctrl+S only downloads directly if the project already has
+  // a real name. An unnamed project opens the name-prompt modal instead — the
+  // modal calls saveProjectAs() once the user submits a name, which both
+  // renames the project AND performs the download in one step.
   saveProjectToFile: () => {
     const { project } = get();
-    const payload = serializeWcad(project);
-    const blob = new Blob([payload], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${project.name.replace(/\s+/g, '_')}.wcad`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (!project.name.trim() || project.name === DEFAULT_PROJECT.name) {
+      set((s) => ({ ui: { ...s.ui, saveNameModalOpen: true } }));
+      return;
+    }
+    downloadWcadFile(project);
+    get().addRecentFile(project.name);
+  },
+
+  saveProjectAs: (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const next = { ...get().project, name: trimmed };
+    commitProject(set, get, next);
+    downloadWcadFile(next);
+    get().addRecentFile(trimmed);
+    set((s) => ({ ui: { ...s.ui, saveNameModalOpen: false } }));
+  },
+
+  setSaveNameModalOpen: (open) =>
+    set((s) => ({ ui: { ...s.ui, saveNameModalOpen: open } })),
+
+  addRecentFile: (name) => {
+    const entry = { name, savedAt: new Date().toISOString() };
+    const rest = get().recentFiles.filter((f) => f.name !== name);
+    set({ recentFiles: [entry, ...rest].slice(0, 3) });
   },
 
   loadProjectFromFile: async (file) => {
@@ -1798,13 +1890,29 @@ export const useAppStore = create<AppStore>()(
     }),
     {
       name: 'dovedesign-autosave-v1',
-      partialize: (state) => ({ project: state.project }),
-      merge: (persisted, current) => ({
-        ...current,
-        project: migrateProject(
-          (persisted as { project?: Project })?.project ?? current.project
-        ),
+      // Phase 18 FIX 3: `project` + `savedAt` are still written to localStorage
+      // on every change — this keeps working purely as a crash-recovery
+      // backup. It is deliberately NOT restored into `project` on startup
+      // (see `merge` below) — the app must always open to a blank canvas.
+      partialize: (state) => ({
+        project: state.project,
+        savedAt: new Date().toISOString(),
+        recentFiles: state.recentFiles,
       }),
+      merge: (persisted, current) => {
+        const p = persisted as
+          | { project?: Project; savedAt?: string; recentFiles?: { name: string; savedAt: string }[] }
+          | undefined;
+        const hasWork = !!p?.project && Array.isArray(p.project.members) && p.project.members.length > 0;
+        return {
+          ...current,
+          project: current.project,
+          recoveryAvailable: hasWork,
+          recoveryTimestamp: hasWork ? (p!.savedAt ?? null) : null,
+          recoverableProjectSnapshot: hasWork ? migrateProject(p!.project as Project) : null,
+          recentFiles: p?.recentFiles ?? current.recentFiles,
+        };
+      },
     }
   )
 );

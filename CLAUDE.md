@@ -352,6 +352,32 @@ const [, get] = useKeyboardControls()
 
 ---
 
+## Save/Load Architecture (Phase 18+)
+
+The zustand `persist` middleware (`src/store.ts`, key `dovedesign-autosave-v1`) still writes
+`{ project, savedAt, recentFiles }` to localStorage on every change — this is unchanged and
+must keep working as a background crash-recovery backup.
+
+**What changed:** the persist `merge` function no longer restores the persisted `project`
+into live state on startup. It always starts from `DEFAULT_PROJECT` (blank), and instead
+extracts `recoveryAvailable` / `recoveryTimestamp` / `recoverableProjectSnapshot` from the
+persisted blob so `RecoveryBanner.tsx` can offer a one-click, dismissible restore. Do NOT
+change `merge` back to auto-applying `persisted.project` — that reintroduces the "app never
+starts blank" behavior Joey explicitly asked to remove in Phase 18.
+
+`saveProjectToFile()` now checks `project.name` — if it's still the default
+(`'Untitled Project'`) or blank, it opens `SaveNameModal.tsx` instead of downloading
+immediately; `saveProjectAs(name)` renames the project (a normal `commitProject` call, so
+it's undoable) and then downloads. Both paths record the save in `state.recentFiles`
+(last 3, deduped by name), which SystemRibbon's File menu reads for the "Recent Projects"
+list — clicking an entry just opens the normal `.wcad` file picker, since browsers don't
+allow reopening a previously-downloaded file by name alone.
+
+`UnsavedChangesGuard.tsx` wires a `beforeunload` listener keyed off whether any non-scrap
+member exists — this is intentionally independent of the recovery/save systems above.
+
+---
+
 ## Things That Must Never Change
 
 - `Project.structural` must NEVER be nullable
@@ -392,6 +418,9 @@ const [, get] = useKeyboardControls()
 | `src/lib/bounds.ts` | Snap-to-position logic |
 | `src/lib/gizmoDragGuard.ts` | Phase 17: suppresses the one `onPointerMissed`/floor-click deselect that can fire immediately after a TransformControls (move/rotate/scale gizmo) drag ends — fixes the mate-rotation deselect bug |
 | `src/lib/bom.ts` | Bill of Materials calculation |
+| `src/components/SaveNameModal.tsx` | Phase 18: name-prompt modal shown on first Ctrl+S save of an unnamed project |
+| `src/components/RecoveryBanner.tsx` | Phase 18: dismissible "Unsaved work found" banner, reads `recoveryAvailable`/`recoveryTimestamp` from the store |
+| `src/components/UnsavedChangesGuard.tsx` | Phase 18: `beforeunload` listener — shows the browser's native leave-page prompt when boards exist |
 
 ---
 

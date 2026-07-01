@@ -555,6 +555,8 @@ export interface UIState {
   selectedDrawMaterial: string;
   /** Finishing panel open */
   finishPanelOpen: boolean;
+  /** Phase 18: "Project name" prompt shown before the first Ctrl+S save of an unnamed project */
+  saveNameModalOpen: boolean;
 }
 
 export interface DesignSuggestion {

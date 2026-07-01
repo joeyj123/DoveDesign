@@ -7,8 +7,8 @@
 
 ## Current Status
 
-**Last completed phase:** Phase 17 ✅ — built, not yet committed/pushed (Joey reviews diff first per this phase's instructions)
-**Next:** Joey reviews the Phase 17 changes, commits/pushes, then stress tests mate rotation + cross-axis dimension lines in the browser
+**Last completed phase:** Phase 18 ✅ — commit `PENDING` pushed, Vercel deploys automatically
+**Next:** Joey stress tests Phase 18 (snap dots after unmate, dimension-line edge snapping on all faces, blank-canvas startup + save/recovery flow) → report findings → Phase 19 prompt
 
 ---
 
@@ -50,8 +50,8 @@
 | 15 | ✅ | (unconfirmed hash) | Dim line edge/corner snap, face boundary clamp, dim line render-as-child, mate real-time grouping attempt, deselect via grid click, board spawn placement, zoom/pan audit, dim-to-cut fix, centerline/dim line edit+delete |
 | **PIVOT** | — | — | CAD_MANIFESTO.md adopted after 15 phases of recurring breakage from world-space coordinate storage. New parametric/topological/constraint-based architecture established. |
 | 16 | ✅ | `e9b4604` | Built `src/core/Engine.ts` (DoveDesignEngine + CADGeometryEngine). Wired `solveMateConstraints` into mate (translate) — boards now follow in real time, chains correctly. Wired dimension lines to face-relative `(u,v)` storage — length-wise lines confirmed following board correctly. Scoped DOWN from full 80-action rewrite to surgical fix at the two broken points; centerlines left untouched (already storing relationships correctly). |
-| 17 | ✅ built, awaiting commit | — | Fixed mate-rotation deselect bug (root cause: drei's TransformControls never calls stopPropagation, so R3F's onPointerMissed could fire on the same pointerup that ends a rotate-ring drag — fixed with a short suppression guard, src/lib/gizmoDragGuard.ts). Fixed cross-axis dimension lines not following (root cause: MeasureTool's snap system could relocate a click onto a different face than the stale raycast-captured work-plane normal — fixed by tagging snap candidates with their real face normal). Full Part 3 audit of 14 other tools/features completed — all verified working, no regressions found, save/load and undo/redo confirmed to already correctly persist mateConstraints and (u,v) dimension line fields. |
-| 18 | ⬜ | — | TBD — Joey to stress test Phase 17 fixes, report back |
+| 17 | ✅ | `13e10ae` | Fixed mate-rotation deselect bug (gizmo drag-guard, not the constraint solver). Fixed cross-axis dimension line anchoring (snap point face-normal tagging). Full manifesto-compliance audit across existing tools. |
+| 18 | ✅ | `PENDING` | FIX 1: `unmateBoard`/`unmateAll` were pruning `mateGroups`/`mateConstraints` but never `project.mates`/`project.fasteners` — left ghost `MateMarkers` (purple join-method spheres) and fastener icons rendering a severed connection after unmate. `SnapPointHandles.tsx` itself was already Law-1 compliant (fresh `useFrame`/`matrixWorld` derivation) — no change needed there. FIX 2: `MeasureTool.tsx`'s 26-candidate snap system (8 corners+12 edges+6 faces, shared for start/end) was already computing correctly for all faces post-Phase-17 — bumped `SNAP_RADIUS` 0.5"→1.0" (was below the VECTOR_PROJECTION_MATH.md-recommended range) and rewrote cursor color coding to the spec (green=face, blue=edge, bright yellow=corner, gray=free placement — corner previously shared blue with edge, no distinct free-placement color). FIX 3: persist `merge` no longer restores `project` into live state on startup (always blank `DEFAULT_PROJECT`) while `partialize` still writes `{project, savedAt, recentFiles}` in the background for crash recovery; added `RecoveryBanner.tsx` (Recover/Dismiss), `SaveNameModal.tsx` (Ctrl+S prompts for a name on first save via `saveProjectAs`, silent after), `UnsavedChangesGuard.tsx` (`beforeunload` when boards exist), and a Recent Projects list (last 3, in File menu) that opens the normal file picker. |
 
 ---
 
@@ -87,31 +87,11 @@ Across Phases 9–15, three systems were repeatedly "fixed" and repeatedly broke
 
 ---
 
-## Phase 17 — What Was Actually Fixed/Verified
+## Phase 17 — What's Being Fixed/Verified (prompt written, not yet executed)
 
-- PART 1 (FIXED): Rotating a mated board was deselecting the group. NOT a constraint-solver
-  bug — `solveMateConstraints` was already wired correctly for rotate (same as translate).
-  Real cause: drei's TransformControls attaches raw DOM pointer listeners to the canvas and
-  never calls `stopPropagation()`, so R3F's own native pointerup raycast can also fire
-  `onPointerMissed` in the same event cycle. Translate's arrow handles sit against the
-  board mesh so this rarely triggered; rotate's ring handles are frequently released in
-  empty space, so it triggered often. Fixed with a short (250ms) suppression guard
-  (`src/lib/gizmoDragGuard.ts`) armed the instant a gizmo drag ends, consumed by
-  `Viewport.tsx`'s `onPointerMissed` and the floor mesh's deselect `onClick`.
-- PART 2 (FIXED): Cross-axis (width) dimension lines weren't following the board. NOT a
-  face-topology or projection-math bug — `Engine.ts`'s `uAxis`/`vAxis` were already
-  correctly defined for all 6 faces, and the forward/inverse `(u,v)` projection was already
-  correct. Real cause: `MeasureTool.tsx`'s snap system could relocate a click onto a
-  corner/edge belonging to a different face than the stale raycast-derived work-plane
-  normal (very likely for a narrow width measurement, since the snap radius easily reaches
-  an edge), silently anchoring the line's `(faceId, u, v)` data to the wrong face. Fixed by
-  tagging every snap candidate with the real local-space normal of the face it belongs to,
-  and updating the work-plane normal from that tag when a snap overrides the click.
-- PART 3 (AUDIT COMPLETE): All 14 other tools/features verified — no regressions found.
-  Save/load (`src/lib/wcad.ts` + `migrateProject`) and undo/redo (`commitProject`'s
-  full-object `past`/`future` snapshots) both already correctly persist/restore
-  `mateConstraints` and the `(u,v)` dimension line fields, since both systems snapshot
-  the entire `Project` object rather than touching individual fields.
+- PART 1: Trace and fix why rotating a mated board deselects instead of solving the constraint (likely: rotate handler never calls solveMateConstraints, or a stale deselect guard fires)
+- PART 2: Trace and fix why cross-axis dimension lines don't follow (likely: face uAxis/vAxis only correctly defined for the length direction)
+- PART 3: Full audit pass (not rewrite) across 14 other tools/features to catch any Phase 16 regressions — explicit focus on undo/redo and Save/Load correctly handling the new `mateConstraints` and `(u,v)` dimension line data, since pre-Phase-16 code may not know these fields exist
 
 ---
 
@@ -159,3 +139,55 @@ Across Phases 9–15, three systems were repeatedly "fixed" and repeatedly broke
 2. C:\Users\Joeyj\.local\bin\claude.exe
 3. Per CLAUDE.md's runtime rules, Claude Code automatically reads CAD_MANIFESTO.md, PROGRESS.md, reference/CAD_ENGINE_BLUEPRINT.ts first
 4. Drop PHASE_N_PROMPT.md in project root → Claude Code runs
+
+---
+
+## Phase 17 Stress Test Results (informed Phase 18 scope)
+
+**Confirmed working:**
+- 3-board rotation chain works — moving AND rotating any link in the chain moves the whole group correctly
+- Unmate works, undo/redo of mate/unmate actions works
+- Mated Group panel in Inspector shows correctly ("grouped with 2 other boards")
+- Unmate This Board / Unmate All buttons work
+
+**Confirmed broken (Phase 18 targets):**
+- Snap dots (white spheres used to initiate mates) float behind at old position after unmating + moving a board — world-space storage bug, same category as the old dimension line bug
+- Cross-axis (width) dimension lines still don't snap to edges — only way to measure a width precisely is to zoom in and eyeball it; both start and end point snap need to work on all faces/edges
+
+**Save/Load UX rework (Phase 18):**
+- Auto-restore from localStorage on startup is confusing — users expect a fresh start
+- Better flow: blank canvas on open, before-unload prompt when closing with unsaved work, named save on Ctrl+S, recovery banner for crash protection only
+
+## Phase 18 — What's Being Fixed
+
+- FIX 1: Snap dots — rewrite position calculation to derive fresh from board's current world matrix every frame, using face-center (u,v) coordinates per VECTOR_PROJECTION_MATH.md. Never cache world-space position.
+- FIX 2: Dimension line edge snapping — 26 snap candidates (8 corners + 12 edge midpoints + 6 face centers) computed every frame for every hovered board; shared snap function for start AND end point; color-coded feedback (green=face center, blue=edge midpoint, yellow=corner); free placement still works between snap candidates
+- FIX 3: Save/load UX — blank canvas on startup; before-unload browser dialog when closing with unsaved work; named Ctrl+S save; crash-recovery banner (not auto-restore) for localStorage backup
+
+## Phase 18 — What Was Actually Found &amp; Built
+
+- FIX 1 root cause was NOT in `SnapPointHandles.tsx` (the interactive white mate dots) — that
+  file already derived dot position fresh every frame from `meshRef.current.matrixWorld`, fully
+  Law-1 compliant since Phase 12. The actual "leftover connection" bug traced to `store.ts`:
+  `unmateBoard`/`unmateAll` (used by the ToolPanel "Unmate This Board"/"Unmate All" buttons)
+  correctly pruned `mateGroups` and `mateConstraints`, but never pruned the legacy
+  `project.mates` array or `project.fasteners` — so `MateMarkers()` (the purple join-method
+  sphere in `FastenerMeshes.tsx`) and any placed screw/nail/dowel icons kept rendering a
+  connection that had already been severed. Fixed by mirroring `removeMate()`'s existing
+  cleanup pattern into both functions.
+- FIX 2: the 26-candidate snap system in `MeasureTool.tsx` (corners/edges/faces, shared
+  function for start+end, per-face local-normal tagging from the Phase 17 fix) was already
+  structurally correct for every face including width edges. What was actually missing:
+  `SNAP_RADIUS` was 0.5" (below `VECTOR_PROJECTION_MATH.md`'s recommended 1.0–1.5" range),
+  making it easy to miss an edge; bumped to 1.0". Color feedback didn't match the requested
+  spec — corners shared blue with edges and there was no distinct "not snapped" color;
+  rewrote to green=face / blue=edge / bright yellow=corner / gray=free placement, identical
+  for both the start and end point.
+- FIX 3: `persist`'s `merge` in `store.ts` now always returns `DEFAULT_PROJECT` for live state
+  on startup instead of applying the persisted blob — `partialize` still writes
+  `{project, savedAt, recentFiles}` to localStorage on every change, so the crash-recovery
+  backup keeps working in the background. Added `RecoveryBanner.tsx`, `SaveNameModal.tsx`
+  (wired through new `saveProjectAs(name)` store action), `UnsavedChangesGuard.tsx`
+  (`beforeunload`), and a `recentFiles` list (last 3, deduped by name) surfaced in
+  SystemRibbon's File menu.
+- `npm run build` clean, zero TypeScript errors.

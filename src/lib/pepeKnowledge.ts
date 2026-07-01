@@ -1169,8 +1169,26 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'autosave',
     topic: 'Does DoveDesign autosave',
-    keywords: ['autosave', 'auto save', 'lose work', 'refresh', 'browser save', 'automatic save'],
-    answer: 'Yes — DoveDesign saves your work automatically in the browser so a refresh will not lose anything. To keep a permanent copy, use Ctrl+S to download a .wcad file.',
+    keywords: ['autosave', 'auto save', 'lose work', 'refresh', 'browser save', 'automatic save', 'crash recovery'],
+    answer: 'DoveDesign quietly keeps a background backup as you work, purely for crash recovery — but as of Phase 18 it is never loaded automatically. If the app finds a recent backup when you open it, a banner appears offering to Recover or Dismiss it. To actually keep and reopen a project on purpose, use Ctrl+S to save a named .wcad file — that is now the real way to save your work.',
+  },
+  {
+    id: 'blank-canvas-start',
+    topic: 'Why does DoveDesign open blank',
+    keywords: ['open blank', 'blank canvas', 'lost my project', 'app reset', 'why is it empty', 'fresh start'],
+    answer: 'As of Phase 18, DoveDesign always opens to a blank canvas instead of reloading your last session — this is intentional, so you always start clean. Your last unsaved session is not gone: check the amber "Unsaved work found" banner at the top for a Recover option, or reopen a saved .wcad file with Ctrl+O.',
+  },
+  {
+    id: 'save-name-prompt',
+    topic: 'Save asks for a project name',
+    keywords: ['name my project', 'project name prompt', 'save asks for name', 'name your project'],
+    answer: 'The first time you save a new project with Ctrl+S, DoveDesign asks you to type a name before downloading the .wcad file. After that first save, Ctrl+S saves immediately under that same name with no prompt.',
+  },
+  {
+    id: 'recent-projects-menu',
+    topic: 'Recent Projects list',
+    keywords: ['recent projects', 'recent files', 'file menu recent', 'last saved projects'],
+    answer: 'The File menu shows your last 3 saved project names under Recent Projects. Clicking one opens the file picker so you can find and load that .wcad file — browsers don\'t let a website reopen a file on its own for privacy reasons, so you still pick the file once.',
   },
   {
     id: 'project-templates',
@@ -1253,8 +1271,8 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
   {
     id: 'measure-edge-snap',
     topic: 'Measure tool edge snap',
-    keywords: ['measure snap', 'edge snap', 'snap to edge', 'blue dot measure'],
-    answer: 'The measure tool snaps to board edges and corners — the dot turns blue when you\'re snapped to an edge or corner. Green means face-center snap.',
+    keywords: ['measure snap', 'edge snap', 'snap to edge', 'blue dot measure', 'corner snap', 'yellow dot measure'],
+    answer: 'The measure tool snaps to every corner, edge, and face on a board, for both the start and end point. The dot changes color to tell you what it snapped to: green means the center of a face, blue means the middle of an edge, and bright yellow means an exact corner. A plain gray dot means it is not snapped to anything — it will place exactly where you clicked.',
   },
   {
     id: 'measure-width-now-follows',

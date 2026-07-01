@@ -9,9 +9,13 @@ import type { FaceId } from '../types';
 const AMBER = '#F59E0B';
 const AMBER_BRIGHT = '#FCD34D';
 const GREEN = '#22c55e';
-const GREEN_BRIGHT = '#4ade80';
 const BLUE = '#3b82f6';
-const SNAP_RADIUS = 0.5;
+const YELLOW_BRIGHT = '#FDE047';
+const GRAY = '#9ca3af';
+// Per Phase 18 FIX 2 (VECTOR_PROJECTION_MATH.md section 5 recommends
+// 1.0-1.5 world units) — 0.5" was too tight to reliably land on an edge,
+// especially the narrower width edges, forcing users to zoom in and eyeball it.
+const SNAP_RADIUS = 1.0;
 const SNAP_THRESHOLD_DEG = 8;
 
 function projectOntoPlane(P: THREE.Vector3, O: THREE.Vector3, N: THREE.Vector3): THREE.Vector3 {
@@ -489,10 +493,14 @@ export default function MeasureTool() {
 
   const lineColor = lineSnapped ? AMBER_BRIGHT : AMBER;
 
+  // Per Phase 18 FIX 2: identical color coding for BOTH the start and end
+  // point, regardless of which face/edge it's on — face-center=green,
+  // edge-midpoint=blue, corner=bright yellow, no snap (free placement)=gray.
   const cursorColor =
-    cursorKind === 'edge' || cursorKind === 'corner' ? BLUE :
-    startVec ? (cursorKind !== 'grid' ? AMBER_BRIGHT : AMBER) :
-    (cursorKind !== 'grid' ? GREEN_BRIGHT : GREEN);
+    cursorKind === 'corner' ? YELLOW_BRIGHT :
+    cursorKind === 'edge' ? BLUE :
+    cursorKind === 'face' ? GREEN :
+    GRAY;
 
   return (
     <>
