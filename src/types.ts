@@ -477,7 +477,7 @@ export interface UIState {
   selectedMateId: string | null;
   /** Pepe assistant UI */
   pepePanelOpen: boolean;
-  pepeTab: 'suggestions' | 'ask';
+  pepeTab: 'suggestions' | 'ask' | 'notebook';
   pepeExpression: 'neutral' | 'thinking' | 'happy';
   /** Ask Pepe queries that received thumbs-down (not persisted). */
   missedQueries: string[];

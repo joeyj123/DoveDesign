@@ -12,6 +12,57 @@
 
 ---
 
+## Standalone Upgrades (not tied to phase numbering)
+
+### Pepe Expansion Pack — FlexSearch matching + Personal Notebook (2026-07-01)
+
+Two independent, cleanly-separable upgrades to Pepe, built per
+`PEPE_EXPANSION_PACK_PROMPT.md`. UI + local-storage + search-indexing only —
+no geometry/solver/topology code touched.
+
+**Part A — FlexSearch concept matching (`src/lib/pepeSearch.ts`):**
+Replaced the Fuse.js-based matcher in `PepeAssistant.tsx` with a FlexSearch
+`Index` per field (keywords/topic/answer), plus a hand-rolled Levenshtein
+typo-correction pass over the KB's own vocabulary (no prior Levenshtein logic
+existed to preserve — this is new). 100% client-side, `fuse.js` dependency
+removed. Filler words (how/what/is/the/a/...) are stripped before matching.
+**Bug found and fixed during verification:** joining all cleaned query words
+into a single FlexSearch query string returns zero results the moment any one
+word isn't present in a candidate document, because FlexSearch treats a
+multi-word query as requiring ALL words (AND), not a ranked union — the
+opposite of Fuse's old behavior. Fixed by searching each word individually
+and summing rank-weighted scores across words and fields, with a small bonus
+for a full contiguous-phrase match on top. Verified in the running dev
+server: realistic loose queries ("what's the point of a push stick anyway",
+"whats a good glue for outdoor stuff") return the right entry or a
+same-topic near-miss; this is honestly still lexical/keyword overlap, not
+comprehension — it does not invent answers or reason across entries.
+
+**Part B — Personal Notebook (`src/lib/pepeNotebookDb.ts`, IndexedDB):**
+New "Notebook" tab in Pepe's Workshop panel (`pepeTab` type extended to
+include `'notebook'` in `src/types.ts`). `+ Add Custom Note` saves free text
+instantly to IndexedDB (db `dovedesign-pepe-notebook`). When Pepe answers a
+question, `findRelevantNotes()` blends in any note whose words overlap the
+query or the matched entry's topic/keywords, rendered in a separate
+"📓 From your notebook" block — never merged into or mutating the core KB
+entry itself. If no core KB match exists but a note is relevant, the note is
+shown instead of the flat "not sure" message. **Data-safety requirement
+(not optional):** Export Notebook downloads all notes as
+`pepe-notebook-YYYY-MM-DD.json` (same Blob/anchor pattern as `.wcad` saves);
+Import Notebook merges a previously exported file back in, skipping any note
+whose text already exists (case-insensitive, trimmed compare) so importing
+the same backup twice is safe. UI text next to the Teach control states
+plainly that notes are saved locally in the browser only and are not backed
+up anywhere.
+
+Verified end-to-end in the running dev server (not just `npm run build`):
+loose/typo-tolerant query test, teach-a-note-then-search-immediately test,
+and a full export→re-import→mixed-import round trip (confirmed
+added/skipped counts and no duplicate notes). `npm run build` clean, zero
+TypeScript errors.
+
+---
+
 ## Workflow
 
 1. Joey gives fix ideas / stress test results (plain language + screenshots, per CAD_MANIFESTO.md Law 5)

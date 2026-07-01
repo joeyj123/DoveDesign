@@ -1,7 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import Fuse from 'fuse.js';
 import { useAppStore } from '../store';
 import type { KnowledgeEntry } from '../lib/pepeKnowledge';
+import { searchKnowledge } from '../lib/pepeSearch';
+import {
+  type NotebookEntry,
+  addNotebookEntry,
+  getAllNotebookEntries,
+  deleteNotebookEntry,
+  downloadNotebookExport,
+  importNotebookFile,
+} from '../lib/pepeNotebookDb';
 
 const NO_MATCH_MSG =
   "Hmm, I'm not sure about that one -- try the Tutorial tab for more detail!";
@@ -22,6 +30,52 @@ function pickRandomTopics(knowledge: KnowledgeEntry[], count: number): Knowledge
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
   return pool.slice(0, count);
+}
+
+const NOTE_BLEND_STOPWORDS = new Set([
+  'a', 'an', 'the', 'is', 'are', 'was', 'were', 'my', 'i', 'me', 'you', 'it',
+  'this', 'that', 'to', 'of', 'in', 'on', 'at', 'for', 'with', 'and', 'or',
+]);
+
+function blendTokens(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length >= 3 && !NOTE_BLEND_STOPWORDS.has(t));
+}
+
+/**
+ * Find notebook entries relevant to the current question: a note counts as
+ * relevant if it shares at least one real (non-filler) word with the query
+ * itself, or with the matched knowledge entry's topic/keywords — e.g. a note
+ * about "my saw has a left-blade layout" surfaces when the matched answer is
+ * about the table saw.
+ */
+function findRelevantNotes(
+  notes: NotebookEntry[],
+  queryTokens: string[],
+  matchedEntry: KnowledgeEntry | null
+): NotebookEntry[] {
+  if (notes.length === 0) return [];
+  const context = new Set(queryTokens);
+  if (matchedEntry) {
+    blendTokens(matchedEntry.topic).forEach((t) => context.add(t));
+    matchedEntry.keywords.forEach((k) => blendTokens(k).forEach((t) => context.add(t)));
+  }
+  if (context.size === 0) return [];
+
+  return notes
+    .map((note) => {
+      const noteTokens = new Set(blendTokens(note.text));
+      let overlap = 0;
+      noteTokens.forEach((t) => { if (context.has(t)) overlap++; });
+      return { note, overlap };
+    })
+    .filter((r) => r.overlap > 0)
+    .sort((a, b) => b.overlap - a.overlap)
+    .slice(0, 2)
+    .map((r) => r.note);
 }
 
 function AnswerBody({ answer }: { answer: string }) {
@@ -165,24 +219,34 @@ export function PepeEmbedded() {
   const [noMatch, setNoMatch] = useState(false);
   const [suggestedTopics, setSuggestedTopics] = useState<KnowledgeEntry[]>([]);
   const [helpful, setHelpful] = useState<'up' | 'down' | null>(null);
+  const [relevantNotes, setRelevantNotes] = useState<NotebookEntry[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastQueryRef = useRef('');
-  const fuseRef = useRef<Fuse<KnowledgeEntry> | null>(null);
   const knowledgeRef = useRef<KnowledgeEntry[]>([]);
   const knowledgeLoadedRef = useRef(false);
+  const notebookRef = useRef<NotebookEntry[]>([]);
+
+  // Notebook (IndexedDB) state — separate from the core knowledge search above.
+  const [notebookEntries, setNotebookEntries] = useState<NotebookEntry[]>([]);
+  const [teachOpen, setTeachOpen] = useState(false);
+  const [teachText, setTeachText] = useState('');
+  const [notebookStatus, setNotebookStatus] = useState('');
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const refreshNotebook = useCallback(async () => {
+    const entries = await getAllNotebookEntries();
+    notebookRef.current = entries;
+    setNotebookEntries(entries);
+  }, []);
 
   useEffect(() => {
     if (!open || knowledgeLoadedRef.current) return;
     knowledgeLoadedRef.current = true;
     import('../lib/pepeKnowledge').then(({ PEPE_KNOWLEDGE }) => {
       knowledgeRef.current = PEPE_KNOWLEDGE;
-      fuseRef.current = new Fuse(PEPE_KNOWLEDGE, {
-        keys: ['keywords', 'topic', 'answer'],
-        threshold: 0.6,
-        includeScore: true,
-      });
     });
-  }, [open]);
+    refreshNotebook();
+  }, [open, refreshNotebook]);
 
   const runSearch = useCallback(
     (q: string) => {
@@ -194,13 +258,35 @@ export function PepeEmbedded() {
         setNoMatch(false);
         setSuggestedTopics([]);
         setHelpful(null);
+        setRelevantNotes([]);
         setPepeExpression('neutral');
         return;
       }
 
-      const results = fuseRef.current?.search(trimmed) ?? [];
-      if (results.length > 0 && (results[0].score ?? 1) < 0.65) {
-        setMatchedEntry(results[0].item);
+      const results = searchKnowledge(knowledgeRef.current, trimmed);
+      const best = results.length > 0 ? results[0] : null;
+      // Score is a weighted rank sum (see pepeSearch.ts), not a normalized
+      // probability — a small positive score is still a real, if weak, match.
+      const top = best && best.score > 0 ? best.entry : null;
+
+      const queryTokens = trimmed
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((t) => t.length >= 3 && !NOTE_BLEND_STOPWORDS.has(t));
+      const notes = findRelevantNotes(notebookRef.current, queryTokens, top);
+      setRelevantNotes(notes);
+
+      if (top) {
+        setMatchedEntry(top);
+        setNoMatch(false);
+        setSuggestedTopics([]);
+        setHelpful(null);
+        setPepeExpression('happy');
+      } else if (notes.length > 0) {
+        // No built-in knowledge-base match, but the user's own notebook has
+        // something relevant — surface that instead of a flat "not sure."
+        setMatchedEntry(null);
         setNoMatch(false);
         setSuggestedTopics([]);
         setHelpful(null);
@@ -258,7 +344,53 @@ export function PepeEmbedded() {
     }
   }, [addPepeMissedQuery]);
 
-  const showResponse = matchedEntry !== null || noMatch;
+  const handleSaveNote = useCallback(async () => {
+    const trimmed = teachText.trim();
+    if (!trimmed) return;
+    await addNotebookEntry(trimmed);
+    setTeachText('');
+    setTeachOpen(false);
+    setNotebookStatus('Note saved.');
+    await refreshNotebook();
+    // Re-run the current search so a freshly taught note can show up right away.
+    if (lastQueryRef.current) runSearch(lastQueryRef.current);
+  }, [teachText, refreshNotebook, runSearch]);
+
+  const handleDeleteNote = useCallback(
+    async (id: string) => {
+      await deleteNotebookEntry(id);
+      await refreshNotebook();
+    },
+    [refreshNotebook]
+  );
+
+  const handleExportNotebook = useCallback(async () => {
+    const entries = await getAllNotebookEntries();
+    if (entries.length === 0) {
+      setNotebookStatus('Nothing to export yet — add a note first.');
+      return;
+    }
+    downloadNotebookExport(entries);
+    setNotebookStatus(`Exported ${entries.length} note${entries.length === 1 ? '' : 's'}.`);
+  }, []);
+
+  const handleImportFile = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+      try {
+        const { added, skipped } = await importNotebookFile(file);
+        setNotebookStatus(`Imported ${added} note${added === 1 ? '' : 's'}${skipped > 0 ? ` (${skipped} already saved)` : ''}.`);
+        await refreshNotebook();
+      } catch {
+        setNotebookStatus('Could not read that file — make sure it is a Pepe notebook export.');
+      }
+    },
+    [refreshNotebook]
+  );
+
+  const showResponse = matchedEntry !== null || noMatch || relevantNotes.length > 0;
 
   return (
     <div className="flex flex-col items-center">
@@ -269,7 +401,7 @@ export function PepeEmbedded() {
         >
           <h2 className="text-base font-bold text-green-300 mb-2">Pepe&apos;s Workshop</h2>
           <div className="flex gap-1 mb-2">
-            {(['suggestions', 'ask'] as const).map((t) => (
+            {(['suggestions', 'ask', 'notebook'] as const).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -281,7 +413,7 @@ export function PepeEmbedded() {
                     : 'border-zinc-700 text-zinc-400 hover:border-zinc-600',
                 ].join(' ')}
               >
-                {t === 'suggestions' ? 'Tips' : 'Ask'}
+                {t === 'suggestions' ? 'Tips' : t === 'ask' ? 'Ask' : 'Notebook'}
               </button>
             ))}
           </div>
@@ -366,6 +498,24 @@ export function PepeEmbedded() {
                           👎
                         </button>
                       </div>
+                      {relevantNotes.length > 0 && (
+                        <div className="pt-1.5 border-t border-zinc-700/80 space-y-1">
+                          <p className="text-xs font-bold text-amber-300">📓 From your notebook</p>
+                          {relevantNotes.map((n) => (
+                            <p key={n.id} className="text-sm text-zinc-300 leading-relaxed">{n.text}</p>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : relevantNotes.length > 0 ? (
+                    <>
+                      <p className="text-xs font-bold text-amber-300">📓 From your notebook</p>
+                      <p className="text-sm text-zinc-400 italic">
+                        Pepe doesn&apos;t have a built-in answer for that, but this note you saved looks relevant:
+                      </p>
+                      {relevantNotes.map((n) => (
+                        <p key={n.id} className="text-sm text-zinc-300 leading-relaxed">{n.text}</p>
+                      ))}
                     </>
                   ) : (
                     <>
@@ -396,6 +546,107 @@ export function PepeEmbedded() {
               >
                 Open Tutorial tab
               </button>
+            </div>
+          )}
+
+          {tab === 'notebook' && (
+            <div className="space-y-2">
+              <p className="text-sm text-zinc-400">
+                Your own notes — Pepe blends these into answers when they&apos;re relevant
+                (e.g. your specific saw model or shop setup).
+              </p>
+              <p className="text-xs text-amber-300/90">
+                Saved locally in this browser only — it is <span className="font-semibold">not</span> backed
+                up anywhere. Use Export below to save a copy you can restore later or on another computer.
+              </p>
+
+              {!teachOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setTeachOpen(true)}
+                  className="text-base px-2 py-1 rounded-lg border-2 border-green-700/80 bg-green-950/30 text-green-200 hover:border-green-500"
+                >
+                  + Add Custom Note
+                </button>
+              ) : (
+                <div className="rounded-lg border-2 border-zinc-700 bg-zinc-900/80 p-2.5 space-y-2">
+                  <textarea
+                    className="input-field text-base w-full resize-none"
+                    rows={2}
+                    autoFocus
+                    value={teachText}
+                    onChange={(e) => setTeachText(e.target.value)}
+                    placeholder='e.g. "My table saw has a left-tilt blade, 57° bevel stop"'
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveNote}
+                      disabled={!teachText.trim()}
+                      className="text-base px-2 py-1 rounded-lg border-2 border-green-600 bg-green-950/50 text-green-200 disabled:opacity-40"
+                    >
+                      Save Note
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setTeachOpen(false); setTeachText(''); }}
+                      className="text-base px-2 py-1 rounded-lg border-2 border-zinc-600 text-zinc-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportNotebook}
+                  className="text-base px-2 py-1 rounded-lg border-2 border-zinc-600 text-zinc-300 hover:border-zinc-500"
+                >
+                  Export Notebook
+                </button>
+                <button
+                  type="button"
+                  onClick={() => importInputRef.current?.click()}
+                  className="text-base px-2 py-1 rounded-lg border-2 border-zinc-600 text-zinc-300 hover:border-zinc-500"
+                >
+                  Import Notebook
+                </button>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={handleImportFile}
+                />
+              </div>
+              {notebookStatus && <p className="text-xs text-zinc-400">{notebookStatus}</p>}
+
+              <ul className="space-y-1.5">
+                {notebookEntries.length === 0 ? (
+                  <li className="text-base text-zinc-400">
+                    No notes yet — teach Pepe something about your shop or tools above.
+                  </li>
+                ) : (
+                  notebookEntries.map((n) => (
+                    <li
+                      key={n.id}
+                      className="flex items-start justify-between gap-2 text-sm p-2 rounded-lg border-2 border-zinc-700 bg-zinc-900/60 text-zinc-200"
+                    >
+                      <span>{n.text}</span>
+                      <button
+                        type="button"
+                        aria-label="Delete note"
+                        onClick={() => handleDeleteNote(n.id)}
+                        className="text-zinc-500 hover:text-red-400 shrink-0"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
             </div>
           )}
         </div>
