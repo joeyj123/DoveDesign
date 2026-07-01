@@ -1,12 +1,6 @@
 import { ThreeEvent } from '@react-three/fiber';
-import * as THREE from 'three';
 import { useAppStore } from '../store';
-import {
-  pickFaceFromWorldNormal,
-  worldPointToFaceOffset,
-  getFacePointWorld,
-  getFaceNormal,
-} from '../lib/mating';
+import { pickFaceFromWorldNormal, worldPointToFaceOffset } from '../lib/mating';
 import { getMemberHitSize } from '../lib/memberHitBounds';
 
 /** Invisible face hit targets for fastener placement clicks. */
@@ -34,20 +28,17 @@ export default function FastenerPlacementTool() {
     const worldNormal = e.face.normal.clone().transformDirection(e.object.matrixWorld).normalize();
     const face = pickFaceFromWorldNormal(member, worldNormal);
     const offset = worldPointToFaceOffset(member, face, e.point.clone());
-    const snapped = getFacePointWorld(member, face, offset);
 
-    const normal = getFaceNormal(member, face);
-    const quat = new THREE.Quaternion().setFromUnitVectors(
-      new THREE.Vector3(0, 1, 0),
-      normal
-    );
-    const euler = new THREE.Euler().setFromQuaternion(quat);
-
+    // Store face-relative (memberId, faceId, offset) only — never a baked world
+    // position. FastenerMeshes.tsx re-derives world position/rotation fresh every
+    // render via getFaceAlignedPlacement, so the icon follows the board automatically
+    // (CAD_MANIFESTO.md Law 1 / VECTOR_PROJECTION_MATH.md).
     addFastener({
       id: crypto.randomUUID(),
       mateId: mate.id,
-      position: [snapped.x, snapped.y, snapped.z],
-      rotation: [euler.x, euler.y, euler.z],
+      memberId,
+      faceId: face,
+      offset,
       type: mate.joinMethod,
     });
   }

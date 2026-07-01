@@ -190,6 +190,24 @@ export function worldPointToFaceOffset(
   ];
 }
 
+/**
+ * World position + Y-up-aligned rotation for placing an object (e.g. a fastener
+ * icon) on a face at a given face-local offset. Derived fresh from the member's
+ * CURRENT position/rotation every call — never cache the result (CAD_MANIFESTO.md
+ * Law 1 / VECTOR_PROJECTION_MATH.md).
+ */
+export function getFaceAlignedPlacement(
+  member: WoodMember,
+  face: FaceId,
+  offset: [number, number, number]
+): { position: THREE.Vector3; rotation: [number, number, number] } {
+  const position = getFacePointWorld(member, face, offset);
+  const normal = getFaceNormal(member, face);
+  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+  const euler = new THREE.Euler().setFromQuaternion(quat);
+  return { position, rotation: [euler.x, euler.y, euler.z] };
+}
+
 /** Align memberB so attachment point B meets attachment point A. */
 export function computePointMateTransform(
   memberA: WoodMember,

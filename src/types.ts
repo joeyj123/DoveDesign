@@ -194,9 +194,23 @@ export interface AttachmentPoint {
 export interface Fastener {
   id: string;
   mateId: string;
-  position: [number, number, number];
-  rotation: [number, number, number];
   type: JoinMethod;
+  /**
+   * Face-relative storage per CAD_MANIFESTO.md Law 1 / VECTOR_PROJECTION_MATH.md
+   * (Phase 19). World position/rotation are re-derived fresh every render from
+   * these three fields via mating.ts's getFaceAlignedPlacement — never cached.
+   */
+  memberId?: string;
+  faceId?: FaceId;
+  /** Face-local (u, v, 0) offset from face center, inches. */
+  offset?: [number, number, number];
+  /**
+   * @deprecated Legacy world-space fields from before Phase 19. Only present on
+   * fasteners placed prior to this migration; used as a render fallback only
+   * when memberId/faceId/offset are absent. Never written by new code.
+   */
+  position?: [number, number, number];
+  rotation?: [number, number, number];
 }
 
 // ─── Estimating ────────────────────────────────────────────────────────────

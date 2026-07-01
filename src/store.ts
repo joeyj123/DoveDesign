@@ -517,6 +517,18 @@ export const useAppStore = create<AppStore>()(
         ),
       edgeTreatments: p.edgeTreatments.filter((e) => e.memberId !== id),
       placedHardware: p.placedHardware.filter((h) => h.memberId !== id),
+      // Phase 19 FIX 2: mirror unmateBoard's cleanup pattern here too — deleting a
+      // board must prune its mateGroups/mateConstraints/dimensionLines the same
+      // way unmating it already does, or these records orphan silently in project
+      // state and every .wcad save from that point forward (AUDIT_PHASE18_ROLLUP.md
+      // "Cross-Cutting Pattern").
+      mateGroups: (p.mateGroups ?? [])
+        .map((g) => ({ ...g, memberIds: g.memberIds.filter((mid) => mid !== id) }))
+        .filter((g) => g.memberIds.length > 1),
+      mateConstraints: (p.mateConstraints ?? []).filter(
+        (c) => c.solidAId !== id && c.solidBId !== id
+      ),
+      dimensionLines: (p.dimensionLines ?? []).filter((l) => l.anchorMemberId !== id),
     });
     set((s) => ({
       ui: {
@@ -1526,6 +1538,16 @@ export const useAppStore = create<AppStore>()(
         const mate = p.mates.find((m) => m.id === f.mateId);
         return mate && mate.memberAId !== memberId && mate.memberBId !== memberId;
       }),
+      // Phase 19 FIX 2: the original memberId ceases to exist post-split — any
+      // mateGroups/mateConstraints/dimensionLines still referencing it would
+      // otherwise orphan silently (AUDIT_PHASE18_ROLLUP.md finding #2).
+      mateGroups: (p.mateGroups ?? [])
+        .map((g) => ({ ...g, memberIds: g.memberIds.filter((mid) => mid !== memberId) }))
+        .filter((g) => g.memberIds.length > 1),
+      mateConstraints: (p.mateConstraints ?? []).filter(
+        (c) => c.solidAId !== memberId && c.solidBId !== memberId
+      ),
+      dimensionLines: (p.dimensionLines ?? []).filter((l) => l.anchorMemberId !== memberId),
     });
     set((s) => ({
       ui: {
@@ -1554,6 +1576,14 @@ export const useAppStore = create<AppStore>()(
         const mate = p.mates.find((m) => m.id === f.mateId);
         return mate && mate.memberAId !== memberId && mate.memberBId !== memberId;
       }),
+      // Phase 19 FIX 2 — see splitMemberByCrossCut above for rationale.
+      mateGroups: (p.mateGroups ?? [])
+        .map((g) => ({ ...g, memberIds: g.memberIds.filter((mid) => mid !== memberId) }))
+        .filter((g) => g.memberIds.length > 1),
+      mateConstraints: (p.mateConstraints ?? []).filter(
+        (c) => c.solidAId !== memberId && c.solidBId !== memberId
+      ),
+      dimensionLines: (p.dimensionLines ?? []).filter((l) => l.anchorMemberId !== memberId),
     });
     set((s) => ({
       ui: {

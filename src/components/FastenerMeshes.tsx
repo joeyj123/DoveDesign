@@ -1,8 +1,30 @@
 import { useMemo } from 'react';
 import { Html } from '@react-three/drei';
 import { useAppStore } from '../store';
-import type { JoinMethod } from '../types';
-import { getFaceCenter } from '../lib/mating';
+import type { Fastener, JoinMethod, WoodMember } from '../types';
+import { getFaceCenter, getFaceAlignedPlacement } from '../lib/mating';
+
+/**
+ * Derives world position/rotation for a fastener icon fresh from its parent
+ * board's CURRENT transform (CAD_MANIFESTO.md Law 1). Falls back to the legacy
+ * baked position/rotation only for fasteners placed before the Phase 19 migration
+ * that never got memberId/faceId/offset.
+ */
+function resolveFastenerPlacement(
+  fastener: Fastener,
+  members: WoodMember[]
+): { position: [number, number, number]; rotation: [number, number, number] } | null {
+  if (fastener.memberId && fastener.faceId && fastener.offset) {
+    const member = members.find((m) => m.id === fastener.memberId);
+    if (!member) return null; // parent board no longer exists — don't render orphaned icon
+    const { position, rotation } = getFaceAlignedPlacement(member, fastener.faceId, fastener.offset);
+    return { position: [position.x, position.y, position.z], rotation };
+  }
+  if (fastener.position && fastener.rotation) {
+    return { position: fastener.position, rotation: fastener.rotation };
+  }
+  return null;
+}
 
 function ScrewMesh({ rotation }: { rotation: [number, number, number] }) {
   return (
@@ -121,8 +143,11 @@ export default function FastenerMeshes() {
   const thicknessByMate = useMemo(() => {
     const map = new Map<string, number>();
     for (const f of fasteners) {
+      // Prefer the fastener's own member (Phase 19) — falls back to mate's
+      // member A for legacy fasteners that predate memberId being stored.
+      const directMember = f.memberId ? members.find((m) => m.id === f.memberId) : undefined;
       const mate = mates.find((m) => m.id === f.mateId);
-      const member = members.find((m) => m.id === mate?.memberAId);
+      const member = directMember ?? members.find((m) => m.id === mate?.memberAId);
       map.set(f.id, member?.thickness ?? 1.5);
     }
     return map;
@@ -132,10 +157,12 @@ export default function FastenerMeshes() {
     <group>
       {fasteners.map((f) => {
         const isSelected = selectedFastenerId === f.id;
+        const placement = resolveFastenerPlacement(f, members);
+        if (!placement) return null;
         return (
           <group
             key={f.id}
-            position={f.position}
+            position={placement.position}
             onClick={(e) => {
               e.stopPropagation();
               setSelectedFastenerId(f.id);
@@ -143,7 +170,7 @@ export default function FastenerMeshes() {
           >
             <FastenerGeometry
               type={f.type}
-              rotation={f.rotation}
+              rotation={placement.rotation}
               memberThickness={thicknessByMate.get(f.id) ?? 1.5}
             />
             {isSelected && (

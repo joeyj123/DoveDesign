@@ -419,6 +419,9 @@ export default function TutorialPanel() {
         <p className="text-base text-zinc-400 mt-2">
           Fastener counts appear in the Cut List tab. Glue and Mortise &amp; Tenon joints do not use this placement step.
         </p>
+        <p className="text-base text-zinc-400 mt-2">
+          Fastener icons stay attached to the exact spot where you placed them, even after you move or rotate the board.
+        </p>
         <p className="text-base text-zinc-500 mt-2">
           <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I place screws?&quot; · &quot;How do I exit fastener placement?&quot; · &quot;Where do fastener counts show up?&quot;
         </p>

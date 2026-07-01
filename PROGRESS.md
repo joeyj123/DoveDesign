@@ -7,8 +7,8 @@
 
 ## Current Status
 
-**Last completed phase:** Phase 18 ✅ — commit `08625dd` pushed, Vercel deploys automatically
-**Next:** Joey stress tests Phase 18 (snap dots after unmate, dimension-line edge snapping on all faces, blank-canvas startup + save/recovery flow) → report findings → Phase 19 prompt
+**Last completed phase:** Phase 19 ✅ — commit `PENDING` pushed, Vercel deploys automatically
+**Next:** Joey stress tests Phase 19 (fastener-follows-board, delete/cut orphan cleanup) AND the still-outstanding Phase 18 items (snap dots after unmate, dimension-line edge snapping on all faces, blank-canvas startup + save/recovery flow, never actually stress-tested by Joey before Phase 19 started) → report findings → Phase 20 prompt
 
 ---
 
@@ -151,6 +151,7 @@ TypeScript errors.
 | 16 | ✅ | `e9b4604` | Built `src/core/Engine.ts` (DoveDesignEngine + CADGeometryEngine). Wired `solveMateConstraints` into mate (translate) — boards now follow in real time, chains correctly. Wired dimension lines to face-relative `(u,v)` storage — length-wise lines confirmed following board correctly. Scoped DOWN from full 80-action rewrite to surgical fix at the two broken points; centerlines left untouched (already storing relationships correctly). |
 | 17 | ✅ | `13e10ae` | Fixed mate-rotation deselect bug (gizmo drag-guard, not the constraint solver). Fixed cross-axis dimension line anchoring (snap point face-normal tagging). Full manifesto-compliance audit across existing tools. |
 | 18 | ✅ | `08625dd` | FIX 1: `unmateBoard`/`unmateAll` were pruning `mateGroups`/`mateConstraints` but never `project.mates`/`project.fasteners` — left ghost `MateMarkers` (purple join-method spheres) and fastener icons rendering a severed connection after unmate. `SnapPointHandles.tsx` itself was already Law-1 compliant (fresh `useFrame`/`matrixWorld` derivation) — no change needed there. FIX 2: `MeasureTool.tsx`'s 26-candidate snap system (8 corners+12 edges+6 faces, shared for start/end) was already computing correctly for all faces post-Phase-17 — bumped `SNAP_RADIUS` 0.5"→1.0" (was below the VECTOR_PROJECTION_MATH.md-recommended range) and rewrote cursor color coding to the spec (green=face, blue=edge, bright yellow=corner, gray=free placement — corner previously shared blue with edge, no distinct free-placement color). FIX 3: persist `merge` no longer restores `project` into live state on startup (always blank `DEFAULT_PROJECT`) while `partialize` still writes `{project, savedAt, recentFiles}` in the background for crash recovery; added `RecoveryBanner.tsx` (Recover/Dismiss), `SaveNameModal.tsx` (Ctrl+S prompts for a name on first save via `saveProjectAs`, silent after), `UnsavedChangesGuard.tsx` (`beforeunload` when boards exist), and a Recent Projects list (last 3, in File menu) that opens the normal file picker. |
+| 19 | ✅ | `PENDING` | Sourced from the read-only `AUDIT_PHASE18_ROLLUP.md` rolling audit (Phase 18's own browser stress test was never run before this phase started). FIX 1 (high priority): `FastenerPlacementTool.tsx` baked a world-space `position`/`rotation` onto every screw/nail/dowel/biscuit/bracket icon at placement time — moving or rotating either mated board afterward left the icon frozen in its old spot (Law 1 violation, same bug class already fixed for mate markers in Phase 18 and dimension lines in Phase 16-17, but never applied to this component). Fixed by changing `Fastener` (`types.ts`) to store `memberId`/`faceId`/`offset` instead, added `getFaceAlignedPlacement()` to `mating.ts` (pure, derives position+rotation fresh from the member's CURRENT transform), and updated `FastenerMeshes.tsx` + `FastenerInfoPanel.tsx` to call it every render instead of trusting a stored value. Legacy `position`/`rotation` kept as optional fallback fields for fasteners saved before this migration (same precedent as `DimensionLine`'s `localStart`/`localEnd` fallback). FIX 2 (medium priority): `removeMember`/`splitMemberByCrossCut`/`splitMemberByRipCut` already pruned `mates`/`fasteners` but never `mateConstraints`/`mateGroups`/`dimensionLines` — mirrored Phase 18's `unmateBoard` cleanup pattern into all three. Verified via an isolated pure-function test (`getFaceAlignedPlacement` recomputes correctly when a member's position/rotation changes) and via a temporary debug hook exercising the real store in the running dev server (set up a mate+constraint+group+fastener+dimension-line scenario, confirmed `removeMember` and `splitMemberByCrossCut` prune all five record types, confirmed `undo` restores all five atomically); debug hook removed before commit. Confirmed Phase 18's `unmateBoard` cleanup still holds (now also correctly handles Phase-19-shaped fasteners). Phase 18 Fixes 2/3 (dimension snap/colors, save-load UX) untouched this phase — different files, unaffected. |
 
 ---
 
@@ -251,6 +252,8 @@ Across Phases 9–15, three systems were repeatedly "fixed" and repeatedly broke
   Standalone Upgrades section above for detail. Still short of the 2,000–2,500
   target; a future pass could push further into router-bit, hand-plane, and
   finishing-chemistry depth without duplicating the already-solid coverage.
+- **Phase 19:** +1 entry (`fasteners-follow-board`, documenting the fastener-follows-
+  the-board fix) → **1,885 total**.
 
 ---
 

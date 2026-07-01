@@ -259,6 +259,16 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
       'After choosing a join method that needs fasteners (Screws, Nails, Pocket Holes, Biscuit, Dowel, or Bracket), you enter Fastener Placement Mode. The joint face shows a ¼" snap grid. Click intersections to place 3D fastener meshes. Click Done Placing in the viewport bar or press Escape when finished. Click an existing fastener to inspect or remove it. Fastener counts appear in the Cut List tab.',
   },
   {
+    id: 'fasteners-follow-board',
+    topic: 'Fastener icons now follow the board when you move it',
+    keywords: [
+      'fastener', 'screw', 'nail', 'follow', 'move', 'stay', 'behind', 'stuck',
+      'floating', 'wrong', 'place', 'stayed', 'did not move',
+    ],
+    answer:
+      'Screw, nail, dowel, biscuit, and bracket icons now stay attached to the exact spot on the board where you placed them, even after you move or rotate that board (or the other board it is mated to). Previously a fastener icon could get left behind floating in its old spot — that is fixed as of Phase 19. If you open an older saved project from before this fix, its fastener icons will still show up in their original saved position until you move that board again.',
+  },
+  {
     id: 'continuous-draw',
     topic: 'Chaining boards while drawing',
     keywords: [
