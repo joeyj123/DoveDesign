@@ -14,6 +14,15 @@ import { PEPE_KNOWLEDGE_MASTER_K } from './pepeKnowledgeMasterK';
 import { PEPE_KNOWLEDGE_MASTER_L } from './pepeKnowledgeMasterL';
 import { PEPE_KNOWLEDGE_MASTER_M } from './pepeKnowledgeMasterM';
 import { PEPE_KNOWLEDGE_MASTER_N } from './pepeKnowledgeMasterN';
+import { PEPE_KNOWLEDGE_MASTER_O } from './pepeKnowledgeMasterO';
+import { PEPE_KNOWLEDGE_MASTER_P } from './pepeKnowledgeMasterP';
+import { PEPE_KNOWLEDGE_MASTER_Q } from './pepeKnowledgeMasterQ';
+import { PEPE_KNOWLEDGE_MASTER_R } from './pepeKnowledgeMasterR';
+import { PEPE_KNOWLEDGE_MASTER_S } from './pepeKnowledgeMasterS';
+import { PEPE_KNOWLEDGE_MASTER_T } from './pepeKnowledgeMasterT';
+import { PEPE_KNOWLEDGE_MASTER_U } from './pepeKnowledgeMasterU';
+import { PEPE_KNOWLEDGE_MASTER_V } from './pepeKnowledgeMasterV';
+import { PEPE_KNOWLEDGE_MASTER_W } from './pepeKnowledgeMasterW';
 
 export interface KnowledgeEntry {
   id: string;
@@ -1086,6 +1095,15 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
   ...PEPE_KNOWLEDGE_MASTER_L,
   ...PEPE_KNOWLEDGE_MASTER_M,
   ...PEPE_KNOWLEDGE_MASTER_N,
+  ...PEPE_KNOWLEDGE_MASTER_O,
+  ...PEPE_KNOWLEDGE_MASTER_P,
+  ...PEPE_KNOWLEDGE_MASTER_Q,
+  ...PEPE_KNOWLEDGE_MASTER_R,
+  ...PEPE_KNOWLEDGE_MASTER_S,
+  ...PEPE_KNOWLEDGE_MASTER_T,
+  ...PEPE_KNOWLEDGE_MASTER_U,
+  ...PEPE_KNOWLEDGE_MASTER_V,
+  ...PEPE_KNOWLEDGE_MASTER_W,
 
   // Phase 10 entries
   {

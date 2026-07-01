@@ -107,7 +107,44 @@ Across Phases 9–15, three systems were repeatedly "fixed" and repeatedly broke
 
 - Estimated as of Phase 14: ~1,553+
 - Phases 15–17: no new entries planned until rebuilt systems are fully verified stable
-- Target: 2,000–2,500
+- Baseline before Mastery Expansion pass (2026-07-01): 1,621 entries (confirmed by count)
+- **Mastery Expansion pass (2026-07-01):** +256 entries → **1,877 total**. Added 9 new
+  files (`pepeKnowledgeMasterO.ts` through `pepeKnowledgeMasterW.ts`), same
+  `KnowledgeEntry { id, topic, keywords, answer }` schema as existing master files,
+  wired into `PEPE_KNOWLEDGE` in `pepeKnowledge.ts`. Content-only pass — no changes to
+  `src/core`, geometry, or the search/fuzzy-matching layer itself.
+  - Real-world woodworking fundamentals: ~25 wood species (hardwoods, softwoods,
+    figured/specialty like curly/quilted maple, spalted wood, burl), sheet goods
+    (Baltic birch, MDF, particleboard, OSB, veneer), joinery types (mortise & tenon,
+    dovetail, box joint, biscuit, pocket screw, dowel, lap, dado, rabbet, groove,
+    spline, floating tenon/Domino), fasteners & glue (PVA, epoxy, hide glue, hinges,
+    drawer slides, threaded inserts, cam locks), finishing (stain, poly, lacquer,
+    shellac, oil finishes, food-safe, dye vs pigment, gel stain, toner/glaze, French
+    polish, milk/chalk paint), measuring/layout (board feet, kerf, squaring stock,
+    story sticks/poles, nominal vs actual lumber), safety (kickback, push sticks,
+    dust/respiratory, router/bandsaw/jointer-planer specifics, oily rag combustion,
+    electrical), tool basics (hand tools, sharpening, chisel/saw/plane types, router/
+    bandsaw/jointer/planer/drill press/sander basics), wood movement (why it happens,
+    breadboard ends, slotted holes, floating panels, acclimation), and project-type/
+    shop-setup guidance (tabletops, chairs, cabinets, drawers, shelving, cutting
+    boards, bent lamination, veneering, workbench/dust collection/shop layout).
+  - DoveDesign-specific tool depth: cross-reference entries connecting Draw → Mate →
+    Fastener → BOM workflows, Mate/Unmate/Snap Points internals, Measure tool snap
+    colors, Save/Load/Recovery UX (Phase 18), Engineering/Estimating panel meaning,
+    Quick-Join toolbar, Workbench Blueprint, Hardware Library specifics (casters,
+    shelf pins, table legs).
+  - Category C (concept mapping): plain-English "why it works this way" entries
+    tying Mate→clamping, Dimension Line→tape measure, Cut Optimizer→cut-list planning,
+    Centerline→marking gauge, parametric/constraint architecture→plain English.
+  - Verified end-to-end in the running dev server (not just `npm run build`): opened
+    Pepe's Ask tab, confirmed a brand-new entry (`mo-species-wenge`) surfaces correctly
+    for a real query.
+  - Thinnest areas flagged for a future pass: hardware library depth beyond the few
+    items covered, and B-category coverage for Assembly Mode / Edge Treatments / Shapes
+    tools specifically (existing baseline coverage there was already adequate so this
+    pass prioritized breadth elsewhere per the phase prompt's instruction).
+- Target: 2,000–2,500 (now at 1,877; ~123–623 entries short depending on which end of
+  the range — worth another expansion pass before calling this fully done)
 
 ---
 
