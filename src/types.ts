@@ -368,6 +368,40 @@ export interface DimensionLine {
   endUV?: { u: number; v: number };
 }
 
+// ─── Wood Joints (Phase 20 — real geometric joinery) ──────────────────────
+// A WoodJoint is a standing, declarative joint definition between two board
+// faces (CAD_MANIFESTO.md Law 1/2). The joint's geometry (dovetail sockets,
+// mortise void, tenon shoulders, dado channel) is DERIVED fresh from these
+// parameters + both boards' CURRENT dimensions/placements on every render —
+// see src/core/JointFeatures.ts. Nothing baked, nothing decorative.
+
+export interface WoodJointParams {
+  /** Dovetail: number of tails. */
+  tailCount?: number;
+  /** Dovetail: flare angle in degrees (typical 8–14). */
+  tailAngleDeg?: number;
+  /** Mortise/tenon: fraction of the tenon board's thickness kept as tenon (default 1/3). */
+  tenonThicknessRatio?: number;
+  /** Mortise/tenon: fraction of the tenon board's width kept as tenon (default 0.7). */
+  tenonWidthRatio?: number;
+  /** Seat depth override in inches (how far board B embeds into board A). */
+  depth?: number;
+}
+
+export interface WoodJoint {
+  id: string;
+  type: WoodJointType;
+  /** Receiving board (gets the socket/mortise/dado/notch). */
+  memberAId: string;
+  faceAId: FaceId;
+  /** Inserted board (gets the tails/tenon/embedded end). */
+  memberBId: string;
+  faceBId: FaceId;
+  /** Face-local (u, v, 0) offset from faceA's center where the joint centers. */
+  offsetA: [number, number, number];
+  params: WoodJointParams;
+}
+
 // ─── Mate Groups ──────────────────────────────────────────────────────────
 
 export interface MateGroup {
@@ -404,6 +438,8 @@ export interface Project {
   mateGroups: MateGroup[];
   /** Phase 16: standing face-to-face mate constraints, solved fresh every change. */
   mateConstraints: MateConstraint[];
+  /** Phase 20: real geometric wood joints (dovetail/mortise-tenon/dado/lap). */
+  woodJoints: WoodJoint[];
 }
 
 // ─── UI State (not persisted to disk) ─────────────────────────────────────
@@ -415,14 +451,57 @@ export type ActiveTool =
   | 'shapeCylinder' | 'shapeSphere' | 'shapeCone'
   | 'shapeTriPrism' | 'shapeHexPrism' | 'shapePolygon'
   | 'placeHardware' | 'measure' | 'joint'
-  | 'centerline';
+  | 'centerline' | 'connection';
+
+// ─── Workspace Modes (Phase 20 — 3-Mode Unified UX) ──────────────────────
+// One global mode filters the Left Toolbar and Right Inspector. Modes never
+// own geometry state — they are pure UI routing on top of activeTool.
+
+export type WorkspaceMode = 'model' | 'assembly' | 'detail';
+
+/** Real wood joinery types that alter board topology (Connections palette). */
+export type WoodJointType = 'dovetail' | 'mortiseTenon' | 'dado' | 'lap';
+
+/**
+ * One discriminated union for every multi-click tool sequence. Every
+ * half-picked anchor is stored as memberId + FaceId (+ face-local offset) —
+ * never a world-space point (CAD_MANIFESTO.md Law 1) — so camera orbiting or
+ * board movement can never invalidate a pending pick.
+ */
+export type PendingInteraction =
+  | {
+      kind: 'trimExtend';
+      step: 'pickBoardToAdjust';
+      targetMemberId: string;
+      targetFaceId: FaceId;
+    }
+  | {
+      kind: 'joinery';
+      step: 'pickFaceA';
+      jointType: WoodJointType;
+    }
+  | {
+      kind: 'joinery';
+      step: 'pickFaceB';
+      jointType: WoodJointType;
+      memberAId: string;
+      faceAId: FaceId;
+      /** Face-local (u, v) offset from face center where the user clicked. */
+      offsetA: [number, number, number];
+    }
+  | {
+      kind: 'fastener';
+      step: 'pickFace';
+      fastenerType: JoinMethod;
+    };
 
 export type ViewportMode = 'design' | 'assembly';
 
 export type DisplayMode = 'shaded' | 'wireframe' | 'shadedEdges' | 'xray';
 
 export type RightPanelTab =
-  | 'inspector' | 'estimating' | 'cutlist' | 'engineering' | 'tutorial' | 'hardware' | 'optimizer';
+  | 'inspector' | 'estimating' | 'cutlist' | 'engineering' | 'tutorial' | 'hardware' | 'optimizer'
+  | 'connections';
 
 export type TransformMode = 'translate' | 'rotate' | 'scale';
 
@@ -571,6 +650,10 @@ export interface UIState {
   finishPanelOpen: boolean;
   /** Phase 18: "Project name" prompt shown before the first Ctrl+S save of an unnamed project */
   saveNameModalOpen: boolean;
+  /** Phase 20: global workspace mode — filters Left Toolbar + Right Inspector. */
+  workspaceMode: WorkspaceMode;
+  /** Phase 20: current half-finished multi-click tool sequence (parameter-form only). */
+  pendingInteraction: PendingInteraction | null;
 }
 
 export interface DesignSuggestion {

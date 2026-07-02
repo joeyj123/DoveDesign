@@ -203,8 +203,9 @@ export default function TutorialPanel() {
           feel right at home.
         </p>
         <ul className="space-y-1.5 list-none pl-0 text-zinc-400">
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">1</kbd> / <kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">2</kbd> / <kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">3</kbd> — Switch to Model / Assembly / Detail mode</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Space</kbd> — Open / close the radial tool wheel on selected board</li>
-          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Escape</kbd> — Cancel current tool, deselect all, close wheel</li>
+          <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">Escape</kbd> — First press cancels the current tool or half-finished action (your board stays selected); press again to deselect everything</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">S</kbd> — Switch to Select tool</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">B</kbd> — Open / close Bill of Materials panel</li>
           <li><kbd className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5 rounded text-sm">W</kbd> — Switch to Draw Board tool</li>
@@ -232,19 +233,58 @@ export default function TutorialPanel() {
         </p>
       </Section>
 
-      <Section search={searchLower} onMatch={registerMatch} title="Left Tool Panel — Model, Modify, Joinery, Shapes">
+      <Section search={searchLower} onMatch={registerMatch} title="The 3 Workspace Modes — Model, Assembly, Detail">
         <p className="text-base text-zinc-400 mb-2">
-          The vertical panel on the left side of the screen is organized into four tabs. Click a tab name to switch groups.
-          Use the « / » button at the top to collapse the panel to a narrow strip (abbreviated tab labels) or expand it for full tool names.
+          The buttons at the top center of the viewport switch between three workspace modes.
+          Each mode shows only the tools and panels that belong to that stage of a project, so
+          nothing is buried in menus. Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">1</kbd>,{' '}
+          <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">2</kbd>, or{' '}
+          <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">3</kbd> to switch quickly.
         </p>
         <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
-          <li><strong className="text-zinc-300">Model</strong> — Select, Draw, and Add boards.</li>
-          <li><strong className="text-zinc-300">Modify</strong> — Cross Cut, Rip Cut, Miter, Trim, and Join tools.</li>
-          <li><strong className="text-zinc-300">Joinery</strong> — Mate, Edge Treatment, and Attach Point.</li>
-          <li><strong className="text-zinc-300">Shapes</strong> — Cylinder, Sphere, Cone, Triangle, Hexagon, and Custom Polygon.</li>
+          <li><strong className="text-zinc-300">Model</strong> — draw and shape lumber: Select, Draw Board, Add Board, Trim / Extend, Cross Cut, Rip Cut, Miter, Measure, Centerline, and Shapes.</li>
+          <li><strong className="text-zinc-300">Assembly</strong> — join boards together with the Mate tool. In this mode the LEFT mouse button only picks snap dots and faces; use the RIGHT button to orbit the camera and the MIDDLE button to pan — you can spin the view freely in the middle of a join without losing your first pick.</li>
+          <li><strong className="text-zinc-300">Detail</strong> — joinery and hardware, all in one Connections panel: Dovetail, Mortise &amp; Tenon, Dado, and Lap joints (these really cut the wood), plus Screws, Pocket Holes, Brackets, Dowels, and Biscuits.</li>
         </ol>
+        <p className="text-base text-zinc-400 mt-2">
+          The strip along the bottom of the viewport always tells you what mode and tool you are
+          in and what to click next. Picking a tool that belongs to another mode (for example
+          pressing <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">J</kbd> for Mate)
+          switches to that mode automatically.
+        </p>
         <p className="text-base text-zinc-500 mt-2">
-          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What tools are in the left panel?&quot; · &quot;Where is the Draw tool?&quot; · &quot;How do I add a cylinder?&quot;
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;What are the three modes?&quot; · &quot;How do I switch modes?&quot; · &quot;Why can&apos;t I find the mate tool?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} onMatch={registerMatch} title="Trim / Extend — 2-Click Flow">
+        <p className="text-base text-zinc-400 mb-2">
+          Trim / Extend (Model Mode) makes one board end exactly at another board&apos;s face —
+          shortening it if it runs past, stretching it if it falls short.
+        </p>
+        <ol className="space-y-1.5 list-decimal pl-4 text-base text-zinc-400">
+          <li><strong className="text-zinc-300">Click 1</strong> — click the face you want to trim/extend TO. That board glows teal and the face is highlighted, and the bottom strip names it.</li>
+          <li><strong className="text-zinc-300">Click 2</strong> — click the board whose length should change. It trims or extends to the highlighted face in one step (one Ctrl+Z undoes it).</li>
+        </ol>
+        <p className="text-base text-zinc-400 mt-2">
+          Press <kbd className="bg-zinc-700 text-zinc-200 px-1 py-0.5 rounded text-sm">Escape</kbd> to cancel a half-finished pick.
+        </p>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I trim a board to another board?&quot; · &quot;What does trim extend do?&quot;
+        </p>
+      </Section>
+
+      <Section search={searchLower} onMatch={registerMatch} title="Connections — Real Joinery & Fasteners">
+        <p className="text-base text-zinc-400 mb-2">
+          In <strong className="text-zinc-300">Detail Mode</strong>, the Connections panel on the right holds everything that joins wood, in one place:
+        </p>
+        <ul className="space-y-1.5 list-disc pl-4 text-zinc-400">
+          <li><strong className="text-zinc-300">Wood Joinery</strong> (Dovetail, Mortise &amp; Tenon, Dado, Lap Joint) — these really change the wood&apos;s shape. Pick a joint type, click the face that RECEIVES the joint (the socket side), then click a face on the second board. The boards seat together and the joint geometry is cut for real — a dovetail shows true flared tails, not a decoration.</li>
+          <li><strong className="text-zinc-300">Hardware Fasteners</strong> (Screws, Pocket Holes, Brackets, Dowels, Biscuits) — separate parts added to an existing joint. Join the boards first (Assembly Mode or a wood joint), pick a fastener type, then click the joined board to place icons.</li>
+          <li>Joined boards move together automatically, and every joint you make is listed at the bottom of the panel with a Remove button.</li>
+        </ul>
+        <p className="text-base text-zinc-500 mt-2">
+          <strong className="text-zinc-400">Ask Pepe:</strong> &quot;How do I make a dovetail?&quot; · &quot;What is the difference between joinery and fasteners?&quot; · &quot;How do I add screws to a joint?&quot;
         </p>
       </Section>
 

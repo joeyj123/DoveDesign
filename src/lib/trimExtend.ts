@@ -1,6 +1,65 @@
 import * as THREE from 'three';
-import type { WoodMember } from '../types';
+import type { WoodMember, FaceId } from '../types';
 import { getMemberWorldBox, getBoxFaces } from './bounds';
+import { getFaceCenter, getFaceNormal } from './mating';
+
+/**
+ * Phase 20 — unified 2-click Trim/Extend.
+ *
+ * ### Data Flow Pipeline: Trim/Extend to Face (Law 3)
+ * INPUT: target member (the board whose length changes), boundary member +
+ *   boundary FaceId (the plane to stop at). All read from CURRENT store state.
+ * CALCULATION (pure): build the boundary face's world plane fresh from the
+ *   boundary board's current placement; intersect the target board's length
+ *   axis (local X through its center, current rotation applied) with that
+ *   plane; the target end nearer the plane moves onto it — shrinking (trim)
+ *   or growing (extend) the length; the far end stays fixed.
+ * OUTPUT: a { length, position } parameter patch — never raw vertex edits.
+ * RENDER: WoodBlock derives the box mesh from length/position as always.
+ * FOLLOWS-BOARD CHECK: this is a one-time parametric edit (like typing a new
+ *   length), not a standing annotation — nothing world-space is stored, so
+ *   there is nothing to go stale. Yes, compliant.
+ */
+export function snapLengthToFacePlane(
+  target: WoodMember,
+  boundary: WoodMember,
+  boundaryFace: FaceId
+): Partial<WoodMember> | null {
+  const planePoint = getFaceCenter(boundary, boundaryFace);
+  const planeNormal = getFaceNormal(boundary, boundaryFace);
+
+  const center = new THREE.Vector3(...target.position);
+  const euler = new THREE.Euler(...target.rotation);
+  const lengthAxis = new THREE.Vector3(1, 0, 0).applyEuler(euler).normalize();
+
+  const denom = lengthAxis.dot(planeNormal);
+  // Board runs (nearly) parallel to the target plane — no meaningful intersection.
+  if (Math.abs(denom) < 1e-4) return null;
+
+  // Signed distance t along the length axis from the board center to the plane.
+  const t = planePoint.clone().sub(center).dot(planeNormal) / denom;
+
+  const halfLen = target.length / 2;
+  // Adjust the end the plane lies toward; the opposite end stays fixed.
+  const adjustPositiveEnd = t >= 0;
+  const newLength = Math.abs(t) + halfLen;
+
+  // Refuse degenerate results (plane behind the fixed end, or absurdly long).
+  if (newLength < 0.5 || newLength > 2000) return null;
+  if (Math.abs(newLength - target.length) < 1e-3) return null;
+
+  const fixedEnd = center
+    .clone()
+    .add(lengthAxis.clone().multiplyScalar(adjustPositiveEnd ? -halfLen : halfLen));
+  const newCenter = fixedEnd.add(
+    lengthAxis.clone().multiplyScalar((adjustPositiveEnd ? 1 : -1) * (newLength / 2))
+  );
+
+  return {
+    length: newLength,
+    position: [newCenter.x, newCenter.y, newCenter.z],
+  };
+}
 
 /**
  * Trim target member so its nearest end aligns to the closest face of the boundary member.

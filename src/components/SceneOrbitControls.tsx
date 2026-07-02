@@ -19,9 +19,17 @@ const CAMERA_PRESETS: Record<string, { position: [number, number, number] }> = {
   home:   { position: [48, 36, 72] },
 };
 
-/** Revit-style navigation: left orbit, middle pan, shift+left pan, scroll zoom. */
+/**
+ * Navigation. Model/Detail modes: left orbit, middle/right pan (Revit-style).
+ * Assembly Mode (Phase 20): LEFT is reserved entirely for picking snap dots
+ * and faces — RIGHT orbits and MIDDLE pans, always live, even mid-mate-pick,
+ * so the user can rotate to see both boards' dots without losing an anchor.
+ * OrbitControls only ever mutates the camera — never store state — so camera
+ * input can never fire a state mutation during a mate sequence.
+ */
 export default function SceneOrbitControls() {
   const enabled = useAppStore((s) => s.ui.orbitControlsEnabled);
+  const workspaceMode = useAppStore((s) => s.ui.workspaceMode);
   const cameraResetNonce = useAppStore((s) => s.ui.cameraResetNonce);
   const cameraPreset = useAppStore((s) => s.ui.cameraPreset);
   const setCameraPreset = useAppStore((s) => s.setCameraPreset);
@@ -70,11 +78,19 @@ export default function SceneOrbitControls() {
       minDistance={0.5}
       maxDistance={500}
       screenSpacePanning
-      mouseButtons={{
-        LEFT: MOUSE.ROTATE,
-        MIDDLE: MOUSE.PAN,
-        RIGHT: MOUSE.PAN,
-      }}
+      mouseButtons={
+        workspaceMode === 'assembly'
+          ? {
+              LEFT: undefined as unknown as MOUSE, // left = selection only
+              MIDDLE: MOUSE.PAN,
+              RIGHT: MOUSE.ROTATE,
+            }
+          : {
+              LEFT: MOUSE.ROTATE,
+              MIDDLE: MOUSE.PAN,
+              RIGHT: MOUSE.PAN,
+            }
+      }
     />
   );
 }

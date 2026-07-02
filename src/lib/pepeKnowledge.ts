@@ -266,7 +266,63 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
       'floating', 'wrong', 'place', 'stayed', 'did not move',
     ],
     answer:
-      'Screw, nail, dowel, biscuit, and bracket icons now stay attached to the exact spot on the board where you placed them, even after you move or rotate that board (or the other board it is mated to). Previously a fastener icon could get left behind floating in its old spot — that is fixed as of Phase 19. If you open an older saved project from before this fix, its fastener icons will still show up in their original saved position until you move that board again.',
+      'Screw, nail, dowel, biscuit, and bracket icons stay attached to the exact spot on the board where you placed them, even after you move or rotate that board (or the other board it is mated to). If you open an older saved project, its fastener icons may show in their original saved position until you move that board again.',
+  },
+  {
+    id: 'workspace-modes-what',
+    topic: 'The three workspace modes',
+    keywords: ['mode', 'modes', 'model', 'assembly', 'detail', 'switch', 'workspace', 'top', 'buttons'],
+    answer:
+      'DoveDesign has three workspace modes, switched with the buttons at the top center (or keys 1, 2, 3). Model is for drawing and shaping boards, Assembly is for joining boards with the Mate tool, and Detail is for joinery and hardware. Each mode shows only the tools that belong to it, and the strip at the bottom always tells you what to do next.',
+  },
+  {
+    id: 'workspace-modes-how-switch',
+    topic: 'How to switch workspace modes',
+    keywords: ['switch', 'mode', 'change', 'model', 'assembly', 'detail', 'shortcut', '1', '2', '3'],
+    answer:
+      'Click Model, Assembly, or Detail at the top center of the screen, or press 1, 2, or 3. Picking a tool that lives in another mode (like pressing J for Mate) switches you there automatically, and your selected board stays selected.',
+  },
+  {
+    id: 'trim-extend-how',
+    topic: 'How to use Trim / Extend',
+    keywords: ['trim', 'extend', 'shorten', 'stretch', 'boundary', 'meet', 'face', 'flush'],
+    answer:
+      'In Model Mode pick Trim / Extend, then make two clicks: first click the face you want the board to stop at (it highlights teal), then click the board whose length should change. The board trims or extends to that exact face in one step, and one Ctrl+Z undoes it.',
+  },
+  {
+    id: 'connections-panel-what',
+    topic: 'What the Connections panel is',
+    keywords: ['connections', 'panel', 'joinery', 'fastener', 'dovetail', 'mortise', 'tenon', 'dado', 'lap', 'where'],
+    answer:
+      'The Connections panel (Detail Mode, right side) holds everything that joins wood in one place: real wood joinery (Dovetail, Mortise & Tenon, Dado, Lap) that actually cuts the boards, and hardware fasteners (Screws, Pocket Holes, Brackets, Dowels, Biscuits) that decorate an existing joint. Both use the same flow: pick a type, then click the board faces.',
+  },
+  {
+    id: 'dovetail-how-make',
+    topic: 'How to make a dovetail joint',
+    keywords: ['dovetail', 'make', 'joint', 'tails', 'pins', 'how', 'create'],
+    answer:
+      'Switch to Detail Mode (press 3), open the Connections panel, and pick Dovetail. Click the face that receives the sockets first, then click the end of the second board — the boards seat together and real flared tails are cut into the wood. Remove the joint any time from the list at the bottom of the panel.',
+  },
+  {
+    id: 'joinery-vs-fasteners',
+    topic: 'Wood joinery vs hardware fasteners',
+    keywords: ['joinery', 'fastener', 'difference', 'versus', 'hardware', 'joint', 'screw'],
+    answer:
+      'Wood joinery (dovetail, mortise & tenon, dado, lap) changes the shape of the wood itself so the boards interlock. Hardware fasteners (screws, dowels, brackets, biscuits) are separate parts added to a joint. In DoveDesign both live in the same Connections panel in Detail Mode so you never have to guess which menu something is in.',
+  },
+  {
+    id: 'assembly-mode-camera',
+    topic: 'Moving the camera while joining boards',
+    keywords: ['assembly', 'camera', 'orbit', 'rotate', 'view', 'mate', 'right', 'click', 'middle', 'pan'],
+    answer:
+      'In Assembly Mode the left mouse button only picks snap dots and faces. Hold the RIGHT button to orbit the camera and the MIDDLE button to pan — even in the middle of a join. Your first pick (the green dot) stays put while you spin the view to see the second board.',
+  },
+  {
+    id: 'escape-cancel-rule',
+    topic: 'What Escape does',
+    keywords: ['escape', 'cancel', 'esc', 'deselect', 'exit', 'tool'],
+    answer:
+      'Escape follows one simple rule everywhere: the first press cancels whatever you are in the middle of (a tool, a half-finished join or trim) and returns to Select, but your board stays selected. Press Escape again to deselect everything.',
   },
   {
     id: 'continuous-draw',
@@ -964,7 +1020,7 @@ const PEPE_KNOWLEDGE_APP: KnowledgeEntry[] = [
     topic: 'Snap dots not following the board',
     keywords: ['snap dots', 'dots stay', 'dots not moving', 'snap points wrong position'],
     answer:
-      'Snap dots now update in real time as you move a board. If they look stuck, try deselecting and reselecting the board. This was a known issue fixed in Phase 7.',
+      'Snap dots update in real time as you move a board. If they ever look stuck, try deselecting and reselecting the board.',
   },
   {
     id: 'rotation-ring',
@@ -1198,13 +1254,13 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
     id: 'autosave',
     topic: 'Does DoveDesign autosave',
     keywords: ['autosave', 'auto save', 'lose work', 'refresh', 'browser save', 'automatic save', 'crash recovery'],
-    answer: 'DoveDesign quietly keeps a background backup as you work, purely for crash recovery — but as of Phase 18 it is never loaded automatically. If the app finds a recent backup when you open it, a banner appears offering to Recover or Dismiss it. To actually keep and reopen a project on purpose, use Ctrl+S to save a named .wcad file — that is now the real way to save your work.',
+    answer: 'DoveDesign quietly keeps a background backup as you work, purely for crash recovery — it is never loaded automatically. If the app finds a recent backup when you open it, a banner appears offering to Recover or Dismiss it. To actually keep and reopen a project on purpose, use Ctrl+S to save a named .wcad file — that is the real way to save your work.',
   },
   {
     id: 'blank-canvas-start',
     topic: 'Why does DoveDesign open blank',
     keywords: ['open blank', 'blank canvas', 'lost my project', 'app reset', 'why is it empty', 'fresh start'],
-    answer: 'As of Phase 18, DoveDesign always opens to a blank canvas instead of reloading your last session — this is intentional, so you always start clean. Your last unsaved session is not gone: check the amber "Unsaved work found" banner at the top for a Recover option, or reopen a saved .wcad file with Ctrl+O.',
+    answer: 'DoveDesign always opens to a blank canvas instead of reloading your last session — this is intentional, so you always start clean. Your last unsaved session is not gone: check the amber "Unsaved work found" banner at the top for a Recover option, or reopen a saved .wcad file with Ctrl+O.',
   },
   {
     id: 'save-name-prompt',
@@ -1306,7 +1362,7 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
     id: 'measure-width-now-follows',
     topic: 'Measuring a board\'s width now follows correctly',
     keywords: ['measure width', 'cross axis dimension', 'width measurement not following', 'dimension line width', 'measure across board'],
-    answer: 'As of Phase 17, measuring across a board\'s width (the narrow side, not the long edge) correctly follows the board when you move or rotate it, just like length measurements always have. If you placed a width measurement before this update, re-place it to get the fix.',
+    answer: 'Measuring across a board\'s width (the narrow side, not the long edge) follows the board when you move or rotate it, just like length measurements. If a width measurement from an old saved project seems stuck, delete it and re-place it.',
   },
   {
     id: 'rotation-live-angle',
@@ -1372,7 +1428,7 @@ export const PEPE_KNOWLEDGE: KnowledgeEntry[] = [
     id: 'mate-rotate-now-works',
     topic: 'Rotating a mated board',
     keywords: ['rotate mated board', 'rotate group', 'rotating deselects', 'mate rotate broken', 'rotate boards together'],
-    answer: 'As of Phase 17, rotating a board that is part of a mate group correctly rotates the whole group together, the same way moving it already did. Earlier versions could lose your selection when you rotated a mated board — that is now fixed.',
+    answer: 'Rotating a board that is part of a mate group rotates the whole group together, the same way moving it does. Grab the rotation ring on a selected board and the connected boards follow.',
   },
   {
     id: 'unmate-boards',

@@ -8,10 +8,13 @@ import type {
   DesignSuggestion, EdgeTreatment, PlacedHardwareItem, AssemblyStep,
   HardwareLibraryId, DisplayMode, ViewportMode, DimensionLine,
   JointMarker, JointMarkerType, MateGroup,
+  WorkspaceMode, PendingInteraction, WoodJoint, FaceId,
 } from './types';
-import { trimToBoundary, extendToBoundary } from './lib/trimExtend';
+import { trimToBoundary, extendToBoundary, snapLengthToFacePlane } from './lib/trimExtend';
 import { inferMaterialKind, getMaterialByName } from './lib/materials';
-import { computeMateTransform, computePointMateTransform } from './lib/mating';
+import { computeMateTransform, computePointMateTransform, getFaceNormal } from './lib/mating';
+import { isToolLegalInMode, modeForTool, fixPanelTab } from './lib/workspaceModes';
+import { jointSeatDepth } from './core/JointFeatures';
 import { createDefaultFastenersForMate } from './lib/fastenerDefaults';
 import { findCloseFacePairs, buildMateFromPair, lapJointPatch } from './lib/quickJoin';
 import { createCutOperation } from './lib/joinery';
@@ -45,6 +48,7 @@ const DEFAULT_PROJECT: Project = {
   dimensionLines: [],
   mateGroups: [],
   mateConstraints: [],
+  woodJoints: [],
 };
 
 const DEFAULT_UI: UIState = {
@@ -120,6 +124,8 @@ const DEFAULT_UI: UIState = {
   selectedDrawMaterial: 'Southern Yellow Pine',
   finishPanelOpen: false,
   saveNameModalOpen: false,
+  workspaceMode: 'model',
+  pendingInteraction: null,
   drawDefaults: {
     species: 'Southern Yellow Pine',
     thickness: 1.5,
@@ -145,10 +151,28 @@ function migrateMember(m: WoodMember): WoodMember {
   };
 }
 
+/**
+ * Phase 20: the ONE migration path for every project restore — File → Open,
+ * crash recovery, and templates all go through this. Every field written by
+ * serializeWcad gets an explicit default here so a .wcad from any prior phase
+ * (or a hand-edited one missing fields) deserializes into a complete Project
+ * instead of crashing downstream code. Project.structural is never nullable.
+ */
 function migrateProject(p: Project): Project {
   return {
     ...p,
-    estimating: p.estimating ?? { ...DEFAULT_ESTIMATING },
+    id: p.id ?? crypto.randomUUID(),
+    name: p.name ?? 'Untitled Project',
+    description: p.description ?? '',
+    createdAt: p.createdAt ?? new Date().toISOString(),
+    hardware: p.hardware ?? [],
+    finishes: p.finishes ?? [],
+    structural: p.structural ?? {},
+    estimating: {
+      ...DEFAULT_ESTIMATING,
+      ...(p.estimating ?? {}),
+      materialPrices: p.estimating?.materialPrices ?? {},
+    },
     mates: (p.mates ?? []).map(migrateMate),
     attachmentPoints: p.attachmentPoints ?? [],
     fasteners: p.fasteners ?? [],
@@ -158,7 +182,8 @@ function migrateProject(p: Project): Project {
     dimensionLines: p.dimensionLines ?? [],
     mateGroups: p.mateGroups ?? [],
     mateConstraints: p.mateConstraints ?? [],
-    members: p.members.map(migrateMember),
+    woodJoints: p.woodJoints ?? [],
+    members: (p.members ?? []).map(migrateMember),
   };
 }
 
@@ -392,6 +417,25 @@ interface AppStore {
   loadProjectFromFile: (file: File) => Promise<void>;
   setSaveNameModalOpen: (open: boolean) => void;
   saveProjectAs: (name: string) => void;
+
+  /**
+   * Phase 20: the ONE restore path — used by both File → Open and the crash
+   * recovery banner so a downloaded .wcad loads identically to a recovery.
+   */
+  restoreProject: (raw: Project) => void;
+
+  // Phase 20 — 3-Mode workspace system
+  setWorkspaceMode: (mode: WorkspaceMode) => void;
+  setPendingInteraction: (p: PendingInteraction | null) => void;
+  /** Esc rule: cancel the current action/tool WITHOUT deselecting the board. */
+  cancelActiveAction: () => void;
+  /** 2-click Trim/Extend: applies the pending target face to the clicked board. */
+  applyTrimExtend: (adjustMemberId: string) => void;
+  /** Real joinery: completes a pending joint pick on the clicked board face. */
+  applyWoodJoint: (memberBId: string, faceBId: FaceId) => void;
+  removeWoodJoint: (jointId: string) => void;
+  /** Connections palette hardware flow: apply pending fastener type via the clicked board's mate. */
+  applyFastenerToMember: (memberId: string) => void;
 }
 
 function downloadWcadFile(project: Project) {
@@ -437,10 +481,9 @@ export const useAppStore = create<AppStore>()(
   recoverAutosave: () => {
     const snap = get().recoverableProjectSnapshot;
     if (!snap) return;
+    // Phase 20: recovery and File → Open share the exact same restore path.
+    get().restoreProject(snap);
     set({
-      project: migrateProject(snap),
-      past: [],
-      future: [],
       recoveryAvailable: false,
       recoveryTimestamp: null,
       recoverableProjectSnapshot: null,
@@ -529,6 +572,9 @@ export const useAppStore = create<AppStore>()(
         (c) => c.solidAId !== id && c.solidBId !== id
       ),
       dimensionLines: (p.dimensionLines ?? []).filter((l) => l.anchorMemberId !== id),
+      woodJoints: (p.woodJoints ?? []).filter(
+        (j) => j.memberAId !== id && j.memberBId !== id
+      ),
     });
     set((s) => ({
       ui: {
@@ -744,13 +790,24 @@ export const useAppStore = create<AppStore>()(
   },
 
   setActiveTool: (tool) =>
-    set((s) => ({
-      ui: {
-        ...s.ui,
-        activeTool: tool,
-        ...(tool !== 'drawBoard' ? { lastPlacedMemberId: null, drawSnapIndicator: null } : {}),
-      },
-    })),
+    set((s) => {
+      // Phase 20: mode follows tool. Picking/shortcutting a tool that lives in
+      // another workspace mode switches to that mode in the same action — one
+      // keystroke, predictable result, no dead keys.
+      const nextMode = isToolLegalInMode(tool, s.ui.workspaceMode)
+        ? s.ui.workspaceMode
+        : modeForTool(tool);
+      return {
+        ui: {
+          ...s.ui,
+          activeTool: tool,
+          workspaceMode: nextMode,
+          rightPanelTab: fixPanelTab(s.ui.rightPanelTab, nextMode),
+          ...(tool !== s.ui.activeTool ? { pendingInteraction: null } : {}),
+          ...(tool !== 'drawBoard' ? { lastPlacedMemberId: null, drawSnapIndicator: null } : {}),
+        },
+      };
+    }),
 
   setTransformMode: (mode) =>
     set((s) => ({ ui: { ...s.ui, transformMode: mode } })),
@@ -824,6 +881,7 @@ export const useAppStore = create<AppStore>()(
         multiSelection: [],
         selectedMemberId: null,
         transformGizmoActive: false,
+        pendingInteraction: null,
         drawBoardCancelNonce: s.ui.drawBoardCancelNonce + 1,
         contextMenu: { ...s.ui.contextMenu, open: false },
       },
@@ -1005,6 +1063,9 @@ export const useAppStore = create<AppStore>()(
         (m) => !(memberIds.has(m.memberAId) && memberIds.has(m.memberBId))
       ),
       fasteners: get().project.fasteners.filter((f) => !removedMateIds.has(f.mateId)),
+      woodJoints: (get().project.woodJoints ?? []).filter(
+        (j) => !(memberIds.has(j.memberAId) && memberIds.has(j.memberBId))
+      ),
     });
   },
 
@@ -1028,6 +1089,9 @@ export const useAppStore = create<AppStore>()(
         (m) => m.memberAId !== memberId && m.memberBId !== memberId
       ),
       fasteners: get().project.fasteners.filter((f) => !removedMateIds.has(f.mateId)),
+      woodJoints: (get().project.woodJoints ?? []).filter(
+        (j) => j.memberAId !== memberId && j.memberBId !== memberId
+      ),
     });
   },
 
@@ -1129,6 +1193,8 @@ export const useAppStore = create<AppStore>()(
       mates: get().project.mates.filter((m) => m.id !== mateId),
       fasteners: get().project.fasteners.filter((f) => f.mateId !== mateId),
       mateConstraints: (get().project.mateConstraints ?? []).filter((c) => c.id !== mateId),
+      // Wood joints share their id with the mate they created (Phase 20).
+      woodJoints: (get().project.woodJoints ?? []).filter((j) => j.id !== mateId),
     }),
 
   addAttachmentPoint: (point) =>
@@ -1548,6 +1614,9 @@ export const useAppStore = create<AppStore>()(
         (c) => c.solidAId !== memberId && c.solidBId !== memberId
       ),
       dimensionLines: (p.dimensionLines ?? []).filter((l) => l.anchorMemberId !== memberId),
+      woodJoints: (p.woodJoints ?? []).filter(
+        (j) => j.memberAId !== memberId && j.memberBId !== memberId
+      ),
     });
     set((s) => ({
       ui: {
@@ -1584,6 +1653,9 @@ export const useAppStore = create<AppStore>()(
         (c) => c.solidAId !== memberId && c.solidBId !== memberId
       ),
       dimensionLines: (p.dimensionLines ?? []).filter((l) => l.anchorMemberId !== memberId),
+      woodJoints: (p.woodJoints ?? []).filter(
+        (j) => j.memberAId !== memberId && j.memberBId !== memberId
+      ),
     });
     set((s) => ({
       ui: {
@@ -1701,6 +1773,11 @@ export const useAppStore = create<AppStore>()(
       attachmentPoints: [],
       edgeTreatments: [],
       placedHardware: [],
+      // Phase 20: these previously survived Clear All and orphaned silently.
+      mateGroups: [],
+      mateConstraints: [],
+      woodJoints: [],
+      assemblySteps: [],
     });
     set((s) => ({
       ui: {
@@ -1847,20 +1924,281 @@ export const useAppStore = create<AppStore>()(
   setSaveNameModalOpen: (open) =>
     set((s) => ({ ui: { ...s.ui, saveNameModalOpen: open } })),
 
+  // ─── Phase 20: 3-Mode workspace system ────────────────────────────────
+
+  setWorkspaceMode: (mode) =>
+    set((s) => {
+      if (s.ui.workspaceMode === mode) return s;
+      return {
+        ui: {
+          ...s.ui,
+          workspaceMode: mode,
+          // Orphan-cleanup sequence: every half-finished pick is cleared, but
+          // the SELECTION survives the mode switch (consistent-Esc rule).
+          activeTool: isToolLegalInMode(s.ui.activeTool, mode) ? s.ui.activeTool : 'select',
+          rightPanelTab: fixPanelTab(s.ui.rightPanelTab, mode),
+          pendingInteraction: null,
+          mateFaceA: null,
+          mateFaceB: null,
+          matePickTarget: 'A',
+          mateHoverFace: null,
+          mateGridOffset: null,
+          measureStartPoint: null,
+          trimBoundaryId: null,
+          orbitControlsEnabled: true,
+          radialWheelOpen: false,
+          radialWheelAnchor: null,
+          fastenerPlacementMode: false,
+          fastenerPlacementMateId: null,
+          boxSelectRect: null,
+          boxSelectPending: null,
+          crossCutPreviewPosition: null,
+          ripCutPreviewPosition: null,
+        },
+      };
+    }),
+
+  setPendingInteraction: (p) =>
+    set((s) => ({ ui: { ...s.ui, pendingInteraction: p } })),
+
+  cancelActiveAction: () =>
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        activeTool: 'select',
+        pendingInteraction: null,
+        transformGizmoActive: false,
+        orbitControlsEnabled: true,
+        trimBoundaryId: null,
+        mateFaceA: null,
+        mateFaceB: null,
+        matePickTarget: 'A',
+        mateHoverFace: null,
+        mateGridOffset: null,
+        measureStartPoint: null,
+        fastenerPlacementMode: false,
+        fastenerPlacementMateId: null,
+        radialWheelOpen: false,
+        radialWheelAnchor: null,
+        attachmentPointPickA: null,
+        boxSelectRect: null,
+        boxSelectPending: null,
+        quickJoinMiterAxis: null,
+        crossCutPreviewPosition: null,
+        ripCutPreviewPosition: null,
+        drawBoardCancelNonce: s.ui.drawBoardCancelNonce + 1,
+        contextMenu: { ...s.ui.contextMenu, open: false },
+      },
+    })),
+
+  applyTrimExtend: (adjustMemberId) => {
+    const { ui, project } = get();
+    const p = ui.pendingInteraction;
+    if (!p || p.kind !== 'trimExtend') return;
+    if (adjustMemberId === p.targetMemberId) return;
+    const target = project.members.find((m) => m.id === p.targetMemberId);
+    const adjust = project.members.find((m) => m.id === adjustMemberId);
+    if (!target || !adjust) {
+      set((s) => ({ ui: { ...s.ui, pendingInteraction: null } }));
+      return;
+    }
+    const patch = snapLengthToFacePlane(adjust, target, p.targetFaceId);
+    // Clear the pending pick either way so the user can start a fresh pair.
+    set((s) => ({ ui: { ...s.ui, pendingInteraction: null } }));
+    if (patch) {
+      // Single atomic commitProject → one undo step.
+      get().updateMember(adjustMemberId, patch);
+    }
+  },
+
+  applyWoodJoint: (memberBId, faceBId) => {
+    const { ui, project } = get();
+    const p = ui.pendingInteraction;
+    if (!p || p.kind !== 'joinery' || p.step !== 'pickFaceB') return;
+    if (memberBId === p.memberAId) return;
+    const a = project.members.find((m) => m.id === p.memberAId);
+    const b = project.members.find((m) => m.id === memberBId);
+    if (!a || !b) {
+      set((s) => ({ ui: { ...s.ui, pendingInteraction: null } }));
+      return;
+    }
+
+    const joint: WoodJoint = {
+      id: crypto.randomUUID(),
+      type: p.jointType,
+      memberAId: a.id,
+      faceAId: p.faceAId,
+      memberBId: b.id,
+      faceBId,
+      offsetA: p.offsetA,
+      params: {},
+    };
+    const seat = jointSeatDepth(joint, a);
+
+    // Seat board B: flush mate on the picked faces, then embed by the seat
+    // depth along faceA's inward normal so tails/tenon/end actually enter A.
+    const flushPatch = computeMateTransform(a, p.faceAId, b, faceBId, p.offsetA, [0, 0, 0]);
+    const nA = getFaceNormal(a, p.faceAId);
+    const seatedPos: [number, number, number] = [
+      (flushPatch.position as [number, number, number])[0] - nA.x * seat,
+      (flushPatch.position as [number, number, number])[1] - nA.y * seat,
+      (flushPatch.position as [number, number, number])[2] - nA.z * seat,
+    ];
+
+    // Legacy mate bookkeeping (join method, assembly steps, markers) + the
+    // real standing constraint — same pattern as applyMate, one atomic commit.
+    const mate: MemberMate = {
+      id: joint.id,
+      memberAId: a.id,
+      memberBId: b.id,
+      faceA: p.faceAId,
+      faceB: faceBId,
+      joinMethod: p.jointType === 'mortiseTenon' ? 'Mortise & Tenon' : 'Glue',
+      offsetA: p.offsetA,
+    };
+    const newConstraint: EngineMateConstraint = {
+      id: joint.id,
+      solidAId: a.id,
+      faceAId: p.faceAId,
+      solidBId: b.id,
+      faceBId,
+      type: 'offset',
+      // z < 0 embeds B into A along faceA's normal (Engine.faceWorldCenter).
+      offset: { x: p.offsetA[0], y: p.offsetA[1], z: -seat },
+    };
+
+    // Merge mate groups exactly like applyMate does.
+    const existingGroups = project.mateGroups ?? [];
+    const groupA = existingGroups.find((g) => g.memberIds.includes(a.id));
+    const groupB = existingGroups.find((g) => g.memberIds.includes(b.id));
+    let newGroups: MateGroup[];
+    if (groupA && groupB && groupA.id !== groupB.id) {
+      const merged: MateGroup = {
+        id: groupA.id,
+        memberIds: [...new Set([...groupA.memberIds, ...groupB.memberIds])],
+      };
+      newGroups = existingGroups
+        .filter((g) => g.id !== groupA.id && g.id !== groupB.id)
+        .concat(merged);
+    } else if (groupA) {
+      newGroups = existingGroups.map((g) =>
+        g.id === groupA.id ? { ...g, memberIds: [...new Set([...g.memberIds, b.id])] } : g
+      );
+    } else if (groupB) {
+      newGroups = existingGroups.map((g) =>
+        g.id === groupB.id ? { ...g, memberIds: [...new Set([...g.memberIds, a.id])] } : g
+      );
+    } else {
+      newGroups = [...existingGroups, { id: crypto.randomUUID(), memberIds: [a.id, b.id] }];
+    }
+
+    commitProject(set, get, {
+      ...project,
+      members: project.members.map((m) =>
+        m.id === b.id
+          ? migrateMember({ ...m, position: seatedPos, rotation: flushPatch.rotation as [number, number, number] })
+          : m
+      ),
+      mates: [...project.mates, mate],
+      mateGroups: newGroups,
+      mateConstraints: [...(project.mateConstraints ?? []), newConstraint],
+      woodJoints: [...(project.woodJoints ?? []), joint],
+    });
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        // Back to step 1 of the same joint type so the user can chain joints.
+        pendingInteraction: { kind: 'joinery', step: 'pickFaceA', jointType: p.jointType },
+        selectedMateId: mate.id,
+      },
+    }));
+  },
+
+  removeWoodJoint: (jointId) => {
+    const p = get().project;
+    commitProject(set, get, {
+      ...p,
+      woodJoints: (p.woodJoints ?? []).filter((j) => j.id !== jointId),
+      mates: p.mates.filter((m) => m.id !== jointId),
+      mateConstraints: (p.mateConstraints ?? []).filter((c) => c.id !== jointId),
+      fasteners: p.fasteners.filter((f) => f.mateId !== jointId),
+    });
+  },
+
+  applyFastenerToMember: (memberId) => {
+    const { ui, project } = get();
+    const p = ui.pendingInteraction;
+    if (!p || p.kind !== 'fastener') return;
+    // Fasteners decorate an existing joint: find a mate involving this board.
+    const mate =
+      project.mates.find((m) => m.id === ui.selectedMateId &&
+        (m.memberAId === memberId || m.memberBId === memberId)) ??
+      project.mates.find((m) => m.memberAId === memberId || m.memberBId === memberId);
+    if (!mate) return; // hint bar explains boards must be joined first
+    set((s) => ({ ui: { ...s.ui, pendingInteraction: null } }));
+    get().setMateJoinMethod(mate.id, p.fastenerType);
+  },
+
   addRecentFile: (name) => {
     const entry = { name, savedAt: new Date().toISOString() };
     const rest = get().recentFiles.filter((f) => f.name !== name);
     set({ recentFiles: [entry, ...rest].slice(0, 3) });
   },
 
-  loadProjectFromFile: async (file) => {
-    const text = await file.text();
-    const parsed = parseWcad(text);
-    set({
-      project: migrateProject(parsed),
+  restoreProject: (raw) => {
+    const project = migrateProject(raw);
+    set((s) => ({
+      project,
       past: [],
       future: [],
-    });
+      ui: {
+        ...s.ui,
+        // Fully reset interaction state — a freshly-opened project must never
+        // inherit a selection, half-picked mate, or preview from the old one.
+        selectedMemberId: null,
+        multiSelection: [],
+        activeTool: 'select',
+        pendingInteraction: null,
+        transformGizmoActive: false,
+        isolatedMemberId: null,
+        trimBoundaryId: null,
+        mateFaceA: null,
+        mateFaceB: null,
+        matePickTarget: 'A',
+        mateHoverFace: null,
+        mateGridOffset: null,
+        fastenerPlacementMode: false,
+        fastenerPlacementMateId: null,
+        selectedFastenerId: null,
+        selectedMateId: null,
+        selectedDimensionLineId: null,
+        selectedCenterlineId: null,
+        selectedJointMarkerId: null,
+        measureStartPoint: null,
+        crossCutPreviewPosition: null,
+        ripCutPreviewPosition: null,
+        radialWheelOpen: false,
+        radialWheelAnchor: null,
+        attachmentPointPickA: null,
+        edgeToolMemberId: null,
+        orbitControlsEnabled: true,
+        boxSelectRect: null,
+        boxSelectPending: null,
+      },
+    }));
+  },
+
+  loadProjectFromFile: async (file) => {
+    try {
+      const text = await file.text();
+      const parsed = parseWcad(text);
+      get().restoreProject(parsed);
+    } catch (err) {
+      console.error('[Open] failed to load .wcad file:', err);
+      window.alert(
+        "Sorry — that file couldn't be opened. It may not be a DoveDesign project file (.wcad), or it may be damaged."
+      );
+    }
   },
 
   addCenterlineMarker: (memberId, marker) =>

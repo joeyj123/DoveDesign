@@ -32,9 +32,35 @@ export default function KeyboardShortcuts() {
           }
           break;
 
-        case 'Escape':
-          store.resetToolState();
+        case 'Escape': {
+          // Phase 20 — ONE global exit rule: the first Escape cancels the
+          // current action/tool and returns to Select WITHOUT deselecting the
+          // board. A second Escape (nothing left to cancel) deselects.
+          const ui = store.ui;
+          const hasActiveAction =
+            ui.activeTool !== 'select' ||
+            ui.pendingInteraction !== null ||
+            ui.measureStartPoint !== null ||
+            ui.mateFaceA !== null ||
+            ui.radialWheelOpen ||
+            ui.transformGizmoActive;
+          if (hasActiveAction) {
+            store.cancelActiveAction();
+          } else {
+            store.resetToolState();
+          }
           store.setMeasureStartPoint(null);
+          break;
+        }
+
+        case '1':
+          store.setWorkspaceMode('model');
+          break;
+        case '2':
+          store.setWorkspaceMode('assembly');
+          break;
+        case '3':
+          store.setWorkspaceMode('detail');
           break;
 
         case 'x':

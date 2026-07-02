@@ -327,6 +327,14 @@ export class CADGeometryEngine {
       const uWorld = Q.applyToVector(q, face.uAxis);
       const vWorld = Q.applyToVector(q, face.vAxis);
       world = V.add(world, V.add(V.scale(uWorld, offset.x), V.scale(vWorld, offset.y)));
+      // Phase 20: offset.z is applied along the face's outward normal.
+      // Negative z embeds the dependent board INTO the anchor (used by real
+      // joinery — dovetail/tenon/dado seat depth). Every constraint created
+      // before this phase stored z: 0, so behavior for them is unchanged.
+      if (offset.z !== 0) {
+        const nWorld = V.normalize(Q.applyToVector(q, face.normal));
+        world = V.add(world, V.scale(nWorld, offset.z));
+      }
     }
     return world;
   }

@@ -44,7 +44,7 @@ export const PEPE_KNOWLEDGE_MASTER_R: KnowledgeEntry[] = [
     id: 'mr-measure-cross-axis-fixed',
     topic: 'Measuring a board\'s width (not just its length)',
     keywords: ['measure', 'width', 'cross', 'axis', 'narrow', 'side', 'dimension'],
-    answer: 'Dimension lines placed across a board\'s width now snap and follow the board correctly, the same as length-wise measurements — this was fixed in Phase 17. If you need to measure width precisely, zoom in a bit so the edge/corner snap points are easy to hit, watch for the blue (edge) or yellow (corner) cursor color, and click.',
+    answer: 'Dimension lines placed across a board\'s width snap and follow the board correctly, the same as length-wise measurements. The measure cursor snaps anywhere along a board\'s edges — watch for the blue (edge) or yellow (corner) cursor color, then click.',
   },
   // ── CENTERLINE TOOL: DEPTH ───────────────────────────────────────────────
   {
@@ -95,7 +95,7 @@ export const PEPE_KNOWLEDGE_MASTER_R: KnowledgeEntry[] = [
     id: 'mr-unmate-fastener-cleanup',
     topic: 'What happens to fasteners and join markers after Unmate',
     keywords: ['unmate', 'fastener', 'cleanup', 'marker', 'ghost', 'leftover'],
-    answer: 'Unmating a board also removes the join-method marker and any placed fastener icons tied to that specific connection, so you do not end up with a screw icon or purple join marker floating at a now-broken joint. This was specifically fixed in Phase 18 after leftover markers were found sticking around after unmate.',
+    answer: 'Unmating a board also removes the join-method marker and any placed fastener icons tied to that specific connection, so you do not end up with a screw icon or purple join marker floating at a now-broken joint.',
   },
   // ── SNAP POINTS: DEPTH ─────────────────────────────────────────────────
   {
@@ -108,7 +108,7 @@ export const PEPE_KNOWLEDGE_MASTER_R: KnowledgeEntry[] = [
     id: 'mr-snap-points-mate-tool',
     topic: 'How snap points relate to the Mate tool',
     keywords: ['snap', 'points', 'mate', 'tool', 'relate', 'how', 'use'],
-    answer: 'Snap points are the visual targets you click when using the Mate tool — clicking one commits that face as the mate anchor. If snap points look like they are floating in the wrong spot, that is a bug (they should always track the board precisely); as of Phase 18 this specific issue was fixed so old, severed connections no longer leave stray dots behind.',
+    answer: 'Snap points are the visual targets you click when using the Mate tool — clicking one commits that face as the mate anchor. They always track the board precisely, including after cuts: a ripped board\'s dots sit on the wood that actually remains, not where the waste used to be.',
   },
   // ── JOINERY VISUALIZATION & FASTENER PLACEMENT: DEPTH ────────────────────
   {
@@ -128,7 +128,7 @@ export const PEPE_KNOWLEDGE_MASTER_R: KnowledgeEntry[] = [
     id: 'mr-save-blank-start',
     topic: 'Why DoveDesign opens to a blank project instead of restoring your last session',
     keywords: ['blank', 'start', 'open', 'restore', 'session', 'why', 'startup'],
-    answer: 'As of Phase 18, DoveDesign always opens to a blank project rather than automatically reloading your last session — this was a deliberate change because auto-restoring felt confusing (users expected a fresh start). Your work is still backed up quietly in the background in case of a crash; look for the recovery banner at the top of the screen if it detects unsaved work from a previous session.',
+    answer: 'DoveDesign always opens to a blank project rather than automatically reloading your last session — this is deliberate, because auto-restoring felt confusing (users expected a fresh start). Your work is still backed up quietly in the background in case of a crash; look for the recovery banner at the top of the screen if it detects unsaved work from a previous session.',
   },
   {
     id: 'mr-recovery-banner',

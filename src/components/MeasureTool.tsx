@@ -138,87 +138,107 @@ type SnapKind = 'corner' | 'face' | 'edge' | 'grid';
 // board's narrow width, since the snap radius easily reaches an edge) could
 // silently anchor the dimension line's face-relative (u,v) data to the WRONG
 // face — wrong uAxis/vAxis, so the line doesn't track the board correctly.
+// Phase 20 rewrite (from-scratch trace of the cross-axis snap bug): the old
+// system only offered 26 DISCRETE candidates — corners, edge MIDPOINTS, and
+// face centers. Measuring a board's width at any station along its length
+// means clicking a long edge far from that edge's midpoint, so width clicks
+// had NO candidate within the snap radius and never snapped — while length
+// measurements worked because the board-end corners are candidates. Edges are
+// now true SEGMENTS: the candidate is the closest point anywhere along each
+// of the 12 edges, so a width measurement snaps to both long edges at any
+// station. Corners take priority within their own tighter radius (a corner
+// always lies on three edges, so edges would otherwise always shadow them).
 function nearestSnapPoint(
   worldPt: THREE.Vector3,
   members: MemberSnap[]
 ): { point: THREE.Vector3; kind: SnapKind; memberId?: string; localNormal?: THREE.Vector3 } | null {
-  let best: THREE.Vector3 | null = null;
-  let bestD = SNAP_RADIUS;
-  let bestKind: SnapKind = 'grid';
-  let bestMemberId: string | undefined;
-  let bestLocalNormal: [number, number, number] | undefined;
+  const CORNER_RADIUS = 0.75;
+
+  let bestCorner: { point: THREE.Vector3; d: number; memberId: string; n: THREE.Vector3 } | null = null;
+  let bestEdge: { point: THREE.Vector3; d: number; memberId: string; n: THREE.Vector3 } | null = null;
+  let bestFace: { point: THREE.Vector3; d: number; memberId: string; n: THREE.Vector3 } | null = null;
+
+  const tmp = new THREE.Vector3();
 
   for (const m of members) {
     let w = m.width;
     for (const c of m.cuts) { if (c.type === 'ripCut' && c.targetWidth) w = c.targetWidth; }
     const hL = m.length / 2, hT = m.thickness / 2, hW = w / 2;
 
-    // Each candidate point is paired with the normal of the face it sits on.
-    // Corners/edges that lie on two or three faces simultaneously pick a
-    // single reasonable representative face (the dominant one for that
-    // point), since the actual face is disambiguated later in onClick by
-    // re-matching against the work plane normal closest to the cursor's
-    // original raycast hit when available.
-    const tagged: { lp: [number, number, number]; kind: SnapKind; n: [number, number, number] }[] = [
-      // face centers — unambiguous, one face each
-      { lp: [-hL, 0, 0], kind: 'face', n: [-1, 0, 0] },
-      { lp: [hL, 0, 0], kind: 'face', n: [1, 0, 0] },
-      { lp: [0, -hT, 0], kind: 'face', n: [0, -1, 0] },
-      { lp: [0, hT, 0], kind: 'face', n: [0, 1, 0] },
-      { lp: [0, 0, -hW], kind: 'face', n: [0, 0, -1] },
-      { lp: [0, 0, hW], kind: 'face', n: [0, 0, 1] },
-      { lp: [0, 0, 0], kind: 'face', n: [0, 1, 0] },
-      // edge midpoints — tag with the face whose plane the edge most belongs
-      // to based on which axis is fixed at a board boundary (use the larger
-      // of the two non-edge-running faces meeting there as the default)
-      { lp: [0, -hT, -hW], kind: 'edge', n: [0, -1, 0] },
-      { lp: [0, -hT, hW], kind: 'edge', n: [0, -1, 0] },
-      { lp: [0, hT, -hW], kind: 'edge', n: [0, 1, 0] },
-      { lp: [0, hT, hW], kind: 'edge', n: [0, 1, 0] },
-      { lp: [-hL, 0, -hW], kind: 'edge', n: [-1, 0, 0] },
-      { lp: [-hL, 0, hW], kind: 'edge', n: [-1, 0, 0] },
-      { lp: [hL, 0, -hW], kind: 'edge', n: [1, 0, 0] },
-      { lp: [hL, 0, hW], kind: 'edge', n: [1, 0, 0] },
-      { lp: [-hL, -hT, 0], kind: 'edge', n: [0, -1, 0] },
-      { lp: [-hL, hT, 0], kind: 'edge', n: [0, 1, 0] },
-      { lp: [hL, -hT, 0], kind: 'edge', n: [0, -1, 0] },
-      { lp: [hL, hT, 0], kind: 'edge', n: [0, 1, 0] },
-      // corners — tag with the top/bottom face by default (most common
-      // measuring face); the work-plane resolution in onClick re-derives the
-      // best actual face anyway once a real anchor member is known
-      { lp: [-hL, -hT, -hW], kind: 'corner', n: [0, -1, 0] },
-      { lp: [-hL, -hT, hW], kind: 'corner', n: [0, -1, 0] },
-      { lp: [-hL, hT, -hW], kind: 'corner', n: [0, 1, 0] },
-      { lp: [-hL, hT, hW], kind: 'corner', n: [0, 1, 0] },
-      { lp: [hL, -hT, -hW], kind: 'corner', n: [0, -1, 0] },
-      { lp: [hL, -hT, hW], kind: 'corner', n: [0, -1, 0] },
-      { lp: [hL, hT, -hW], kind: 'corner', n: [0, 1, 0] },
-      { lp: [hL, hT, hW], kind: 'corner', n: [0, 1, 0] },
-    ];
-
     const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...(m.rotation as [number, number, number])));
     const pos = new THREE.Vector3(...m.position);
+    const toWorld = (x: number, y: number, z: number) =>
+      new THREE.Vector3(x, y, z).applyQuaternion(q).add(pos);
 
-    for (const { lp, kind, n } of tagged) {
-      const wp = new THREE.Vector3(lp[0], lp[1], lp[2]).applyQuaternion(q).add(pos);
+    // 8 corners — tagged with the top/bottom face by default; onClick
+    // re-derives the best face against the work plane once known.
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+      const wp = toWorld(sx * hL, sy * hT, sz * hW);
       const d = wp.distanceTo(worldPt);
-      if (d < bestD) {
-        bestD = d;
-        best = wp;
-        bestKind = kind;
-        bestMemberId = m.id;
-        bestLocalNormal = n;
+      if (d < CORNER_RADIUS && (!bestCorner || d < bestCorner.d)) {
+        bestCorner = { point: wp, d, memberId: m.id, n: new THREE.Vector3(0, sy, 0) };
+      }
+    }
+
+    // 12 edges as SEGMENTS — closest point on each segment. Each edge is
+    // tagged with a representative adjacent face normal (local space).
+    const edges: { a: [number, number, number]; b: [number, number, number]; n: [number, number, number] }[] = [
+      // 4 length-running edges (top/bottom long edges) — tag top/bottom face
+      { a: [-hL, -hT, -hW], b: [hL, -hT, -hW], n: [0, -1, 0] },
+      { a: [-hL, -hT, hW], b: [hL, -hT, hW], n: [0, -1, 0] },
+      { a: [-hL, hT, -hW], b: [hL, hT, -hW], n: [0, 1, 0] },
+      { a: [-hL, hT, hW], b: [hL, hT, hW], n: [0, 1, 0] },
+      // 4 width-running edges (board ends) — tag top/bottom face
+      { a: [-hL, -hT, -hW], b: [-hL, -hT, hW], n: [0, -1, 0] },
+      { a: [-hL, hT, -hW], b: [-hL, hT, hW], n: [0, 1, 0] },
+      { a: [hL, -hT, -hW], b: [hL, -hT, hW], n: [0, -1, 0] },
+      { a: [hL, hT, -hW], b: [hL, hT, hW], n: [0, 1, 0] },
+      // 4 thickness-running edges (vertical at board ends) — tag end face
+      { a: [-hL, -hT, -hW], b: [-hL, hT, -hW], n: [-1, 0, 0] },
+      { a: [-hL, -hT, hW], b: [-hL, hT, hW], n: [-1, 0, 0] },
+      { a: [hL, -hT, -hW], b: [hL, hT, -hW], n: [1, 0, 0] },
+      { a: [hL, -hT, hW], b: [hL, hT, hW], n: [1, 0, 0] },
+    ];
+    for (const edge of edges) {
+      const A = toWorld(edge.a[0], edge.a[1], edge.a[2]);
+      const B = toWorld(edge.b[0], edge.b[1], edge.b[2]);
+      const seg = tmp.copy(B).sub(A);
+      const len2 = seg.lengthSq();
+      if (len2 < 1e-8) continue;
+      const t = THREE.MathUtils.clamp(worldPt.clone().sub(A).dot(seg) / len2, 0, 1);
+      const cp = A.clone().addScaledVector(seg, t);
+      const d = cp.distanceTo(worldPt);
+      if (d < SNAP_RADIUS && (!bestEdge || d < bestEdge.d)) {
+        bestEdge = { point: cp, d, memberId: m.id, n: new THREE.Vector3(edge.n[0], edge.n[1], edge.n[2]) };
+      }
+    }
+
+    // 6 face centers (+ board center) — unambiguous, one face each
+    const faceCenters: { lp: [number, number, number]; n: [number, number, number] }[] = [
+      { lp: [-hL, 0, 0], n: [-1, 0, 0] },
+      { lp: [hL, 0, 0], n: [1, 0, 0] },
+      { lp: [0, -hT, 0], n: [0, -1, 0] },
+      { lp: [0, hT, 0], n: [0, 1, 0] },
+      { lp: [0, 0, -hW], n: [0, 0, -1] },
+      { lp: [0, 0, hW], n: [0, 0, 1] },
+      { lp: [0, 0, 0], n: [0, 1, 0] },
+    ];
+    for (const fc of faceCenters) {
+      const wp = toWorld(fc.lp[0], fc.lp[1], fc.lp[2]);
+      const d = wp.distanceTo(worldPt);
+      if (d < SNAP_RADIUS && (!bestFace || d < bestFace.d)) {
+        bestFace = { point: wp, d, memberId: m.id, n: new THREE.Vector3(fc.n[0], fc.n[1], fc.n[2]) };
       }
     }
   }
-  return best
-    ? {
-        point: best,
-        kind: bestKind,
-        memberId: bestMemberId,
-        localNormal: bestLocalNormal ? new THREE.Vector3(...bestLocalNormal) : undefined,
-      }
-    : null;
+
+  // Priority: corner (tight radius) > face center > edge. Face centers beat
+  // edges when both are in range because a face-center candidate is also
+  // always near two edge segments on narrow faces.
+  const pick = bestCorner ?? (bestFace && (!bestEdge || bestFace.d <= bestEdge.d) ? bestFace : bestEdge) ?? bestFace;
+  if (!pick) return null;
+  const kind: SnapKind = pick === bestCorner ? 'corner' : pick === bestFace ? 'face' : 'edge';
+  return { point: pick.point, kind, memberId: pick.memberId, localNormal: pick.n };
 }
 
 const FLOOR = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
@@ -455,7 +475,14 @@ export default function MeasureTool() {
 
     cursorRef.current = hitPt;
     cursorKindRef.current = snapKind;
-    if (!measureStartPoint) cursorMemberIdRef.current = snapMemberId;
+    // Phase 20 FOLLOW-BUG FIX: this line previously overwrote the raycast-
+    // derived member id with `undefined` whenever the cursor wasn't snapped —
+    // so every free-placement first click stored NO anchor member, producing
+    // a world-static dimension line with no (faceId, u, v) data. Width
+    // measurements almost never snapped (see nearestSnapPoint note above), so
+    // cross-axis lines were the ones that silently "didn't follow the board."
+    // Keep the raycast member unless a snap moved the point to a DIFFERENT board.
+    if (!measureStartPoint && snapMemberId) cursorMemberIdRef.current = snapMemberId;
 
     setCursor(hitPt ? hitPt.clone() : null);
     setCursorKind(snapKind);

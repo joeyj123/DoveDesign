@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '../store';
 import type { KnowledgeEntry } from '../lib/pepeKnowledge';
-import { searchKnowledge } from '../lib/pepeSearch';
+import { searchKnowledgeGated } from '../lib/pepeSearch';
 import {
   type NotebookEntry,
   addNotebookEntry,
@@ -12,7 +12,7 @@ import {
 } from '../lib/pepeNotebookDb';
 
 const NO_MATCH_MSG =
-  "Hmm, I'm not sure about that one -- try the Tutorial tab for more detail!";
+  "I don't have a reliable answer for that one. Try asking about woodworking, tools, or how something in DoveDesign works — or check the Tutorial tab.";
 
 function hasNumberedSteps(text: string): boolean {
   return /\b1\.\s/.test(text) || /\bStep\s+1\b/i.test(text);
@@ -263,11 +263,12 @@ export function PepeEmbedded() {
         return;
       }
 
-      const results = searchKnowledge(knowledgeRef.current, trimmed);
-      const best = results.length > 0 ? results[0] : null;
-      // Score is a weighted rank sum (see pepeSearch.ts), not a normalized
-      // probability — a small positive score is still a real, if weak, match.
-      const top = best && best.score > 0 ? best.entry : null;
+      // Phase 20: confidence-gated search. A below-threshold or out-of-scope
+      // query (no meaningful overlap with the KB's own keyword/topic
+      // vocabulary) returns confident: false — show the honest "no reliable
+      // answer" fallback instead of forcing a best-effort match on garbage.
+      const { results, confident } = searchKnowledgeGated(knowledgeRef.current, trimmed);
+      const top = confident && results.length > 0 ? results[0].entry : null;
 
       const queryTokens = trimmed
         .toLowerCase()

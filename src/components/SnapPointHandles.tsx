@@ -6,27 +6,36 @@ import type { WoodMember } from '../types';
 import type { FaceId } from '../types';
 
 function getLocalSnapPoints(member: WoodMember): THREE.Vector3[] {
-  let width = member.width;
+  // Phase 20 fix: snap dots must cover the board's FULL actual geometry.
+  // A rip cut keeps the 'start' or 'end' edge — the kept region is NOT
+  // centered on the board origin, so the old "shrink width around center"
+  // math floated dots over the removed waste and left the far edge of the
+  // real wood without dots (confirmed in the Phase 19 stress test).
+  let zMin = -member.width / 2;
+  let zMax = member.width / 2;
   for (const cut of member.cuts) {
     if (cut.type === 'ripCut' && cut.targetWidth) {
-      width = cut.targetWidth;
+      if ((cut.ripKeepEdge ?? 'start') === 'start') {
+        zMax = zMin + cut.targetWidth;
+      } else {
+        zMin = zMax - cut.targetWidth;
+      }
     }
   }
-  const L = member.length;
-  const T = member.thickness;
-  const W = width;
-  const hL = L / 2, hT = T / 2, hW = W / 2;
+  const hL = member.length / 2;
+  const hT = member.thickness / 2;
+  const zC = (zMin + zMax) / 2;
 
   const pts: [number, number, number][] = [
     // 8 corners (indices 0-7)
-    [-hL, -hT, -hW], [-hL, -hT, hW], [-hL, hT, -hW], [-hL, hT, hW],
-    [ hL, -hT, -hW], [ hL, -hT, hW], [ hL, hT, -hW], [ hL, hT, hW],
+    [-hL, -hT, zMin], [-hL, -hT, zMax], [-hL, hT, zMin], [-hL, hT, zMax],
+    [ hL, -hT, zMin], [ hL, -hT, zMax], [ hL, hT, zMin], [ hL, hT, zMax],
     // 6 face centers (indices 8-13) — these map cleanly to FaceIds
-    [-hL, 0, 0], [hL, 0, 0],   // 8=xMin, 9=xMax
-    [0, -hT, 0], [0, hT, 0],   // 10=yMin, 11=yMax
-    [0, 0, -hW], [0, 0, hW],   // 12=zMin, 13=zMax
+    [-hL, 0, zC], [hL, 0, zC],   // 8=xMin, 9=xMax
+    [0, -hT, zC], [0, hT, zC],   // 10=yMin, 11=yMax
+    [0, 0, zMin], [0, 0, zMax],  // 12=zMin, 13=zMax
     // center (index 14)
-    [0, 0, 0],
+    [0, 0, zC],
   ];
 
   return pts.map((p) => new THREE.Vector3(p[0], p[1], p[2]));

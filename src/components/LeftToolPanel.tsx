@@ -1,53 +1,92 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAppStore } from '../store';
-import type { ActiveTool } from '../types';
+import type { ActiveTool, WorkspaceMode } from '../types';
 import { PepeEmbedded } from './PepeAssistant';
 import { findOpenSpawnPosition } from '../lib/bounds';
-
-type ToolTab = 'model' | 'modify' | 'joinery' | 'shapes';
 
 const TAB_WIDTH = 48;
 const PANEL_WIDTH = 220;
 
-const TABS: { id: ToolTab; short: string; label: string }[] = [
-  { id: 'model', short: 'Modl', label: 'Model' },
-  { id: 'modify', short: 'Mody', label: 'Modify' },
-  { id: 'joinery', short: 'Join', label: 'Joinery' },
-  { id: 'shapes', short: 'Shap', label: 'Shapes' },
-];
+interface ToolEntry {
+  id: ActiveTool;
+  label: string;
+  action?: 'tool' | 'shape' | 'mate' | 'edge' | 'connections';
+}
 
-const MODEL_TOOLS: { id: ActiveTool; label: string }[] = [
-  { id: 'select', label: 'Select' },
-  { id: 'drawBoard', label: 'Draw' },
-  { id: 'addBoard', label: 'Add' },
-];
+interface ToolSection {
+  heading: string;
+  tools: ToolEntry[];
+}
 
-const MODIFY_TOOLS: { id: ActiveTool; label: string }[] = [
-  { id: 'cut', label: 'Cross Cut' },
-  { id: 'rip', label: 'Rip Cut' },
-  { id: 'miter', label: 'Miter' },
-  { id: 'trimExtend', label: 'Trim' },
-  { id: 'joinery', label: 'Join' },
-];
-
-const JOINERY_TOOLS: { id: ActiveTool; label: string; action?: 'mate' | 'edge' | 'attach' }[] = [
-  { id: 'mate', label: 'Mate', action: 'mate' },
-  { id: 'edge', label: 'Edge Treatment', action: 'edge' },
-  { id: 'select', label: 'Attach Point', action: 'attach' },
-];
-
-const SHAPE_TOOLS: { id: ActiveTool; label: string }[] = [
-  { id: 'shapeCylinder', label: 'Cylinder' },
-  { id: 'shapeSphere', label: 'Sphere' },
-  { id: 'shapeCone', label: 'Cone' },
-  { id: 'shapeTriPrism', label: 'Triangle' },
-  { id: 'shapeHexPrism', label: 'Hexagon' },
-];
+/**
+ * Phase 20: the Left Toolbar renders ONLY the current workspace mode's tools
+ * (single source of truth: lib/workspaceModes.ts MODE_TOOLS — this layout is
+ * the presentational grouping of exactly that list).
+ */
+const MODE_SECTIONS: Record<WorkspaceMode, ToolSection[]> = {
+  model: [
+    {
+      heading: 'Boards',
+      tools: [
+        { id: 'select', label: 'Select' },
+        { id: 'drawBoard', label: 'Draw Board' },
+        { id: 'addBoard', label: 'Add Board' },
+      ],
+    },
+    {
+      heading: 'Shaping',
+      tools: [
+        { id: 'trimExtend', label: 'Trim / Extend' },
+        { id: 'cut', label: 'Cross Cut' },
+        { id: 'rip', label: 'Rip Cut' },
+        { id: 'miter', label: 'Miter' },
+      ],
+    },
+    {
+      heading: 'Layout',
+      tools: [
+        { id: 'measure', label: 'Measure' },
+        { id: 'centerline', label: 'Centerline' },
+      ],
+    },
+    {
+      heading: 'Shapes',
+      tools: [
+        { id: 'shapeCylinder', label: 'Cylinder', action: 'shape' },
+        { id: 'shapeSphere', label: 'Sphere', action: 'shape' },
+        { id: 'shapeCone', label: 'Cone', action: 'shape' },
+        { id: 'shapeTriPrism', label: 'Triangle', action: 'shape' },
+        { id: 'shapeHexPrism', label: 'Hexagon', action: 'shape' },
+      ],
+    },
+  ],
+  assembly: [
+    {
+      heading: 'Joining',
+      tools: [
+        { id: 'select', label: 'Select' },
+        { id: 'mate', label: 'Mate (Join Boards)', action: 'mate' },
+        { id: 'measure', label: 'Measure' },
+      ],
+    },
+  ],
+  detail: [
+    {
+      heading: 'Connections',
+      tools: [
+        { id: 'select', label: 'Select' },
+        { id: 'connection', label: 'Connections', action: 'connections' },
+        { id: 'edge', label: 'Edge Treatment', action: 'edge' },
+        { id: 'measure', label: 'Measure' },
+      ],
+    },
+  ],
+};
 
 export default function LeftToolPanel() {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<ToolTab>('model');
   const activeTool = useAppStore((s) => s.ui.activeTool);
+  const workspaceMode = useAppStore((s) => s.ui.workspaceMode);
   const selectedId = useAppStore((s) => s.ui.selectedMemberId);
   const setActiveTool = useAppStore((s) => s.setActiveTool);
   const setRightPanelTab = useAppStore((s) => s.setRightPanelTab);
@@ -57,46 +96,34 @@ export default function LeftToolPanel() {
   const setMateFaceA = useAppStore((s) => s.setMateFaceA);
   const setMateFaceB = useAppStore((s) => s.setMateFaceB);
   const setEdgeToolMemberId = useAppStore((s) => s.setEdgeToolMemberId);
-  const setAttachmentPointPickA = useAppStore((s) => s.setAttachmentPointPickA);
-
-  useEffect(() => {
-    if (['cut', 'rip', 'miter', 'trimExtend', 'joinery'].includes(activeTool)) {
-      setActiveTab('modify');
-    } else if (['mate', 'edge'].includes(activeTool)) {
-      setActiveTab('joinery');
-    } else if (activeTool.startsWith('shape')) {
-      setActiveTab('shapes');
-    } else if (['select', 'drawBoard', 'addBoard'].includes(activeTool)) {
-      setActiveTab('model');
-    }
-  }, [activeTool]);
 
   function pickTool(id: ActiveTool) {
     setActiveTool(id);
-    if (id !== 'select') setRightPanelTab('inspector');
+    if (id !== 'select' && id !== 'connection') setRightPanelTab('inspector');
   }
 
-  function activateJoineryTool(tool: (typeof JOINERY_TOOLS)[number]) {
-    if (tool.action === 'mate') {
-      pickTool('mate');
-      setMatePickTarget('A');
-      setMateFaceA(null);
-      setMateFaceB(null);
-      return;
+  function activate(entry: ToolEntry) {
+    switch (entry.action) {
+      case 'mate':
+        pickTool('mate');
+        setMatePickTarget('A');
+        setMateFaceA(null);
+        setMateFaceB(null);
+        return;
+      case 'edge':
+        pickTool('edge');
+        if (selectedId) setEdgeToolMemberId(selectedId);
+        return;
+      case 'connections':
+        setActiveTool('connection');
+        setRightPanelTab('connections');
+        return;
+      case 'shape':
+        addShape(entry.id);
+        return;
+      default:
+        pickTool(entry.id);
     }
-    if (tool.action === 'edge') {
-      pickTool('edge');
-      if (selectedId) setEdgeToolMemberId(selectedId);
-      return;
-    }
-    if (tool.action === 'attach') {
-      pickTool('mate');
-      setMateFaceA(null);
-      setMateFaceB(null);
-      setAttachmentPointPickA(null);
-      return;
-    }
-    pickTool(tool.id);
   }
 
   function addShape(tool: ActiveTool) {
@@ -132,50 +159,7 @@ export default function LeftToolPanel() {
     setActiveTool('select');
   }
 
-  const toolsForTab = (() => {
-    switch (activeTab) {
-      case 'model':
-        return MODEL_TOOLS.map((t) => (
-          <ToolButton
-            key={t.id}
-            label={t.label}
-            active={activeTool === t.id}
-            onClick={() => pickTool(t.id)}
-          />
-        ));
-      case 'modify':
-        return MODIFY_TOOLS.map((t) => (
-          <ToolButton
-            key={t.id}
-            label={t.label}
-            active={activeTool === t.id}
-            onClick={() => pickTool(t.id)}
-          />
-        ));
-      case 'joinery':
-        return JOINERY_TOOLS.map((t) => (
-          <ToolButton
-            key={t.label}
-            label={t.label}
-            active={
-              t.action === 'attach'
-                ? activeTool === 'mate'
-                : activeTool === t.id
-            }
-            onClick={() => activateJoineryTool(t)}
-          />
-        ));
-      case 'shapes':
-        return SHAPE_TOOLS.map((t) => (
-          <ToolButton
-            key={t.id}
-            label={t.label}
-            active={activeTool === t.id}
-            onClick={() => addShape(t.id)}
-          />
-        ));
-    }
-  })();
+  const sections = MODE_SECTIONS[workspaceMode];
 
   return (
     <aside
@@ -183,49 +167,42 @@ export default function LeftToolPanel() {
       style={{ width: collapsed ? TAB_WIDTH : PANEL_WIDTH }}
       aria-label="Shop tools"
     >
-      <nav className="shrink-0 flex flex-col border-r border-zinc-800" style={{ width: TAB_WIDTH }}>
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
-          className="h-8 text-sm text-zinc-400 hover:text-amber-300 hover:bg-zinc-900 border-b border-zinc-800"
+          className="h-8 shrink-0 text-sm text-zinc-400 hover:text-amber-300 hover:bg-zinc-900 border-b border-zinc-800"
           title={collapsed ? 'Expand tool panel' : 'Collapse tool panel'}
           aria-label={collapsed ? 'Expand tool panel' : 'Collapse tool panel'}
         >
           {collapsed ? '»' : '«'}
         </button>
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => {
-              setActiveTab(tab.id);
-              if (collapsed) setCollapsed(false);
-            }}
-            title={tab.label}
-            className={[
-              'min-h-10 flex flex-col items-center justify-center text-xs border-l-2 transition-colors px-0.5 py-1',
-              activeTab === tab.id
-                ? 'font-bold text-amber-200 border-l-amber-500 bg-zinc-900/60'
-                : 'font-medium text-zinc-500 border-l-transparent hover:text-zinc-200 hover:bg-zinc-900/40',
-            ].join(' ')}
-          >
-            <span className="text-[11px] font-bold leading-tight text-center whitespace-normal">
-              {collapsed ? tab.short : tab.label}
-            </span>
-          </button>
-        ))}
-      </nav>
 
-      {!collapsed && (
-        <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          <div className="flex-1 min-h-0 overflow-y-auto sidebar-scroll py-1 px-1.5">
-            {toolsForTab}
-          </div>
-          <div className="shrink-0 border-t border-zinc-800 p-2">
-            <PepeEmbedded />
-          </div>
-        </div>
-      )}
+        {!collapsed && (
+          <>
+            <div className="flex-1 min-h-0 overflow-y-auto sidebar-scroll py-1 px-1.5">
+              {sections.map((section) => (
+                <div key={section.heading} className="mb-2">
+                  <div className="px-2 pt-2 pb-1 text-xs uppercase tracking-wider text-zinc-500 font-semibold">
+                    {section.heading}
+                  </div>
+                  {section.tools.map((t) => (
+                    <ToolButton
+                      key={`${t.id}-${t.label}`}
+                      label={t.label}
+                      active={activeTool === t.id && t.action !== 'shape'}
+                      onClick={() => activate(t)}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="shrink-0 border-t border-zinc-800 p-2">
+              <PepeEmbedded />
+            </div>
+          </>
+        )}
+      </div>
     </aside>
   );
 }

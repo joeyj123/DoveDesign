@@ -7,6 +7,7 @@ import { useAppStore } from '../store';
 import type { WoodMember } from '../types';
 import { getWoodGrainTexture, getRoughnessTexture } from '../lib/woodTexture';
 import { buildCutSubtractions } from '../lib/joinery';
+import { buildWoodJointSubtractions } from '../core/JointFeatures';
 import {
   pickFaceFromWorldNormal,
   worldPointToFaceOffset,
@@ -59,6 +60,11 @@ export default function WoodBlock({ member }: Props) {
   const selectedJointType = useAppStore((s) => s.ui.selectedJointType);
   const addJointMarker = useAppStore((s) => s.addJointMarker);
   const addCenterlineMarker = useAppStore((s) => s.addCenterlineMarker);
+  const pendingInteraction = useAppStore((s) => s.ui.pendingInteraction);
+  const setPendingInteraction = useAppStore((s) => s.setPendingInteraction);
+  const applyTrimExtend = useAppStore((s) => s.applyTrimExtend);
+  const applyWoodJoint = useAppStore((s) => s.applyWoodJoint);
+  const applyFastenerToMember = useAppStore((s) => s.applyFastenerToMember);
   const isSelected   = selectedId === member.id || multiSelection.includes(member.id);
   const isHighlighted = suggestionHighlightIds.includes(member.id);
   const isHidden     = isolatedMemberId !== null && isolatedMemberId !== member.id;
@@ -71,9 +77,14 @@ export default function WoodBlock({ member }: Props) {
   const grainTex = getWoodGrainTexture(member.color);
   const roughTex = getRoughnessTexture();
 
+  const woodJoints = useAppStore((s) => s.project.woodJoints);
+
   const subtractions = useMemo(
     () => [
       ...buildCutSubtractions(member, allMembers),
+      // Phase 20: real joinery — derived fresh from joint parameters + both
+      // boards' CURRENT placements every recompute (never baked).
+      ...buildWoodJointSubtractions(member, woodJoints ?? [], allMembers),
       ...buildEdgeTreatmentSubtractions(member, edgeTreatments).map((e) => ({
         id: e.id,
         position: e.position,
@@ -82,7 +93,7 @@ export default function WoodBlock({ member }: Props) {
         args: e.args,
       })),
     ],
-    [member, allMembers, edgeTreatments]
+    [member, allMembers, edgeTreatments, woodJoints]
   );
 
   const effectiveDims = useMemo(() => {
@@ -202,6 +213,55 @@ export default function WoodBlock({ member }: Props) {
         rotation: [euler.x, euler.y, euler.z],
         scale: 1,
       });
+      return;
+    }
+
+    // Phase 20 — strict 2-click Trim/Extend: click 1 = target face (this
+    // board stays), click 2 = the board whose length changes.
+    if (activeTool === 'trimExtend' && e.face) {
+      e.stopPropagation();
+      const face = handleFaceFromEvent(e)!;
+      const p = useAppStore.getState().ui.pendingInteraction;
+      if (!p || p.kind !== 'trimExtend' || p.targetMemberId === member.id) {
+        setPendingInteraction({
+          kind: 'trimExtend',
+          step: 'pickBoardToAdjust',
+          targetMemberId: member.id,
+          targetFaceId: face,
+        });
+      } else {
+        applyTrimExtend(member.id);
+      }
+      return;
+    }
+
+    // Phase 20 — Connections palette (Detail Mode): real joinery + fasteners
+    // share one pick flow, driven entirely by the pendingInteraction machine.
+    if (activeTool === 'connection' && e.face) {
+      const p = useAppStore.getState().ui.pendingInteraction;
+      if (!p) return; // nothing chosen in the palette yet — hint bar guides
+      e.stopPropagation();
+      const face = handleFaceFromEvent(e)!;
+      if (p.kind === 'joinery') {
+        if (p.step === 'pickFaceA') {
+          const offset = worldPointToFaceOffset(member, face, e.point.clone());
+          setPendingInteraction({
+            kind: 'joinery',
+            step: 'pickFaceB',
+            jointType: p.jointType,
+            memberAId: member.id,
+            faceAId: face,
+            offsetA: offset,
+          });
+        } else if (member.id !== p.memberAId) {
+          applyWoodJoint(member.id, face);
+        }
+        return;
+      }
+      if (p.kind === 'fastener') {
+        applyFastenerToMember(member.id);
+        return;
+      }
       return;
     }
 
@@ -353,10 +413,18 @@ export default function WoodBlock({ member }: Props) {
           const finish = member.finish;
           const ft = finish?.type ?? 'none';
           const sheenRoughness = finish?.sheen === 'gloss' ? 0.05 : finish?.sheen === 'satin' ? 0.4 : 0.9;
+          const isPendingTarget =
+            (pendingInteraction?.kind === 'trimExtend' &&
+              pendingInteraction.targetMemberId === member.id) ||
+            (pendingInteraction?.kind === 'joinery' &&
+              pendingInteraction.step === 'pickFaceB' &&
+              pendingInteraction.memberAId === member.id);
           const emissiveColor =
+            isPendingTarget ? '#14b8a6' :
             isSelected || isHighlighted ? '#ffaa00' :
             isMateCandidate ? '#0066ff' : '#000000';
           const emissiveInt =
+            isPendingTarget ? 0.3 :
             isSelected ? 0.28 : isHighlighted ? 0.22 : isMateCandidate ? 0.15 : 0;
 
           if (ft === 'paint' && finish?.color) {
@@ -459,10 +527,14 @@ export default function WoodBlock({ member }: Props) {
           </Base>
           {subtractions.map((sub) => (
             <Subtraction key={sub.id} position={sub.position} rotation={sub.rotation}>
-              {sub.geometry === 'box' ? (
+              {sub.geometry === 'box' && (
                 <boxGeometry args={sub.args as [number, number, number]} />
-              ) : (
+              )}
+              {sub.geometry === 'cylinder' && (
                 <cylinderGeometry args={sub.args as [number, number, number, number]} />
+              )}
+              {sub.geometry === 'taperPrism' && (
+                <TaperPrismGeometry args={sub.args as [number, number, number, number]} />
               )}
             </Subtraction>
           ))}
@@ -478,6 +550,18 @@ export default function WoodBlock({ member }: Props) {
         {/* CenterlineRenderer and BoardDimensionLines are children of the mesh so their local coords auto-follow the board */}
         <CenterlineRenderer member={member} />
         <BoardDimensionLines member={member} />
+
+        {/* Phase 20: picked target face highlight (trim/extend + joinery step 1).
+            A mesh child, so it follows the board automatically. */}
+        {pendingInteraction?.kind === 'trimExtend' &&
+          pendingInteraction.targetMemberId === member.id && (
+            <TargetFaceHighlight member={member} face={pendingInteraction.targetFaceId} color="#14b8a6" />
+          )}
+        {pendingInteraction?.kind === 'joinery' &&
+          pendingInteraction.step === 'pickFaceB' &&
+          pendingInteraction.memberAId === member.id && (
+            <TargetFaceHighlight member={member} face={pendingInteraction.faceAId} color="#f59e0b" />
+          )}
       </mesh>
 
       {edgeToolActive &&
@@ -524,6 +608,66 @@ export default function WoodBlock({ member }: Props) {
 function getWorldQuaternion(member: WoodMember): THREE.Quaternion {
   const e = new THREE.Euler(...member.rotation);
   return new THREE.Quaternion().setFromEuler(e);
+}
+
+/**
+ * Phase 20: translucent overlay marking the picked target face during a
+ * 2-click flow. Rendered as a child of the board mesh in LOCAL coordinates
+ * derived from the FaceId + current dimensions — follows the board for free.
+ */
+function TargetFaceHighlight({
+  member,
+  face,
+  color,
+}: {
+  member: WoodMember;
+  face: import('../types').FaceId;
+  color: string;
+}) {
+  const hL = member.length / 2, hT = member.thickness / 2, hW = member.width / 2;
+  const LIFT = 0.04;
+  let position: [number, number, number];
+  let rotation: [number, number, number];
+  let size: [number, number];
+  switch (face) {
+    case 'xMin': position = [-hL - LIFT, 0, 0]; rotation = [0, -Math.PI / 2, 0]; size = [member.width, member.thickness]; break;
+    case 'xMax': position = [hL + LIFT, 0, 0]; rotation = [0, Math.PI / 2, 0]; size = [member.width, member.thickness]; break;
+    case 'yMin': position = [0, -hT - LIFT, 0]; rotation = [Math.PI / 2, 0, 0]; size = [member.length, member.width]; break;
+    case 'yMax': position = [0, hT + LIFT, 0]; rotation = [-Math.PI / 2, 0, 0]; size = [member.length, member.width]; break;
+    case 'zMin': position = [0, 0, -hW - LIFT]; rotation = [0, Math.PI, 0]; size = [member.length, member.thickness]; break;
+    case 'zMax': position = [0, 0, hW + LIFT]; rotation = [0, 0, 0]; size = [member.length, member.thickness]; break;
+  }
+  return (
+    <mesh position={position} rotation={rotation} raycast={() => null}>
+      <planeGeometry args={size} />
+      <meshBasicMaterial color={color} transparent opacity={0.3} side={THREE.DoubleSide} depthWrite={false} />
+    </mesh>
+  );
+}
+
+/**
+ * Phase 20: trapezoid-cross-section prism for real dovetail geometry.
+ * args = [depth, extrude, wOuter, wInner]. Local +X = outward (outer width at
+ * x=0, inner at x=-depth), Y = layout width, Z pre-rotation = extrusion; the
+ * geometry is rotated so extrusion runs along local Z of the subtraction
+ * frame set by JointFeatures/joinery (which orient via the rotation prop).
+ */
+function TaperPrismGeometry({ args }: { args: [number, number, number, number] }) {
+  const [depth, extrude, wOuter, wInner] = args;
+  const geo = useMemo(() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(0, -wOuter / 2);
+    shape.lineTo(0, wOuter / 2);
+    shape.lineTo(-depth, wInner / 2);
+    shape.lineTo(-depth, -wInner / 2);
+    shape.closePath();
+    const g = new THREE.ExtrudeGeometry(shape, { depth: extrude, bevelEnabled: false });
+    // Center the extrusion on the prism's local Z axis.
+    g.translate(0, 0, -extrude / 2);
+    g.computeVertexNormals();
+    return g;
+  }, [depth, extrude, wOuter, wInner]);
+  return <primitive object={geo} attach="geometry" />;
 }
 
 /** CSG base primitive for custom polygon footprints (extruded along Y). */

@@ -29,6 +29,9 @@ import RotationRing from './RotationRing';
 import CrossCutPreviewLine from './CrossCutPreviewLine';
 import RipCutPreviewLine from './RipCutPreviewLine';
 import ScrapBox from './ScrapBox';
+import ModeSwitcher from './ModeSwitcher';
+import HintBar from './HintBar';
+import CanvasErrorBoundary from './CanvasErrorBoundary';
 import { consumeGizmoDragClickSuppress } from '../lib/gizmoDragGuard';
 
 function ShadowFloor() {
@@ -48,6 +51,12 @@ function ShadowFloor() {
       onClick={(e) => {
         if (e.shiftKey) return;
         if (consumeGizmoDragClickSuppress()) return;
+        // Phase 20: a floor click must never wipe a half-finished pick — a
+        // mate anchor (mateFaceA) or pendingInteraction survives until the
+        // user presses Escape or completes the pick. Only Select-tool floor
+        // clicks deselect.
+        const ui = useAppStore.getState().ui;
+        if (ui.activeTool !== 'select' || ui.pendingInteraction) return;
         e.stopPropagation();
         clearSelection();
         setRadialWheelOpen(false);
@@ -87,8 +96,6 @@ export default function Viewport() {
   const setRadialWheelOpen = useAppStore((s) => s.setRadialWheelOpen);
   const clearSelection = useAppStore((s) => s.clearSelection);
   const activeTool        = useAppStore((s) => s.ui.activeTool);
-  const mateFaceA         = useAppStore((s) => s.ui.mateFaceA);
-  const measureStartPoint = useAppStore((s) => s.ui.measureStartPoint);
   const gridVisible       = useAppStore((s) => s.ui.gridVisible);
   const snapToGrid        = useAppStore((s) => s.ui.snapToGrid);
   const showWelcome  = members.length === 0;
@@ -106,28 +113,10 @@ export default function Viewport() {
           ⊞ Snap to Grid ON
         </div>
       )}
-      {activeTool === 'measure' && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg bg-zinc-900/90 border border-amber-500/40 text-base text-amber-100 pointer-events-none text-center">
-          {measureStartPoint
-            ? <>Now move to your end point and <strong>click</strong> to finish the measurement</>
-            : <>Click any point to set the <strong>start</strong> of your measurement</>
-          }
-        </div>
-      )}
-      {activeTool === 'centerline' && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg bg-zinc-900/90 border border-cyan-500/40 text-base text-cyan-100 pointer-events-none text-center">
-          Click any face of a board to add a <strong>centerline marker</strong>
-        </div>
-      )}
-      {activeTool === 'mate' && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg bg-zinc-900/90 border border-amber-500/40 text-base text-amber-100 pointer-events-none text-center">
-          {mateFaceA
-            ? <>Now click a face on the <strong>second board</strong> — it will snap TO the first board</>
-            : <>Click a face on the <strong>first board</strong> — it stays still, the second board moves to it</>
-          }
-        </div>
-      )}
+      {/* Phase 20: per-tool floating hints replaced by the persistent HintBar below. */}
       {showWelcome && <ViewportWelcome />}
+      <ModeSwitcher />
+      <HintBar />
       <QuickDimensionsPanel />
       <RadialOrbitalSelector />
       <FastenerPlacementBar />
@@ -136,6 +125,7 @@ export default function Viewport() {
       <BoxSelectionHandler />
       <DesignSuggestionsBridge />
       <ScrapBox />
+      <CanvasErrorBoundary>
       <Canvas
         style={{ width: '100%', height: '100%' }}
         shadows
@@ -234,6 +224,7 @@ export default function Viewport() {
           <GizmoViewport labelColor="white" axisHeadScale={0.85} />
         </GizmoHelper>
       </Canvas>
+      </CanvasErrorBoundary>
     </div>
   );
 }

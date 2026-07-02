@@ -122,6 +122,45 @@ export interface PepeSearchResult {
   score: number;
 }
 
+export interface GatedSearchResult {
+  results: PepeSearchResult[];
+  /**
+   * Phase 20 confidence gate: true only when the match is trustworthy enough
+   * to present as an answer. False for garbage/out-of-scope queries (e.g.
+   * "what toothpaste should i use") — callers must show a fixed "I don't have
+   * a reliable answer for that" fallback instead of the best-effort top hit.
+   */
+  confident: boolean;
+}
+
+// Calibration notes (measured against the rank-sum scoring below, where a
+// single top-rank keyword hit contributes 8 ids × weight 3 = 24 and an
+// answer-text-only hit contributes at most 8):
+// - MIN_CONFIDENT_SCORE = 12 rejects entries surfaced ONLY by weak answer-text
+//   noise while accepting any real keyword/topic match.
+// - STRONG_COVERAGE requires that a reasonable share of the user's meaningful
+//   words hit the keyword/topic fields (the curated, on-scope vocabulary) —
+//   answer-text hits alone don't count, because long answers accidentally
+//   contain common verbs ("use", "get") that garbage queries also contain.
+const MIN_CONFIDENT_SCORE = 12;
+function requiredStrongCoverage(tokenCount: number): number {
+  if (tokenCount <= 1) return 1;    // single meaningful word must be on-vocabulary
+  if (tokenCount === 2) return 0.5; // at least 1 of 2
+  return 0.4;                        // at least 2 of 4, 2 of 5, etc.
+}
+
+// Words too generic to prove a query is on-topic: they appear in hundreds of
+// answers/keywords ("use", "good", "best"…) so garbage like "what toothpaste
+// should i use" would otherwise pass the coverage gate purely on "use". They
+// still participate in SCORING (they help rank among real matches) — they
+// just don't count as evidence of topical overlap.
+const GENERIC_WORDS = new Set([
+  'use', 'used', 'using', 'uses', 'good', 'best', 'better', 'right', 'wrong',
+  'way', 'ways', 'thing', 'things', 'stuff', 'really', 'actually', 'kind',
+  'kinds', 'type', 'types', 'lot', 'one', 'two', 'new', 'old', 'big', 'small',
+  'work', 'works', 'working', 'anyway', 'like', 'get', 'got', 'buy', 'find',
+]);
+
 /**
  * Search the knowledge base with loose, conversational-input tolerance:
  * strips filler words, corrects likely typos against the KB's own vocabulary,
@@ -133,18 +172,32 @@ export function searchKnowledge(
   rawQuery: string,
   limit = 6
 ): PepeSearchResult[] {
+  return searchKnowledgeGated(entries, rawQuery, limit).results;
+}
+
+/**
+ * Phase 20: search + confidence gate in one call. `confident: false` means
+ * the query scored below the reliability floor or its meaningful words don't
+ * overlap the knowledge base's own keyword/topic vocabulary (out-of-scope
+ * input) — do NOT show the top hit as an answer in that case.
+ */
+export function searchKnowledgeGated(
+  entries: KnowledgeEntry[],
+  rawQuery: string,
+  limit = 6
+): GatedSearchResult {
   const trimmed = rawQuery.trim();
-  if (!trimmed) return [];
+  if (!trimmed) return { results: [], confident: false };
 
   const { keywordIndex, topicIndex, answerIndex, byId, vocabulary, vocabularySet } = getIndex(entries);
 
   const rawTokens = tokenize(trimmed);
-  if (rawTokens.length === 0) return [];
+  if (rawTokens.length === 0) return { results: [], confident: false };
   const corrected = correctTypos(rawTokens, vocabulary, vocabularySet);
   // Drop stray 1-letter artifacts left over from stripping punctuation (e.g.
   // "what's" -> "what", "s") — they carry no search signal and only add noise.
   const cleanedTokens = stripFillers(corrected).filter((t) => t.length >= 2);
-  if (cleanedTokens.length === 0) return [];
+  if (cleanedTokens.length === 0) return { results: [], confident: false };
 
   const scoreById = new Map<string, number>();
   const applyResults = (ids: unknown[], weight: number) => {
@@ -161,11 +214,31 @@ export function searchKnowledge(
   // query requires ALL words to co-occur in a document, which is too strict
   // for loose conversational phrasing — a straight join would silently return
   // zero results the moment any one stray word wasn't present in a match.)
+  // Coverage evidence uses EXACT vocabulary membership (with a light plural
+  // check), not FlexSearch hits — forward-prefix matching would let "car"
+  // count as on-topic because it prefixes "carbide". Scoring below still uses
+  // the forgiving prefix search.
+  const inVocabulary = (t: string) =>
+    vocabularySet.has(t) ||
+    vocabularySet.has(`${t}s`) ||
+    (t.endsWith('s') && vocabularySet.has(t.slice(0, -1)));
+
+  let strongTokenHits = 0;
+  let coverageTokens = 0;
   cleanedTokens.forEach((token) => {
-    applyResults(keywordIndex.search(token, { limit: 8 }) as unknown[], 3);
-    applyResults(topicIndex.search(token, { limit: 8 }) as unknown[], 2);
+    const kwHits = keywordIndex.search(token, { limit: 8 }) as unknown[];
+    const topicHits = topicIndex.search(token, { limit: 8 }) as unknown[];
+    if (!GENERIC_WORDS.has(token)) {
+      coverageTokens++;
+      if (inVocabulary(token)) strongTokenHits++;
+    }
+    applyResults(kwHits, 3);
+    applyResults(topicHits, 2);
     applyResults(answerIndex.search(token, { limit: 8 }) as unknown[], 1);
   });
+  // If EVERY meaningful word was generic ("what should i use"), there is no
+  // topical evidence at all — coverage is zero, not vacuously satisfied.
+  const strongCoverage = coverageTokens > 0 ? strongTokenHits / coverageTokens : 0;
 
   // Extra bonus, on top of the per-word scores above, for entries that also
   // match the full phrase closely (contiguous word order) — rewards a tight
@@ -176,9 +249,16 @@ export function searchKnowledge(
     applyResults(topicIndex.search(phrase, { limit: 8, suggest: true }) as unknown[], 1);
   }
 
-  return [...scoreById.entries()]
+  const results = [...scoreById.entries()]
     .map(([id, score]) => ({ entry: byId.get(id), score }))
     .filter((r): r is PepeSearchResult => !!r.entry)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
+
+  const confident =
+    results.length > 0 &&
+    results[0].score >= MIN_CONFIDENT_SCORE &&
+    strongCoverage >= requiredStrongCoverage(coverageTokens);
+
+  return { results, confident };
 }

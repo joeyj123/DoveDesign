@@ -7,8 +7,16 @@ export interface CSGSubtraction {
   position: [number, number, number];
   /** Local rotation [rx, ry, rz] in radians. */
   rotation: [number, number, number];
-  /** Geometry type and args. */
-  geometry: 'box' | 'cylinder';
+  /**
+   * Geometry type and args.
+   * box: [x, y, z] extents.
+   * cylinder: [rTop, rBottom, height, segments].
+   * taperPrism (Phase 20): [depth, extrude, wOuter, wInner] — a trapezoid
+   * cross-section prism. Local +X = outward (wide/narrow end at x=0,
+   * tapering to x=-depth), Y = layout width, Z = extrusion. This is what
+   * makes a dovetail render as a real dovetail instead of a slanted box.
+   */
+  geometry: 'box' | 'cylinder' | 'taperPrism';
   args: number[];
 }
 
@@ -153,18 +161,26 @@ export function buildCutSubtractions(
       }
 
       case 'dovetail': {
+        // Phase 20 fix: real trapezoid waste sockets between tails (narrow at
+        // the board end, wide at the base) — previously rendered as Y-rotated
+        // boxes, which looked like a slanted finger joint, not a dovetail.
         const tails = cut.fingerCount ?? 4;
-        const tailW = W / (tails * 2 + 1);
+        const slot = W / (tails * 2 + 1);
+        const depth = slot * 1.2;
+        const flare = depth * Math.tan((14 * Math.PI) / 180);
         const end = cut.end ?? 'end';
         const endX = end === 'end' ? halfL : -halfL;
-        for (let i = 0; i < tails; i++) {
-          const z = -halfW + tailW * (2 * i + 1.5);
+        for (let i = 0; i <= tails; i++) {
+          const z = -halfW + slot * (2 * i + 0.5);
           subs.push({
             id: `${cut.id}-d${i}`,
             position: [endX, 0, z],
-            rotation: [0, end === 'end' ? Math.PI / 6 : -Math.PI / 6, 0],
-            geometry: 'box',
-            args: [tailW * 1.5, T + 0.1, tailW],
+            // taperPrism local: +X outward, Y layout, Z extrude. Map layout →
+            // board Z (across width) and extrude → board Y (through thickness);
+            // at the start face also flip outward to -X.
+            rotation: end === 'end' ? [Math.PI / 2, 0, 0] : [-Math.PI / 2, 0, Math.PI],
+            geometry: 'taperPrism',
+            args: [depth, T + 0.1, Math.max(0.05, slot - 2 * flare), slot],
           });
         }
         break;
@@ -234,16 +250,20 @@ function buildReceivingJoinery(
       break;
     }
     case 'dovetail': {
+      // Phase 20: receiving sockets are the tails' trapezoid complement —
+      // wide at the mating end so the flared tails seat into them.
       const tails = cut.fingerCount ?? 4;
-      const tailW = W / (tails * 2 + 1);
+      const slot = W / (tails * 2 + 1);
+      const depth = slot * 1.2;
+      const flare = depth * Math.tan((14 * Math.PI) / 180);
       for (let i = 0; i < tails; i++) {
-        const z = -halfW + tailW * (2 * i + 1.5);
+        const z = -halfW + slot * (2 * i + 1.5);
         subs.push({
           id: `${cut.id}-recv-d${i}`,
           position: [-halfL, 0, z],
-          rotation: [0, -Math.PI / 6, 0],
-          geometry: 'box',
-          args: [tailW * 1.5, T + 0.1, tailW],
+          rotation: [-Math.PI / 2, 0, Math.PI],
+          geometry: 'taperPrism',
+          args: [depth, T + 0.1, slot + 2 * flare, slot],
         });
       }
       break;

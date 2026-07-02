@@ -7,23 +7,30 @@ import TutorialPanel from './TutorialPanel';
 import EngineeringPanel from './EngineeringPanel';
 import HardwarePanel from './HardwarePanel';
 import CutOptimizerPanel from './CutOptimizerPanel';
+import ConnectionsPanel from './ConnectionsPanel';
+import { MODE_PANEL_TABS } from '../lib/workspaceModes';
 import type { RightPanelTab } from '../types';
 
-const TABS: { id: RightPanelTab; label: string }[] = [
-  { id: 'inspector', label: 'Inspector' },
-  { id: 'estimating', label: 'Estimating' },
-  { id: 'cutlist', label: 'Cut List' },
-  { id: 'optimizer', label: 'Optimizer' },
-  { id: 'engineering', label: 'Engineering' },
-  { id: 'hardware', label: 'Hardware' },
-  { id: 'tutorial', label: 'Tutorial' },
-];
+const TAB_LABELS: Record<RightPanelTab, string> = {
+  inspector: 'Inspector',
+  estimating: 'Estimating',
+  cutlist: 'Cut List',
+  optimizer: 'Optimizer',
+  engineering: 'Engineering',
+  hardware: 'Hardware',
+  tutorial: 'Tutorial',
+  connections: 'Connections',
+};
 
 export default function RightSidebar() {
   const project = useAppStore((s) => s.project);
   const activeTab = useAppStore((s) => s.ui.rightPanelTab);
+  const workspaceMode = useAppStore((s) => s.ui.workspaceMode);
   const setRightPanelTab = useAppStore((s) => s.setRightPanelTab);
   const updateProjectMeta = useAppStore((s) => s.updateProjectMeta);
+
+  // Phase 20: tabs are filtered by the current workspace mode.
+  const tabs = MODE_PANEL_TABS[workspaceMode].map((id) => ({ id, label: TAB_LABELS[id] }));
 
   return (
     <aside className="w-96 min-w-[24rem] bg-zinc-950 border-l border-neutral-800 flex flex-col shrink-0">
@@ -39,7 +46,7 @@ export default function RightSidebar() {
       </div>
 
       <div className="flex flex-nowrap border-b border-zinc-800 shrink-0">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -71,6 +78,7 @@ export default function RightSidebar() {
         {activeTab === 'engineering' && <EngineeringPanel />}
         {activeTab === 'hardware' && <HardwarePanel />}
         {activeTab === 'tutorial' && <TutorialPanel />}
+        {activeTab === 'connections' && <ConnectionsPanel />}
       </div>
     </aside>
   );

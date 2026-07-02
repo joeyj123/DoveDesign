@@ -23,9 +23,15 @@ export default function ContextMenuHandler() {
     function onContextMenu(e: MouseEvent) {
       e.preventDefault();
 
-      // Suppress if mouse moved significantly — user was panning, not right-clicking
+      // Suppress if mouse moved significantly — user was panning/orbiting, not right-clicking
       const dragDist = Math.hypot(e.clientX - downX, e.clientY - downY);
       if (dragDist > 6) return;
+
+      // Phase 20: in Assembly Mode the right button belongs to the camera and
+      // must bypass selection logic entirely while the mate tool is active —
+      // a right-click mid-pick must never re-select or open a menu.
+      const uiState = useAppStore.getState().ui;
+      if (uiState.workspaceMode === 'assembly' && uiState.activeTool === 'mate') return;
 
       const rect = canvas.getBoundingClientRect();
       const mouse = new THREE.Vector2(
