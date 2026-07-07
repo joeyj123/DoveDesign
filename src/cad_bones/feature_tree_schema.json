@@ -1,0 +1,36 @@
+{
+  "$schema": "DoveDesign serializable feature-history tree — mirrors CADFeature from CAD_ENGINE_BLUEPRINT.ts. Do not add feature types here that are not already defined in the blueprint.",
+  "description": "A feature tree is the ordered, serializable list of declarative CADFeature entries attached to a SolidBoard. It is never a record of mesh edits — it is inputs that CADGeometryEngine.evaluateFeatures() consumes fresh, every recalculation, per CAD_MANIFESTO.md Law 1.",
+  "root": {
+    "solidId": "string — the SolidBoard.id this feature tree belongs to",
+    "features": "CADFeature[] — ordered; order matters because later features evaluate on top of earlier ones"
+  },
+  "featureTypes": {
+    "DADO_GROOVE": {
+      "fields": { "id": "string", "faceId": "string", "u": "number", "width": "number", "depth": "number", "orientation": "'X' | 'Y'" }
+    },
+    "POCKET_HOLE": {
+      "fields": { "id": "string", "faceId": "string", "u": "number", "v": "number", "angle": "number", "depth": "number" }
+    },
+    "BORE_HOLE": {
+      "fields": { "id": "string", "faceId": "string", "u": "number", "v": "number", "diameter": "number", "depth": "number" }
+    },
+    "MORTISE": {
+      "fields": { "id": "string", "faceId": "string", "u": "number", "v": "number", "width": "number", "height": "number", "depth": "number" }
+    },
+    "TENON": {
+      "fields": { "id": "string", "faceId": "string", "u": "number", "v": "number", "width": "number", "height": "number", "length": "number" }
+    },
+    "CHAMFER": {
+      "fields": { "id": "string", "edgeId": "string", "size": "number" }
+    },
+    "FILLET": {
+      "fields": { "id": "string", "edgeId": "string", "radius": "number" }
+    }
+  },
+  "notes": [
+    "This schema is a serialization contract, not a TypeScript source of truth. CAD_ENGINE_BLUEPRINT.ts's CADFeature union type is authoritative — if they ever diverge, the blueprint wins and this file must be updated to match.",
+    "faceId/edgeId are references into a SolidBoard's derived topology (Face[]/Edge[]), never raw indices into a vertex array.",
+    "u/v coordinates are face-local parametric coordinates, never world-space coordinates — see VECTOR_PROJECTION_MATH.md."
+  ]
+}

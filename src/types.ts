@@ -445,7 +445,7 @@ export interface Project {
 // ─── UI State (not persisted to disk) ─────────────────────────────────────
 
 export type ActiveTool =
-  | 'select' | 'addBoard' | 'drawBoard'
+  | 'select' | 'move' | 'addBoard' | 'drawBoard'
   | 'cut' | 'rip' | 'miter' | 'joinery'
   | 'trimExtend' | 'mate' | 'edge'
   | 'shapeCylinder' | 'shapeSphere' | 'shapeCone'
@@ -539,6 +539,8 @@ export interface UIState {
   drawDefaults: {
     species: string;
     thickness: number;
+    width: number;
+    nominalSize: NominalSize;
     category: WoodCategory;
     color: string;
   };
@@ -654,6 +656,15 @@ export interface UIState {
   workspaceMode: WorkspaceMode;
   /** Phase 20: current half-finished multi-click tool sequence (parameter-form only). */
   pendingInteraction: PendingInteraction | null;
+  /**
+   * New Order 2 (Move tool): true only while a left-button board-move drag is
+   * actively in progress. Distinct from orbitControlsEnabled — the Move tool
+   * never fully disables OrbitControls (so right/middle-button camera control
+   * keeps working mid-drag per spec); this flag instead tells Viewport.tsx to
+   * remap OrbitControls' LEFT mouse button off (via `mouseButtons`) so left-drag
+   * doesn't also rotate the camera while dragging a board.
+   */
+  moveDragActive: boolean;
 }
 
 export interface DesignSuggestion {

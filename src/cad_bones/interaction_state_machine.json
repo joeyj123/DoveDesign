@@ -1,0 +1,43 @@
+{
+  "$schema": "DoveDesign interaction state machine — see CLAUDE.md '# CAD Architecture & Rules'",
+  "description": "Global interaction states for the CAD viewport. Tools transition through these states in response to input events. No tool may mutate board/annotation state outside of the transitions defined here reaching a terminal COMMIT action, which must go through the single recalculation pipeline (DoveDesignEngine.updateWorkspaceState per CAD_ENGINE_BLUEPRINT.ts).",
+  "initialState": "IDLE",
+  "states": {
+    "IDLE": {
+      "description": "No tool action in progress. Camera orbit/pan/zoom is live. User may click to select, or press a tool hotkey to arm a tool.",
+      "transitions": {
+        "POINTER_DOWN_ON_FACE": "SELECT_FACE",
+        "TOOL_ARMED_DRAW": "DRAW_STUD_START",
+        "ESCAPE": "IDLE"
+      }
+    },
+    "SELECT_FACE": {
+      "description": "User has picked a Face on a Solid (raycast hit resolved to a faceId, not a raw world point). This is a read-only selection state — no geometry is created or mutated yet.",
+      "transitions": {
+        "POINTER_UP": "IDLE",
+        "CONFIRM": "IDLE",
+        "ESCAPE": "IDLE"
+      }
+    },
+    "DRAW_STUD_START": {
+      "description": "Draw tool armed, waiting for the first click to place the board's start point. Orbit controls must be disabled once the drag actually begins, not on tool arm.",
+      "transitions": {
+        "POINTER_DOWN": "DRAW_STUD_END",
+        "ESCAPE": "IDLE"
+      }
+    },
+    "DRAW_STUD_END": {
+      "description": "Start point captured (as parameters, not a cached world coordinate). Waiting for drag/second click to determine length, then commit. On commit, a new SolidBoard is created via BoardParameters only — never a hand-authored mesh.",
+      "transitions": {
+        "POINTER_UP_MIN_DRAG": "IDLE",
+        "POINTER_UP_BELOW_THRESHOLD": "IDLE",
+        "ESCAPE": "IDLE"
+      }
+    }
+  },
+  "notes": [
+    "POINTER_UP_BELOW_THRESHOLD cancels the draw without committing a board (guards against accidental single-click boards).",
+    "Every transition into IDLE from a drawing/dragging state must restore orbitControlsEnabled = true.",
+    "This file defines states only. It does not itself run any geometry math — see CAD_ENGINE_BLUEPRINT.ts for the pure evaluator pipeline that a COMMIT transition must call into."
+  ]
+}

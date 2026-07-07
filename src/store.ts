@@ -8,8 +8,9 @@ import type {
   DesignSuggestion, EdgeTreatment, PlacedHardwareItem, AssemblyStep,
   HardwareLibraryId, DisplayMode, ViewportMode, DimensionLine,
   JointMarker, JointMarkerType, MateGroup,
-  WorkspaceMode, PendingInteraction, WoodJoint, FaceId,
+  WorkspaceMode, PendingInteraction, WoodJoint, FaceId, NominalSize,
 } from './types';
+import { NOMINAL_DIMENSIONS } from './types';
 import { trimToBoundary, extendToBoundary, snapLengthToFacePlane } from './lib/trimExtend';
 import { inferMaterialKind, getMaterialByName } from './lib/materials';
 import { computeMateTransform, computePointMateTransform, getFaceNormal } from './lib/mating';
@@ -121,14 +122,17 @@ const DEFAULT_UI: UIState = {
   rotationAxis: 'y',
   templatePickerOpen: false,
   bomPanelOpen: false,
-  selectedDrawMaterial: 'Southern Yellow Pine',
+  selectedDrawMaterial: 'Pine',
   finishPanelOpen: false,
   saveNameModalOpen: false,
   workspaceMode: 'model',
   pendingInteraction: null,
+  moveDragActive: false,
   drawDefaults: {
-    species: 'Southern Yellow Pine',
+    species: 'Pine',
     thickness: 1.5,
+    width: 3.5,
+    nominalSize: '2x4',
     category: 'Softwood',
     color: '#d4a96a',
   },
@@ -219,6 +223,10 @@ interface AppStore {
   // Member actions
   addMember:     (member: WoodMember) => void;
   updateMember:  (id: string, patch: Partial<WoodMember>, skipHistory?: boolean) => void;
+  /** New Order 2 (Move tool): atomically repositions multiple members as ONE
+   * undo step — used for group drags, so undo restores the whole group at
+   * once rather than one board at a time. */
+  moveMembers:   (updates: { id: string; position: [number, number, number] }[], skipHistory?: boolean) => void;
   removeMember:  (id: string) => void;
   duplicateMember: (id: string) => void;
   mirrorMember:  (id: string, axis: 'x' | 'y' | 'z') => void;
@@ -253,6 +261,8 @@ interface AppStore {
   setTransformGizmoActive: (active: boolean) => void;
   setTrimBoundary:  (id: string | null) => void;
   setOrbitControlsEnabled: (enabled: boolean) => void;
+  /** New Order 2 (Move tool): true only while a left-drag board move is active. */
+  setMoveDragActive: (active: boolean) => void;
   resetCamera: () => void;
   setCameraPreset: (preset: string | null) => void;
   setAngleSnapEnabled: (enabled: boolean) => void;
@@ -382,6 +392,7 @@ interface AppStore {
 
   // Draw material picker
   setDrawMaterial: (species: string) => void;
+  setDrawNominalSize: (size: NominalSize) => void;
 
   // Finishing panel
   setFinishPanelOpen: (open: boolean) => void;
@@ -537,6 +548,21 @@ export const useAppStore = create<AppStore>()(
     }
   },
 
+  moveMembers: (updates, skipHistory) => {
+    const next = {
+      ...get().project,
+      members: get().project.members.map((m) => {
+        const u = updates.find((x) => x.id === m.id);
+        return u ? migrateMember({ ...m, position: u.position }) : m;
+      }),
+    };
+    if (skipHistory) {
+      set({ project: next });
+    } else {
+      commitProject(set, get, next);
+    }
+  },
+
   removeMember: (id) => {
     const p = get().project;
     const removedMateIds = p.mates
@@ -590,13 +616,16 @@ export const useAppStore = create<AppStore>()(
   duplicateMember: (id) => {
     const m = get().project.members.find((mem) => mem.id === id);
     if (!m) return;
+    const newId = crypto.randomUUID();
     get().addMember({
       ...m,
-      id: crypto.randomUUID(),
+      id: newId,
       label: `${m.label} (copy)`,
       position: [m.position[0] + 6, m.position[1], m.position[2] + 6],
       cuts: [...m.cuts.map((c) => ({ ...c, id: crypto.randomUUID() }))],
     });
+    get().selectMember(newId);
+    get().setLastPlacedMemberId(newId);
   },
 
   mirrorMember: (id, axis) => {
@@ -821,6 +850,9 @@ export const useAppStore = create<AppStore>()(
   setOrbitControlsEnabled: (enabled) =>
     set((s) => ({ ui: { ...s.ui, orbitControlsEnabled: enabled } })),
 
+  setMoveDragActive: (active) =>
+    set((s) => ({ ui: { ...s.ui, moveDragActive: active } })),
+
   resetCamera: () =>
     set((s) => ({ ui: { ...s.ui, cameraResetNonce: s.ui.cameraResetNonce + 1 } })),
 
@@ -856,6 +888,7 @@ export const useAppStore = create<AppStore>()(
         ...s.ui,
         activeTool: 'select',
         orbitControlsEnabled: true,
+        moveDragActive: false,
         trimBoundaryId: null,
         mateFaceA: null,
         mateFaceB: null,
@@ -2240,6 +2273,21 @@ export const useAppStore = create<AppStore>()(
           species,
           category: mat?.category ?? s.ui.drawDefaults.category,
           color: mat?.color ?? s.ui.drawDefaults.color,
+        },
+      },
+    }));
+  },
+
+  setDrawNominalSize: (size) => {
+    const dims = size === 'Custom' ? null : NOMINAL_DIMENSIONS[size];
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        drawDefaults: {
+          ...s.ui.drawDefaults,
+          nominalSize: size,
+          thickness: dims?.thickness ?? s.ui.drawDefaults.thickness,
+          width: dims?.width ?? s.ui.drawDefaults.width,
         },
       },
     }));

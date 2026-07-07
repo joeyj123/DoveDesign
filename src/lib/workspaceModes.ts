@@ -19,7 +19,7 @@ export const MODE_ORDER: WorkspaceMode[] = ['model', 'assembly', 'detail'];
  */
 export const MODE_TOOLS: Record<WorkspaceMode, ActiveTool[]> = {
   model: [
-    'select', 'drawBoard', 'addBoard', 'trimExtend',
+    'select', 'move', 'drawBoard', 'addBoard', 'trimExtend',
     'cut', 'rip', 'miter',
     'shapeCylinder', 'shapeSphere', 'shapeCone', 'shapeTriPrism', 'shapeHexPrism', 'shapePolygon',
     'measure', 'centerline',
@@ -63,6 +63,7 @@ export const JOINT_TYPE_LABELS: Record<WoodJointType, string> = {
 
 const TOOL_LABELS: Partial<Record<ActiveTool, string>> = {
   select: 'Select',
+  move: 'Move',
   drawBoard: 'Draw Board',
   addBoard: 'Add Board',
   trimExtend: 'Trim / Extend',
@@ -131,8 +132,12 @@ export function getHintText(
       return `${prefix} · Pick a joint or fastener type from the Connections panel on the right.`;
     case 'select':
       return ui.selectedMemberId
-        ? `${modeName} · Select · Press M for move arrows, Space for the tool wheel, Esc to cancel.`
-        : `${modeName} · Select · Click a board to select it. Esc cancels the current action.`;
+        ? `${modeName} · Select · Press M for the Move tool, Esc to deselect.`
+        : `${modeName} · Select · Click a board to select it. Shift-click to select more.`;
+    case 'move':
+      return ui.selectedMemberId
+        ? `${modeName} · Move · Drag an axis arrow, or arrow-keys to nudge. Esc returns to Select.`
+        : `${modeName} · Move · Click a board (Shift-click for more) to move it.`;
     default:
       return prefix;
   }

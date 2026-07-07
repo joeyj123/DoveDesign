@@ -64,6 +64,27 @@ export function findOpenSpawnPosition(
   return [offset, thickness / 2, 0];
 }
 
+/**
+ * Data Flow Pipeline: Grid-as-floor collision (New Order 2.4)
+ * INPUT: a candidate Y position for a member's center, and that member's
+ *   thickness (the only two numbers that determine where its bottom face
+ *   sits — length/width/rotation-about-Y don't affect vertical extent for
+ *   the flat orientation this app currently supports).
+ * CALCULATION: the board's bottom face is at (y - thickness / 2). The grid
+ *   floor is the fixed world plane y = 0 (Viewport.tsx's <Grid>, centered on
+ *   the origin, never moves). The board may never be dragged so its bottom
+ *   passes below that plane, so the minimum legal center height is
+ *   thickness / 2 — a plain clamp, not a physics/CSG collision.
+ * OUTPUT: a Y value >= thickness / 2, otherwise passed through unchanged
+ *   (a board can still be lifted arbitrarily far above the floor).
+ * FOLLOWS-BOARD CHECK: n/a — this is a pure function of the two inputs
+ *   above; callers (MoveGizmo.tsx) re-apply it fresh on every drag frame
+ *   and on commit, so it can never be "worked around" by any caller.
+ */
+export function clampFloorY(y: number, thickness: number): number {
+  return Math.max(y, thickness / 2);
+}
+
 const SNAP_THRESHOLD = 0.5;
 
 /**
