@@ -151,6 +151,11 @@ export interface WoodMember {
   centerlineMarkers?: CenterlineMarker[];
   /** Surface finish for 3D preview */
   finish?: BoardFinish;
+  /** Modify > Chamfer features (New Order — Modify tools). Each edgeId is
+   * the two adjacent StandardFaceId faces sorted and joined with '|' (e.g.
+   * 'xMax|yMax') — see Engine.ts's CHAMFER_EDGE_KINDS. Only meaningful for
+   * shapeType 'box' boards; fed into CADGeometryEngine.evaluateFeatures. */
+  chamfers?: { id: string; edgeId: string; size: number }[];
 }
 
 // ─── Assembly Mates ─────────────────────────────────────────────────────────
@@ -338,34 +343,60 @@ export interface JointMarker {
   pairedMemberId?: string;
 }
 
-// ─── Dimension Lines (Measure Tool) ───────────────────────────────────────
-
+// ─── Dimension Lines (New Order 8 — Revit-style 3-click callout) ──────────
+// A dimension line is never two world-space points — it is a faceId on ONE
+// board plus two face-local (u,v) points (what's being measured) and a
+// signed face-local perpendicular offset (the 3rd click, how far/which side
+// the callout sits off the A-B segment). World geometry is always re-derived
+// fresh from these parameters + the parent board's CURRENT placement — see
+// BoardAnnotations.tsx, which renders every board's lines as children of a
+// <group> driven by that board's live position/rotation (CAD_MANIFESTO.md
+// Law 1/2). Never cached, never a stored world coordinate.
 export interface DimensionLine {
   id: string;
-  startPoint: { x: number; y: number; z: number };
-  endPoint: { x: number; y: number; z: number };
-  angleDegrees: number;
-  startMemberId?: string;
-  endMemberId?: string;
-  /** If set, line is anchored to this board and moves with it */
-  anchorMemberId?: string;
-  /** Start point in the anchor board's local space */
-  localStart?: { x: number; y: number; z: number };
-  /** End point in the anchor board's local space */
-  localEnd?: { x: number; y: number; z: number };
-  /** Face normal of the surface the line was drawn on (world space at creation time) */
-  faceNormal?: { x: number; y: number; z: number };
-  /** Face normal in board local space (for anchored lines — transforms with the board) */
-  localFaceNormal?: { x: number; y: number; z: number };
+  anchorMemberId: string;
+  /** A rectangular board's StandardFaceId, OR (for a customPolygon extruded board) 'top'/'bottom'/'side-N' — see Engine.ts's Face.id comment. Widened to string rather than FaceId so both shapes share this one type without a parallel structure. */
+  anchorFaceId: string;
+  startUV: { u: number; v: number };
+  endUV: { u: number; v: number };
+  /** Signed perpendicular distance (face-local units) offsetting the dimension line from the A-B segment — set by the 3rd click. */
+  offsetUV: number;
+  /** Per-endpoint lock — a locked endpoint is skipped by nudgeDimensionLine, even when nudging "both" ends together. */
+  startLocked?: boolean;
+  endLocked?: boolean;
   /**
-   * Face-relative storage per CAD_MANIFESTO.md Law 1 / VECTOR_PROJECTION_MATH.md
-   * (Phase 16). When present, these are the SOURCE OF TRUTH and localStart/
-   * localEnd above are re-derived fresh from them every render via
-   * CADGeometryEngine.projectUVToLocal — never trusted as stored values.
+   * Tri-state visibility override for the Entities list toggle. undefined
+   * (default) = auto — only shown while anchorMemberId is the selected
+   * board. true = forced visible regardless of selection ("toggled visible"
+   * per the Order). false = force-hidden regardless of selection.
    */
-  anchorFaceId?: FaceId;
-  startUV?: { u: number; v: number };
-  endUV?: { u: number; v: number };
+  visible?: boolean;
+}
+
+// ─── Reference / Measuring Lines (New Order 8) ────────────────────────────
+// A permanent geometric reference drawn directly on one board's face —
+// NOT a dimension callout (no length text, no offset). Each endpoint is
+// either snapped to that face's own boundary edge (u or v pinned exactly to
+// 0 or the face's widthU/heightV) or a free point on the face interior.
+// Stored as faceId + two (u,v) points + their snap status — exactly what a
+// future cut-plane tool (New Order 9) needs to consume, with no schema
+// change, per the Order's explicit requirement.
+export interface ReferenceLinePoint {
+  u: number;
+  v: number;
+  snapped: boolean;
+  /** Locked endpoint — skipped by nudgeReferenceLine, even when nudging "both" ends together. */
+  locked?: boolean;
+}
+
+export interface ReferenceLine {
+  id: string;
+  anchorMemberId: string;
+  anchorFaceId: string;
+  start: ReferenceLinePoint;
+  end: ReferenceLinePoint;
+  /** Same tri-state visibility convention as DimensionLine.visible above. */
+  visible?: boolean;
 }
 
 // ─── Wood Joints (Phase 20 — real geometric joinery) ──────────────────────
@@ -435,6 +466,8 @@ export interface Project {
   placedHardware: PlacedHardwareItem[];
   assemblySteps: AssemblyStep[];
   dimensionLines: DimensionLine[];
+  /** New Order 8: permanent on-face reference/measuring lines. */
+  referenceLines: ReferenceLine[];
   mateGroups: MateGroup[];
   /** Phase 16: standing face-to-face mate constraints, solved fresh every change. */
   mateConstraints: MateConstraint[];
@@ -445,19 +478,73 @@ export interface Project {
 // ─── UI State (not persisted to disk) ─────────────────────────────────────
 
 export type ActiveTool =
-  | 'select' | 'move' | 'addBoard' | 'drawBoard'
+  | 'select' | 'move' | 'rotate' | 'addBoard' | 'drawBoard'
   | 'cut' | 'rip' | 'miter' | 'joinery'
   | 'trimExtend' | 'mate' | 'edge'
   | 'shapeCylinder' | 'shapeSphere' | 'shapeCone'
   | 'shapeTriPrism' | 'shapeHexPrism' | 'shapePolygon'
   | 'placeHardware' | 'measure' | 'joint'
-  | 'centerline' | 'connection';
+  | 'centerline' | 'connection'
+  | 'template' | 'referenceLine' | 'chamfer' | 'fillet' | 'cutout';
 
 // ─── Workspace Modes (Phase 20 — 3-Mode Unified UX) ──────────────────────
 // One global mode filters the Left Toolbar and Right Inspector. Modes never
 // own geometry state — they are pure UI routing on top of activeTool.
 
-export type WorkspaceMode = 'model' | 'assembly' | 'detail';
+export type WorkspaceMode = 'model' | 'assembly' | 'detail' | 'template';
+
+// ─── Template Mode (New Order 6, rebuilt/renamed by New Order 7 — 2D sketch
+// space for drawing a custom shape to extrude into a solid) ───────────────
+// The plane a Template sketch is locked to. Stored as parameters (origin +
+// normal), never as hardcoded camera math, per CAD_MANIFESTO.md Law 1 — the
+// camera-lock render step reads these fresh every transition. Only 'ground'
+// is populated this Order; a future Order adds a 'face' variant (faceId +
+// derived origin/normal from that board face) without changing this shape.
+export interface TemplatePlane {
+  kind: 'ground';
+  origin: [number, number, number];
+  normal: [number, number, number];
+}
+
+// ─── Template Sketch (2D draw tools) ──────────────────────────────────────
+// A template sketch is an ordered chain of 2D edges. Every edge stores its
+// endpoints as plane-local (u,v) parameters, never raw world coordinates —
+// the same convention FaceAnnotation already uses (CAD_MANIFESTO.md Law 1/2).
+// World position is always re-derived fresh from ui.templatePlane's current
+// origin/normal via src/lib/templateSketchMath.ts's planeUVToWorld, never
+// cached. Committed edges are the source of truth the New Order 7 extrude
+// step reads; nothing here is a mesh or vertex buffer.
+export type TemplateDrawTool = 'line' | 'arc' | 'freehand';
+
+export interface TemplatePoint2D {
+  u: number;
+  v: number;
+}
+
+export interface TemplateEdge {
+  id: string;
+  type: TemplateDrawTool;
+  start: TemplatePoint2D;
+  end: TemplatePoint2D;
+  /** Arc only: signed bulge (DXF-style tan(includedAngle/4)); omitted/0 = straight chord. */
+  bulge?: number;
+  /** Freehand only: intermediate sampled points between start and end, in stroke order. */
+  points?: TemplatePoint2D[];
+}
+
+// ─── Template Shapes (closed-loop fill) ────────────────────────────────────
+// A TemplateShape is a closed loop of already-committed TemplateEdges (by id,
+// in chain order — never a duplicated copy of their geometry). Its fill
+// polygon is always rebuilt fresh from those edges' current (u,v) parameters
+// via src/lib/templateSketchMath.ts's buildLoopPolygon, per CAD_MANIFESTO.md
+// Law 1 — nothing here is a cached vertex buffer.
+export interface TemplateShape {
+  id: string;
+  /** Ordered edge ids forming the closed loop (last edge's end === first edge's start). */
+  edgeIds: string[];
+  /** Wood species this shape is filled with — independently swappable per shape, live. */
+  species: string;
+}
 
 /** Real wood joinery types that alter board topology (Connections palette). */
 export type WoodJointType = 'dovetail' | 'mortiseTenon' | 'dado' | 'lap';
@@ -532,6 +619,17 @@ export interface UIState {
   cameraPreset: string | null;
   angleSnapEnabled: boolean;
   angleSnapIncrement: AngleSnapIncrement;
+  /** Dimension/Reference Line edge/end snapping toggle — off means every click is a free point on the face (no edge magnetism). */
+  annotationSnapEnabled: boolean;
+  /** Which single endpoint of a SELECTED Dimension/Reference line arrow-key
+   * nudge should target — set by clicking that endpoint's marker in the
+   * viewport. null means "nudge both (unlocked) ends together," the
+   * whole-line behavior. */
+  activeAnnotationEndpoint: { lineId: string; kind: 'dimension' | 'reference'; end: 'start' | 'end' } | null;
+  /** Modify > Chamfer: which board+edge is currently picked (armed for size
+   * entry/drag), and a live hover preview before a pick is committed. */
+  chamferEdge: { memberId: string; edgeId: string } | null;
+  chamferHoverEdge: { memberId: string; edgeId: string } | null;
   contextMenu: ContextMenuState;
   /** Incremented to cancel in-progress draw-board drag from Escape handler. */
   drawBoardCancelNonce: number;
@@ -563,6 +661,9 @@ export interface UIState {
   radialWheelAnchor: { x: number; y: number } | null;
   /** Hovered face for mate grid overlay. */
   mateHoverFace: { memberId: string; face: FaceId } | null;
+  /** Hovered boundary face preview for the Trim/Extend tool (New Order),
+   * before it's committed into ui.pendingInteraction's targetFaceId. */
+  trimHoverFace: { memberId: string; face: FaceId } | null;
   /** Confirmed grid snap offset on a face. */
   mateGridOffset: { memberId: string; face: FaceId; offset: [number, number, number] } | null;
   /** Fastener placement mode after join method selected. */
@@ -624,6 +725,29 @@ export interface UIState {
   measureStartPoint: { x: number; y: number; z: number } | null;
   /** Selected dimension line id */
   selectedDimensionLineId: string | null;
+  /** New Order 8: selected reference/measuring line id (for the Entities list + edit affordance). */
+  selectedReferenceLineId: string | null;
+  /**
+   * New Order 8: the in-progress Dimension Line click sequence (click A,
+   * click B, click offset). `editingId` set means the 3rd click UPDATES that
+   * existing DimensionLine instead of creating a new one ("re-drag its
+   * points" per the Order's edit requirement) — never a world-space point,
+   * always a faceId + face-local (u,v).
+   */
+  dimensionDraft: {
+    memberId: string;
+    faceId: string;
+    startUV: { u: number; v: number };
+    endUV?: { u: number; v: number };
+    editingId?: string;
+  } | null;
+  /** New Order 8: the in-progress Reference Line click sequence (click start, click end). */
+  referenceDraft: {
+    memberId: string;
+    faceId: string;
+    start: ReferenceLinePoint;
+    editingId?: string;
+  } | null;
   /** Selected centerline marker id (for click-to-select + delete) */
   selectedCenterlineId: string | null;
   /** Whether dimension lines are visible in the viewport */
@@ -665,6 +789,24 @@ export interface UIState {
    * doesn't also rotate the camera while dragging a board.
    */
   moveDragActive: boolean;
+  /** Which plane the current Template sketch is locked to. */
+  templatePlane: TemplatePlane;
+  /** Species selected for the template's eventual extruded solid. */
+  templateMaterial: string;
+  /** Which Template draw tool is armed (Line/Arc/Freehand), or null if none. */
+  templateDrawTool: TemplateDrawTool | null;
+  /** Committed template sketch edges — parameter source of truth for the extrude step. */
+  templateEdges: TemplateEdge[];
+  /** Committed closed-loop shapes (each a species-filled polygon over a subset of templateEdges). */
+  templateShapes: TemplateShape[];
+  /** The filled shape currently selected (Template-space click-to-select, independent of selectedMemberId). */
+  selectedTemplateShapeId: string | null;
+  /** New Order 7: sticky last-used extrude thickness (inches), same "remember last input" convention as InsertPanel. */
+  templateExtrudeThickness: number;
+  /** New Order 7.1 Feature 10: which click of the 3-point Arc flow (start -> via -> end) is next, for TemplatePanel's staged inline hint. Meaningless (stays 'start') for Line/Freehand. */
+  templateArcStage: 'start' | 'via' | 'end';
+  /** New Order 7.1 Feature 10: mirrors the in-progress arc's bulge to the opposite side of its live chord — toggled by Tab or the on-canvas Flip control, reset per segment. */
+  templateArcFlipped: boolean;
 }
 
 export interface DesignSuggestion {

@@ -9,6 +9,8 @@ import type {
   HardwareLibraryId, DisplayMode, ViewportMode, DimensionLine,
   JointMarker, JointMarkerType, MateGroup,
   WorkspaceMode, PendingInteraction, WoodJoint, FaceId, NominalSize,
+  TemplateDrawTool, TemplateEdge, TemplateShape,
+  ReferenceLine, ReferenceLinePoint,
 } from './types';
 import { NOMINAL_DIMENSIONS } from './types';
 import { trimToBoundary, extendToBoundary, snapLengthToFacePlane } from './lib/trimExtend';
@@ -22,6 +24,7 @@ import { createCutOperation } from './lib/joinery';
 import { serializeWcad, parseWcad } from './lib/wcad';
 import { splitByCrossCut, splitByRipCut } from './lib/memberSplit';
 import { CADGeometryEngine, migrateWoodMemberToSolidBoard, type MateConstraint as EngineMateConstraint } from './core/Engine';
+import { buildLoopPolygon, computePerpOffset, clampOffsetMagnitude } from './lib/templateSketchMath';
 
 const DEFAULT_ESTIMATING: EstimatingSettings = {
   taxRatePercent: 8.25,
@@ -47,6 +50,7 @@ const DEFAULT_PROJECT: Project = {
   placedHardware: [],
   assemblySteps: [],
   dimensionLines: [],
+  referenceLines: [],
   mateGroups: [],
   mateConstraints: [],
   woodJoints: [],
@@ -65,6 +69,10 @@ const DEFAULT_UI: UIState = {
   cameraPreset: null,
   angleSnapEnabled: true,
   angleSnapIncrement: 15,
+  annotationSnapEnabled: true,
+  activeAnnotationEndpoint: null,
+  chamferEdge: null,
+  chamferHoverEdge: null,
   contextMenu: { open: false, x: 0, y: 0, memberId: null },
   drawBoardCancelNonce: 0,
   gridVisible: true,
@@ -78,6 +86,7 @@ const DEFAULT_UI: UIState = {
   radialWheelMode: 'full',
   radialWheelAnchor: null,
   mateHoverFace: null,
+  trimHoverFace: null,
   mateGridOffset: null,
   fastenerPlacementMode: false,
   fastenerPlacementMateId: null,
@@ -111,6 +120,9 @@ const DEFAULT_UI: UIState = {
   quickJoinMiterAxis: null,
   measureStartPoint: null,
   selectedDimensionLineId: null,
+  selectedReferenceLineId: null,
+  dimensionDraft: null,
+  referenceDraft: null,
   selectedCenterlineId: null,
   dimensionLinesVisible: true,
   crossCutPreviewPosition: null,
@@ -128,6 +140,15 @@ const DEFAULT_UI: UIState = {
   workspaceMode: 'model',
   pendingInteraction: null,
   moveDragActive: false,
+  templatePlane: { kind: 'ground', origin: [0, 0, 0], normal: [0, 1, 0] },
+  templateMaterial: 'Pine',
+  templateDrawTool: null,
+  templateEdges: [],
+  templateShapes: [],
+  selectedTemplateShapeId: null,
+  templateExtrudeThickness: 0.75,
+  templateArcStage: 'start',
+  templateArcFlipped: false,
   drawDefaults: {
     species: 'Pine',
     thickness: 1.5,
@@ -139,6 +160,20 @@ const DEFAULT_UI: UIState = {
 };
 
 const MAX_HISTORY = 100;
+
+/**
+ * A history entry snapshots BOTH the board project and the in-progress
+ * Template sketch together, so undo/redo (which already walk past/future)
+ * restore whichever one actually changed without needing a second,
+ * independently-advancing history stack — the existing Move/Rotate/Insert
+ * mechanism, extended, not duplicated.
+ */
+interface HistoryEntry {
+  project: Project;
+  templateEdges: TemplateEdge[];
+  /** Closed-loop shapes snapshot alongside templateEdges — a shape close/species-swap/extrude must be undoable too. */
+  templateShapes: TemplateShape[];
+}
 
 function migrateMember(m: WoodMember): WoodMember {
   const mat = getMaterialByName(m.species);
@@ -184,6 +219,7 @@ function migrateProject(p: Project): Project {
     placedHardware: p.placedHardware ?? [],
     assemblySteps: p.assemblySteps ?? [],
     dimensionLines: p.dimensionLines ?? [],
+    referenceLines: p.referenceLines ?? [],
     mateGroups: p.mateGroups ?? [],
     mateConstraints: p.mateConstraints ?? [],
     woodJoints: p.woodJoints ?? [],
@@ -198,8 +234,8 @@ function migrateMate(m: MemberMate): MemberMate {
 interface AppStore {
   project: Project;
   ui: UIState;
-  past: Project[];
-  future: Project[];
+  past: HistoryEntry[];
+  future: HistoryEntry[];
 
   // Phase 18: crash-recovery banner state. The autosave in localStorage is
   // NEVER auto-loaded into `project` on startup (see persist `merge` below) —
@@ -228,6 +264,11 @@ interface AppStore {
    * once rather than one board at a time. */
   moveMembers:   (updates: { id: string; position: [number, number, number] }[], skipHistory?: boolean) => void;
   removeMember:  (id: string) => void;
+  /** Batched delete (New Order — multi-select Delete key): same per-member
+   * cleanup as removeMember, but folded into ONE commitProject call so a
+   * multi-board delete is one undo step, matching moveMembers' precedent
+   * for group operations. */
+  removeMembers: (ids: string[]) => void;
   duplicateMember: (id: string) => void;
   mirrorMember:  (id: string, axis: 'x' | 'y' | 'z') => void;
   trimMember:    (targetId: string, boundaryId: string) => void;
@@ -266,6 +307,16 @@ interface AppStore {
   resetCamera: () => void;
   setCameraPreset: (preset: string | null) => void;
   setAngleSnapEnabled: (enabled: boolean) => void;
+  setAnnotationSnapEnabled: (enabled: boolean) => void;
+  nudgeDimensionLine: (id: string, du: number, dv: number, end?: 'start' | 'end') => void;
+  nudgeReferenceLine: (id: string, du: number, dv: number, end?: 'start' | 'end') => void;
+  setActiveAnnotationEndpoint: (target: UIState['activeAnnotationEndpoint']) => void;
+  toggleDimensionEndpointLock: (id: string, end: 'start' | 'end') => void;
+  toggleReferenceEndpointLock: (id: string, end: 'start' | 'end') => void;
+  setChamferEdge: (target: UIState['chamferEdge']) => void;
+  setChamferHoverEdge: (target: UIState['chamferHoverEdge']) => void;
+  resetChamferPick: () => void;
+  removeChamfer: (memberId: string, edgeId: string) => void;
   setAngleSnapIncrement: (deg: UIState['angleSnapIncrement']) => void;
   openContextMenu: (x: number, y: number, memberId: string | null) => void;
   closeContextMenu: () => void;
@@ -276,11 +327,19 @@ interface AppStore {
   setMateFaceA: (sel: UIState['mateFaceA']) => void;
   setMateFaceB: (sel: UIState['mateFaceB']) => void;
   setMatePickTarget: (target: UIState['matePickTarget']) => void;
+  /** Click-to-pick a face for the Mate tool (New Order — Mate/Align UI):
+   * fills whichever of mateFaceA/mateFaceB is still empty (self-healing
+   * against a stale matePickTarget), ignores a click on the SAME board
+   * already picked as Face A, and re-picking Face B once both are set just
+   * replaces B. */
+  pickMateFace: (memberId: string, face: FaceId) => void;
+  resetMatePicks: () => void;
   applyMate: () => string | null;
   setMemberScreenBounds: (bounds: UIState['memberScreenBounds']) => void;
   setQuickDimensionsOpen: (open: boolean) => void;
   setRadialWheelOpen: (open: boolean, mode?: UIState['radialWheelMode']) => void;
   setMateHoverFace: (face: UIState['mateHoverFace']) => void;
+  setTrimHoverFace: (face: UIState['trimHoverFace']) => void;
   setMateGridOffset: (offset: UIState['mateGridOffset']) => void;
   setMateJoinMethod: (mateId: string, method: JoinMethod) => void;
   addAttachmentPoint: (point: AttachmentPoint) => void;
@@ -339,13 +398,26 @@ interface AppStore {
   setRightPanelTab: (tab: UIState['rightPanelTab']) => void;
   updateProjectMeta:(patch: { name?: string; description?: string }) => void;
 
-  // Dimension lines (Measure tool)
+  // Dimension lines (New Order 8 — 3-click Revit-style callout)
   addDimensionLine: (line: DimensionLine) => void;
   removeDimensionLine: (id: string) => void;
   selectDimensionLine: (id: string | null) => void;
   setSelectedCenterlineId: (id: string | null) => void;
   setDimensionLinesVisible: (visible: boolean) => void;
   setMeasureStartPoint: (pt: UIState['measureStartPoint']) => void;
+  /** Advances the in-progress Dimension Line click sequence (A -> B -> offset), or edits an existing one when a draft's editingId is set. */
+  handleDimensionLineClick: (memberId: string, faceId: string, u: number, v: number) => void;
+  cancelDimensionDraft: () => void;
+  startEditDimensionLine: (id: string) => void;
+  setDimensionLineVisibility: (id: string, visible: boolean | undefined) => void;
+
+  // Reference/measuring lines (New Order 8)
+  handleReferenceLineClick: (memberId: string, faceId: string, u: number, v: number, snapped: boolean) => void;
+  cancelReferenceDraft: () => void;
+  startEditReferenceLine: (id: string) => void;
+  setReferenceLineVisibility: (id: string, visible: boolean | undefined) => void;
+  selectReferenceLine: (id: string | null) => void;
+  removeReferenceLine: (id: string) => void;
 
   // Cut previews
   setCrossCutPreviewPosition: (pos: number | null) => void;
@@ -393,6 +465,22 @@ interface AppStore {
   // Draw material picker
   setDrawMaterial: (species: string) => void;
   setDrawNominalSize: (size: NominalSize) => void;
+
+  // Template mode
+  setTemplateMaterial: (species: string) => void;
+  // Template draw tools
+  setTemplateDrawTool: (tool: TemplateDrawTool | null) => void;
+  addTemplateEdge: (edge: TemplateEdge) => void;
+  // Template closed-loop shapes
+  addTemplateShape: (shape: TemplateShape) => void;
+  updateTemplateShapeSpecies: (id: string, species: string) => void;
+  setSelectedTemplateShapeId: (id: string | null) => void;
+  setTemplateExtrudeThickness: (value: number) => void;
+  /** New Order 7.1 Feature 10: staged hint state for the 3-point Arc flow (TemplatePanel reads this to show which click is next). */
+  setTemplateArcStage: (stage: UIState['templateArcStage']) => void;
+  setTemplateArcFlipped: (flipped: boolean) => void;
+  /** New Order 7 Part 4: extrudes a closed Template shape into a real Model-space board (customPolygon WoodMember), removes the shape/its edges from Template state, and exits to Model space with the new board selected. Returns the new member id, or null if the shape/polygon isn't valid. */
+  extrudeTemplateShape: (shapeId: string, thicknessIn: number) => string | null;
 
   // Finishing panel
   setFinishPanelOpen: (open: boolean) => void;
@@ -449,6 +537,24 @@ interface AppStore {
   applyFastenerToMember: (memberId: string) => void;
 }
 
+/**
+ * Template is a distinct 2D sketch space, not another filtered view of the
+ * same board set the way model/assembly/detail are (those intentionally
+ * keep selection alive across a mode switch — see setWorkspaceMode below).
+ * Selection must not leak between Model space and Template space in either
+ * direction. Scoped narrowly to transitions that actually touch 'template'
+ * so the existing model/assembly/detail behavior is untouched
+ * (CAD_MANIFESTO.md Law 4 Breaking-Change Audit).
+ */
+function templateTransitionPatch(fromMode: WorkspaceMode, toMode: WorkspaceMode): Partial<UIState> {
+  if (fromMode === toMode) return {};
+  if (fromMode !== 'template' && toMode !== 'template') return {};
+  // selectedTemplateShapeId is Template-space selection, exactly like
+  // selectedMemberId is Model-space selection — cleared on the same
+  // transitions, for the same reason (never leak selection across spaces).
+  return { selectedMemberId: null, multiSelection: [], selectedTemplateShapeId: null };
+}
+
 function downloadWcadFile(project: Project) {
   const payload = serializeWcad(project);
   const blob = new Blob([payload], { type: 'application/json' });
@@ -463,13 +569,19 @@ function downloadWcadFile(project: Project) {
 function commitProject(
   set: (partial: Partial<AppStore> | ((s: AppStore) => Partial<AppStore>)) => void,
   get: () => AppStore,
-  next: Project
+  next: Project,
+  nextTemplateEdges?: TemplateEdge[],
+  nextTemplateShapes?: TemplateShape[]
 ) {
-  const { project, past } = get();
+  const { project, past, ui } = get();
+  const uiPatch: Partial<UIState> = {};
+  if (nextTemplateEdges !== undefined) uiPatch.templateEdges = nextTemplateEdges;
+  if (nextTemplateShapes !== undefined) uiPatch.templateShapes = nextTemplateShapes;
   set({
-    past: [...past, project].slice(-MAX_HISTORY),
+    past: [...past, { project, templateEdges: ui.templateEdges, templateShapes: ui.templateShapes }].slice(-MAX_HISTORY),
     project: next,
     future: [],
+    ...(Object.keys(uiPatch).length > 0 ? { ui: { ...ui, ...uiPatch } } : {}),
   });
 }
 
@@ -502,23 +614,25 @@ export const useAppStore = create<AppStore>()(
   },
 
   undo: () => {
-    const { past, project, future } = get();
+    const { past, project, future, ui } = get();
     if (past.length === 0) return;
     const prev = past[past.length - 1];
     set({
       past: past.slice(0, -1),
-      project: prev,
-      future: [project, ...future],
+      project: prev.project,
+      ui: { ...ui, templateEdges: prev.templateEdges, templateShapes: prev.templateShapes },
+      future: [{ project, templateEdges: ui.templateEdges, templateShapes: ui.templateShapes }, ...future],
     });
   },
 
   redo: () => {
-    const { past, project, future } = get();
+    const { past, project, future, ui } = get();
     if (future.length === 0) return;
     const next = future[0];
     set({
-      past: [...past, project],
-      project: next,
+      past: [...past, { project, templateEdges: ui.templateEdges, templateShapes: ui.templateShapes }],
+      project: next.project,
+      ui: { ...ui, templateEdges: next.templateEdges, templateShapes: next.templateShapes },
       future: future.slice(1),
     });
   },
@@ -598,6 +712,7 @@ export const useAppStore = create<AppStore>()(
         (c) => c.solidAId !== id && c.solidBId !== id
       ),
       dimensionLines: (p.dimensionLines ?? []).filter((l) => l.anchorMemberId !== id),
+      referenceLines: (p.referenceLines ?? []).filter((l) => l.anchorMemberId !== id),
       woodJoints: (p.woodJoints ?? []).filter(
         (j) => j.memberAId !== id && j.memberBId !== id
       ),
@@ -613,15 +728,69 @@ export const useAppStore = create<AppStore>()(
     }));
   },
 
+  removeMembers: (ids) => {
+    if (ids.length === 0) return;
+    if (ids.length === 1) { get().removeMember(ids[0]); return; }
+    const idSet = new Set(ids);
+    const p = get().project;
+    const removedMateIds = new Set(
+      p.mates.filter((m) => idSet.has(m.memberAId) || idSet.has(m.memberBId)).map((m) => m.id)
+    );
+    const removedApIds = new Set(
+      p.attachmentPoints.filter((ap) => idSet.has(ap.memberId)).map((ap) => ap.id)
+    );
+
+    commitProject(set, get, {
+      ...p,
+      members: p.members.filter((m) => !idSet.has(m.id)),
+      mates: p.mates.filter((m) => !idSet.has(m.memberAId) && !idSet.has(m.memberBId)),
+      fasteners: p.fasteners.filter((f) => !removedMateIds.has(f.mateId)),
+      attachmentPoints: p.attachmentPoints
+        .filter((ap) => !idSet.has(ap.memberId))
+        .map((ap) =>
+          ap.connectedToId && removedApIds.has(ap.connectedToId)
+            ? { ...ap, connectedToId: undefined }
+            : ap
+        ),
+      edgeTreatments: p.edgeTreatments.filter((e) => !idSet.has(e.memberId)),
+      placedHardware: p.placedHardware.filter((h) => !idSet.has(h.memberId)),
+      mateGroups: (p.mateGroups ?? [])
+        .map((g) => ({ ...g, memberIds: g.memberIds.filter((mid) => !idSet.has(mid)) }))
+        .filter((g) => g.memberIds.length > 1),
+      mateConstraints: (p.mateConstraints ?? []).filter(
+        (c) => !idSet.has(c.solidAId) && !idSet.has(c.solidBId)
+      ),
+      dimensionLines: (p.dimensionLines ?? []).filter((l) => !idSet.has(l.anchorMemberId)),
+      referenceLines: (p.referenceLines ?? []).filter((l) => !idSet.has(l.anchorMemberId)),
+      woodJoints: (p.woodJoints ?? []).filter(
+        (j) => !idSet.has(j.memberAId) && !idSet.has(j.memberBId)
+      ),
+    });
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        selectedMemberId: s.ui.selectedMemberId && idSet.has(s.ui.selectedMemberId) ? null : s.ui.selectedMemberId,
+        multiSelection: s.ui.multiSelection.filter((mid) => !idSet.has(mid)),
+        trimBoundaryId: s.ui.trimBoundaryId && idSet.has(s.ui.trimBoundaryId) ? null : s.ui.trimBoundaryId,
+        isolatedMemberId: s.ui.isolatedMemberId && idSet.has(s.ui.isolatedMemberId) ? null : s.ui.isolatedMemberId,
+        edgeToolMemberId: s.ui.edgeToolMemberId && idSet.has(s.ui.edgeToolMemberId) ? null : s.ui.edgeToolMemberId,
+      },
+    }));
+  },
+
   duplicateMember: (id) => {
     const m = get().project.members.find((mem) => mem.id === id);
     if (!m) return;
     const newId = crypto.randomUUID();
+    // Side-by-side, not diagonal (New Order 3.2): offset along Z only (the
+    // board's width axis per bounds.ts's length/thickness/width BoxGeometry
+    // convention), by width + 2" of clearance, so repeated duplicates line
+    // up next to each other instead of stringing out on a diagonal.
     get().addMember({
       ...m,
       id: newId,
       label: `${m.label} (copy)`,
-      position: [m.position[0] + 6, m.position[1], m.position[2] + 6],
+      position: [m.position[0], m.position[1], m.position[2] + m.width + 2],
       cuts: [...m.cuts.map((c) => ({ ...c, id: crypto.randomUUID() }))],
     });
     get().selectMember(newId);
@@ -834,6 +1003,12 @@ export const useAppStore = create<AppStore>()(
           rightPanelTab: fixPanelTab(s.ui.rightPanelTab, nextMode),
           ...(tool !== s.ui.activeTool ? { pendingInteraction: null } : {}),
           ...(tool !== 'drawBoard' ? { lastPlacedMemberId: null, drawSnapIndicator: null } : {}),
+          ...(tool !== 'measure' ? { dimensionDraft: null } : {}),
+          ...(tool !== 'referenceLine' ? { referenceDraft: null } : {}),
+          ...(tool !== 'mate' ? { mateFaceA: null, mateFaceB: null, matePickTarget: 'A' as const, mateHoverFace: null } : {}),
+          ...(tool !== 'trimExtend' ? { trimHoverFace: null } : {}),
+          ...(tool !== 'chamfer' ? { chamferEdge: null, chamferHoverEdge: null } : {}),
+          ...templateTransitionPatch(s.ui.workspaceMode, nextMode),
         },
       };
     }),
@@ -861,6 +1036,9 @@ export const useAppStore = create<AppStore>()(
 
   setAngleSnapEnabled: (enabled) =>
     set((s) => ({ ui: { ...s.ui, angleSnapEnabled: enabled } })),
+
+  setAnnotationSnapEnabled: (enabled) =>
+    set((s) => ({ ui: { ...s.ui, annotationSnapEnabled: enabled } })),
 
   setAngleSnapIncrement: (deg) =>
     set((s) => ({ ui: { ...s.ui, angleSnapIncrement: deg } })),
@@ -894,6 +1072,9 @@ export const useAppStore = create<AppStore>()(
         mateFaceB: null,
         matePickTarget: 'A',
         mateHoverFace: null,
+        trimHoverFace: null,
+        chamferEdge: null,
+        chamferHoverEdge: null,
         mateGridOffset: null,
         fastenerPlacementMode: false,
         fastenerPlacementMateId: null,
@@ -909,6 +1090,9 @@ export const useAppStore = create<AppStore>()(
         quickJoinMiterAxis: null,
         measureStartPoint: null,
         selectedDimensionLineId: null,
+        selectedReferenceLineId: null,
+        dimensionDraft: null,
+        referenceDraft: null,
         crossCutPreviewPosition: null,
         ripCutPreviewPosition: null,
         multiSelection: [],
@@ -934,6 +1118,37 @@ export const useAppStore = create<AppStore>()(
 
   setMatePickTarget: (target) =>
     set((s) => ({ ui: { ...s.ui, matePickTarget: target } })),
+
+  pickMateFace: (memberId, face) => {
+    const { mateFaceA } = get().ui;
+    if (!mateFaceA) {
+      set((s) => ({ ui: { ...s.ui, mateFaceA: { memberId, face, offset: [0, 0, 0] }, matePickTarget: 'B' } }));
+      return;
+    }
+    if (mateFaceA.memberId === memberId) return; // Face B must be a different board than Face A
+    set((s) => ({ ui: { ...s.ui, mateFaceB: { memberId, face, offset: [0, 0, 0] } } }));
+  },
+
+  resetMatePicks: () =>
+    set((s) => ({ ui: { ...s.ui, mateFaceA: null, mateFaceB: null, matePickTarget: 'A', mateHoverFace: null } })),
+
+  setChamferEdge: (target) => set((s) => ({ ui: { ...s.ui, chamferEdge: target } })),
+  setChamferHoverEdge: (target) => set((s) => ({ ui: { ...s.ui, chamferHoverEdge: target } })),
+  resetChamferPick: () => set((s) => ({ ui: { ...s.ui, chamferEdge: null, chamferHoverEdge: null } })),
+
+  removeChamfer: (memberId, edgeId) => {
+    const member = get().project.members.find((m) => m.id === memberId);
+    if (!member) return;
+    commitProject(set, get, {
+      ...get().project,
+      members: get().project.members.map((m) =>
+        m.id === memberId ? { ...m, chamfers: (m.chamfers ?? []).filter((c) => c.edgeId !== edgeId) } : m
+      ),
+    });
+    if (get().ui.chamferEdge?.memberId === memberId && get().ui.chamferEdge?.edgeId === edgeId) {
+      set((s) => ({ ui: { ...s.ui, chamferEdge: null } }));
+    }
+  },
 
   applyMate: () => {
     const { mateFaceA, mateFaceB } = get().ui;
@@ -1032,6 +1247,7 @@ export const useAppStore = create<AppStore>()(
         ...s.ui,
         mateFaceA: null,
         mateFaceB: null,
+        matePickTarget: 'A',
         mateGridOffset: null,
         mateHoverFace: null,
         // Stay on the mate tool so the user can chain more mates without re-pressing J
@@ -1181,6 +1397,9 @@ export const useAppStore = create<AppStore>()(
 
   setMateHoverFace: (face) =>
     set((s) => ({ ui: { ...s.ui, mateHoverFace: face } })),
+
+  setTrimHoverFace: (face) =>
+    set((s) => ({ ui: { ...s.ui, trimHoverFace: face } })),
 
   setMateGridOffset: (offset) =>
     set((s) => ({ ui: { ...s.ui, mateGridOffset: offset } })),
@@ -1647,6 +1866,7 @@ export const useAppStore = create<AppStore>()(
         (c) => c.solidAId !== memberId && c.solidBId !== memberId
       ),
       dimensionLines: (p.dimensionLines ?? []).filter((l) => l.anchorMemberId !== memberId),
+      referenceLines: (p.referenceLines ?? []).filter((l) => l.anchorMemberId !== memberId),
       woodJoints: (p.woodJoints ?? []).filter(
         (j) => j.memberAId !== memberId && j.memberBId !== memberId
       ),
@@ -1686,6 +1906,7 @@ export const useAppStore = create<AppStore>()(
         (c) => c.solidAId !== memberId && c.solidBId !== memberId
       ),
       dimensionLines: (p.dimensionLines ?? []).filter((l) => l.anchorMemberId !== memberId),
+      referenceLines: (p.referenceLines ?? []).filter((l) => l.anchorMemberId !== memberId),
       woodJoints: (p.woodJoints ?? []).filter(
         (j) => j.memberAId !== memberId && j.memberBId !== memberId
       ),
@@ -1885,8 +2106,45 @@ export const useAppStore = create<AppStore>()(
       dimensionLines: (get().project.dimensionLines ?? []).filter((l) => l.id !== id),
     }),
 
+  /** Translates one or both endpoints in the anchor face's own (u,v) plane —
+   * offsetUV (the perpendicular offset distance from the A-B segment) is
+   * untouched since it's relative to the segment, not a standalone point.
+   * When `end` is omitted, both endpoints move together, but a LOCKED
+   * endpoint is always skipped even in that whole-line case. */
+  nudgeDimensionLine: (id, du, dv, end) =>
+    commitProject(set, get, {
+      ...get().project,
+      dimensionLines: (get().project.dimensionLines ?? []).map((l) => {
+        if (l.id !== id) return l;
+        const moveStart = end ? end === 'start' : !l.startLocked;
+        const moveEnd = end ? end === 'end' : !l.endLocked;
+        if (end === 'start' && l.startLocked) return l;
+        if (end === 'end' && l.endLocked) return l;
+        return {
+          ...l,
+          startUV: moveStart ? { u: l.startUV.u + du, v: l.startUV.v + dv } : l.startUV,
+          endUV: moveEnd ? { u: l.endUV.u + du, v: l.endUV.v + dv } : l.endUV,
+        };
+      }),
+    }),
+
+  setActiveAnnotationEndpoint: (target) =>
+    set((s) => ({ ui: { ...s.ui, activeAnnotationEndpoint: target } })),
+
+  toggleDimensionEndpointLock: (id, end) =>
+    commitProject(set, get, {
+      ...get().project,
+      dimensionLines: (get().project.dimensionLines ?? []).map((l) =>
+        l.id === id
+          ? end === 'start'
+            ? { ...l, startLocked: !l.startLocked }
+            : { ...l, endLocked: !l.endLocked }
+          : l
+      ),
+    }),
+
   selectDimensionLine: (id) =>
-    set((s) => ({ ui: { ...s.ui, selectedDimensionLineId: id } })),
+    set((s) => ({ ui: { ...s.ui, selectedDimensionLineId: id, activeAnnotationEndpoint: null } })),
 
   setSelectedCenterlineId: (id) =>
     set((s) => ({ ui: { ...s.ui, selectedCenterlineId: id } })),
@@ -1896,6 +2154,158 @@ export const useAppStore = create<AppStore>()(
 
   setMeasureStartPoint: (pt) =>
     set((s) => ({ ui: { ...s.ui, measureStartPoint: pt } })),
+
+  handleDimensionLineClick: (memberId, faceId, u, v) => {
+    const draft = get().ui.dimensionDraft;
+    if (!draft || draft.memberId !== memberId || draft.faceId !== faceId) {
+      set((s) => ({ ui: { ...s.ui, dimensionDraft: { memberId, faceId, startUV: { u, v } } } }));
+      return;
+    }
+    if (!draft.endUV) {
+      set((s) => ({ ui: { ...s.ui, dimensionDraft: { ...draft, endUV: { u, v } } } }));
+      return;
+    }
+    // 3rd click: sets the offset side/distance and commits (or, with an
+    // editingId set, overwrites the existing line instead of adding a new one
+    // — the "re-drag its points/offset" edit flow the Order requires).
+    // New Order 8.4 Fix 1: floor the offset's magnitude so a click landing
+    // close to the measured segment (much easier to do on a short
+    // cross/width measurement than a long length one) never persists as a
+    // dimension line that visually sits on top of its own segment.
+    const offsetUV = clampOffsetMagnitude(computePerpOffset(draft.startUV, draft.endUV, { u, v }));
+    const endUV = draft.endUV;
+    if (draft.editingId) {
+      const id = draft.editingId;
+      commitProject(set, get, {
+        ...get().project,
+        dimensionLines: get().project.dimensionLines.map((l) =>
+          l.id === id
+            ? { ...l, anchorMemberId: memberId, anchorFaceId: faceId, startUV: draft.startUV, endUV, offsetUV }
+            : l
+        ),
+      });
+      set((s) => ({ ui: { ...s.ui, dimensionDraft: null, selectedDimensionLineId: id } }));
+    } else {
+      const id = crypto.randomUUID();
+      const line: DimensionLine = { id, anchorMemberId: memberId, anchorFaceId: faceId, startUV: draft.startUV, endUV, offsetUV };
+      commitProject(set, get, { ...get().project, dimensionLines: [...get().project.dimensionLines, line] });
+      set((s) => ({ ui: { ...s.ui, dimensionDraft: null, selectedDimensionLineId: id } }));
+    }
+  },
+
+  cancelDimensionDraft: () => set((s) => ({ ui: { ...s.ui, dimensionDraft: null } })),
+
+  startEditDimensionLine: (id) => {
+    const line = get().project.dimensionLines.find((l) => l.id === id);
+    if (!line) return;
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        activeTool: 'measure',
+        selectedDimensionLineId: id,
+        dimensionDraft: { memberId: line.anchorMemberId, faceId: line.anchorFaceId, startUV: line.startUV, editingId: id },
+      },
+    }));
+  },
+
+  setDimensionLineVisibility: (id, visible) =>
+    commitProject(set, get, {
+      ...get().project,
+      dimensionLines: get().project.dimensionLines.map((l) => (l.id === id ? { ...l, visible } : l)),
+    }),
+
+  handleReferenceLineClick: (memberId, faceId, u, v, snapped) => {
+    const draft = get().ui.referenceDraft;
+    if (!draft || draft.memberId !== memberId || draft.faceId !== faceId) {
+      set((s) => ({ ui: { ...s.ui, referenceDraft: { memberId, faceId, start: { u, v, snapped } } } }));
+      return;
+    }
+    // 2nd click commits (or overwrites, when editing).
+    const end: ReferenceLinePoint = { u, v, snapped };
+    if (draft.editingId) {
+      const id = draft.editingId;
+      commitProject(set, get, {
+        ...get().project,
+        referenceLines: get().project.referenceLines.map((l) =>
+          l.id === id ? { ...l, anchorMemberId: memberId, anchorFaceId: faceId, start: draft.start, end } : l
+        ),
+      });
+      set((s) => ({ ui: { ...s.ui, referenceDraft: null, selectedReferenceLineId: id } }));
+    } else {
+      const id = crypto.randomUUID();
+      const line: ReferenceLine = { id, anchorMemberId: memberId, anchorFaceId: faceId, start: draft.start, end };
+      commitProject(set, get, { ...get().project, referenceLines: [...get().project.referenceLines, line] });
+      set((s) => ({ ui: { ...s.ui, referenceDraft: null, selectedReferenceLineId: id } }));
+    }
+  },
+
+  cancelReferenceDraft: () => set((s) => ({ ui: { ...s.ui, referenceDraft: null } })),
+
+  startEditReferenceLine: (id) => {
+    const line = get().project.referenceLines.find((l) => l.id === id);
+    if (!line) return;
+    set((s) => ({
+      ui: {
+        ...s.ui,
+        activeTool: 'referenceLine',
+        selectedReferenceLineId: id,
+        referenceDraft: { memberId: line.anchorMemberId, faceId: line.anchorFaceId, start: line.start, editingId: id },
+      },
+    }));
+  },
+
+  setReferenceLineVisibility: (id, visible) =>
+    commitProject(set, get, {
+      ...get().project,
+      referenceLines: get().project.referenceLines.map((l) => (l.id === id ? { ...l, visible } : l)),
+    }),
+
+  selectReferenceLine: (id) => set((s) => ({ ui: { ...s.ui, selectedReferenceLineId: id, activeAnnotationEndpoint: null } })),
+
+  removeReferenceLine: (id) => {
+    commitProject(set, get, {
+      ...get().project,
+      referenceLines: get().project.referenceLines.filter((l) => l.id !== id),
+    });
+    if (get().ui.selectedReferenceLineId === id) {
+      set((s) => ({ ui: { ...s.ui, selectedReferenceLineId: null } }));
+    }
+  },
+
+  /** Translates one or both endpoints in the anchor face's own (u,v) plane.
+   * `snapped` is cleared on any point actually moved — a manual nudge
+   * deliberately moves it off whatever edge it was previously resolved
+   * onto, so the marker should read as a free point again, not a stale
+   * edge-snap. A LOCKED endpoint is always skipped, even in the
+   * whole-line (`end` omitted) case. */
+  nudgeReferenceLine: (id, du, dv, end) =>
+    commitProject(set, get, {
+      ...get().project,
+      referenceLines: get().project.referenceLines.map((l) => {
+        if (l.id !== id) return l;
+        if (end === 'start' && l.start.locked) return l;
+        if (end === 'end' && l.end.locked) return l;
+        const moveStart = end ? end === 'start' : !l.start.locked;
+        const moveEnd = end ? end === 'end' : !l.end.locked;
+        return {
+          ...l,
+          start: moveStart ? { ...l.start, u: l.start.u + du, v: l.start.v + dv, snapped: false } : l.start,
+          end: moveEnd ? { ...l.end, u: l.end.u + du, v: l.end.v + dv, snapped: false } : l.end,
+        };
+      }),
+    }),
+
+  toggleReferenceEndpointLock: (id, end) =>
+    commitProject(set, get, {
+      ...get().project,
+      referenceLines: get().project.referenceLines.map((l) =>
+        l.id === id
+          ? end === 'start'
+            ? { ...l, start: { ...l.start, locked: !l.start.locked } }
+            : { ...l, end: { ...l.end, locked: !l.end.locked } }
+          : l
+      ),
+    }),
 
   newProject: () => {
     set({
@@ -1987,6 +2397,7 @@ export const useAppStore = create<AppStore>()(
           boxSelectPending: null,
           crossCutPreviewPosition: null,
           ripCutPreviewPosition: null,
+          ...templateTransitionPatch(s.ui.workspaceMode, mode),
         },
       };
     }),
@@ -2291,6 +2702,127 @@ export const useAppStore = create<AppStore>()(
         },
       },
     }));
+  },
+
+  setTemplateMaterial: (species) =>
+    set((s) => ({ ui: { ...s.ui, templateMaterial: species } })),
+
+  setTemplateDrawTool: (tool) =>
+    // Switching draw tools resets the Arc-specific staged-click state (Fix 10)
+    // so a half-placed via point from a previous Arc segment never leaks into
+    // Line/Freehand or a freshly re-armed Arc.
+    set((s) => ({ ui: { ...s.ui, templateDrawTool: tool, templateArcStage: 'start', templateArcFlipped: false } })),
+
+  addTemplateEdge: (edge) => {
+    // Routed through commitProject (same past/future stack Move/Rotate/
+    // Insert already use) instead of a bare set() — this is what makes a
+    // committed point/segment an undo step at all.
+    commitProject(set, get, get().project, [...get().ui.templateEdges, edge]);
+  },
+
+  addTemplateShape: (shape) => {
+    // Same commitProject-backed history pattern as addTemplateEdge —
+    // closing a loop is one undo step, alongside whatever edge commit(s) it
+    // bundles with (TemplateDrawTools.tsx commits the closing edge and the
+    // shape as two calls in the same user action — undo just walks back one
+    // step further to also remove the closing edge).
+    commitProject(set, get, get().project, undefined, [...get().ui.templateShapes, shape]);
+  },
+
+  updateTemplateShapeSpecies: (id, species) => {
+    const nextShapes = get().ui.templateShapes.map((s) => (s.id === id ? { ...s, species } : s));
+    commitProject(set, get, get().project, undefined, nextShapes);
+  },
+
+  setSelectedTemplateShapeId: (id) =>
+    set((s) => ({ ui: { ...s.ui, selectedTemplateShapeId: id } })),
+
+  setTemplateExtrudeThickness: (value) =>
+    set((s) => ({ ui: { ...s.ui, templateExtrudeThickness: value } })),
+
+  setTemplateArcStage: (stage) =>
+    set((s) => ({ ui: { ...s.ui, templateArcStage: stage } })),
+
+  setTemplateArcFlipped: (flipped) =>
+    set((s) => ({ ui: { ...s.ui, templateArcFlipped: flipped } })),
+
+  /**
+   * Data Flow Pipeline: Extrude Template Shape -> Model Board (New Order 7 Part 4)
+   *
+   * INPUT: a closed TemplateShape (edgeIds + species) and a user-entered
+   *   thickness (inches).
+   *
+   * CALCULATION: buildLoopPolygon (templateSketchMath.ts, pure) re-derives the
+   *   shape's current (u,v) boundary fresh from ui.templateEdges — never a
+   *   cached copy. The polygon's centroid becomes the new board's placement
+   *   (u,v map directly to world x,z on the ground plane), and every point is
+   *   re-expressed relative to that centroid as the board's LOCAL footprint
+   *   (WoodMember.polygonPoints) — CAD_MANIFESTO.md Law 1: the board is these
+   *   parameters, never a stored mesh.
+   *
+   * OUTPUT: one new WoodMember (shapeType: 'customPolygon') via the existing
+   *   addMember-equivalent commit path (bundled into one history entry with
+   *   removing the consumed shape/edges from Template state), so extruding is
+   *   a single undo step.
+   *
+   * RENDER: BoardMesh.tsx's existing geometry pipeline (Engine.ts) builds a
+   *   proper extruded-prism Face/Wire/Edge topology from polygonPoints +
+   *   thickness, then the SAME lit meshStandardMaterial every other board
+   *   already uses — the unlit-to-lit switch the Order asks for falls out of
+   *   this board now being an ordinary WoodMember, no special-case code.
+   *
+   * FOLLOWS-BOARD CHECK: yes — once placed, this board is indistinguishable
+   *   from an Insert-created one; Move/Rotate/Select all read member.position/
+   *   rotation exactly as they already do for every other board.
+   */
+  extrudeTemplateShape: (shapeId, thicknessIn) => {
+    const { ui, project } = get();
+    const shape = ui.templateShapes.find((s) => s.id === shapeId);
+    if (!shape) return null;
+    const polygon = buildLoopPolygon(shape.edgeIds, ui.templateEdges);
+    if (polygon.length < 3) return null;
+
+    const thickness = Math.max(0.0625, thicknessIn);
+    const centroidU = polygon.reduce((sum, p) => sum + p.u, 0) / polygon.length;
+    const centroidV = polygon.reduce((sum, p) => sum + p.v, 0) / polygon.length;
+    const polygonPoints: [number, number][] = polygon.map((p) => [p.u - centroidU, p.v - centroidV]);
+    const us = polygon.map((p) => p.u);
+    const vs = polygon.map((p) => p.v);
+    const boundsLength = Math.max(0.25, Math.max(...us) - Math.min(...us));
+    const boundsWidth = Math.max(0.25, Math.max(...vs) - Math.min(...vs));
+
+    const mat = getMaterialByName(shape.species);
+    const id = crypto.randomUUID();
+    const newMember: WoodMember = {
+      id,
+      label: `Template ${Date.now().toString(36).slice(-4)}`,
+      category: mat?.category ?? 'Softwood',
+      species: shape.species,
+      nominalSize: 'Custom',
+      thickness,
+      width: boundsWidth,
+      length: boundsLength,
+      position: [centroidU, thickness / 2, centroidV],
+      rotation: [0, 0, 0],
+      costPerBoardFoot: mat?.defaultPrice ?? 3.5,
+      color: mat?.color ?? '#d4a96a',
+      isSelected: false,
+      cuts: [],
+      orientation: 'flat',
+      loadLbs: 0,
+      materialKind: mat?.kind ?? 'dimensional',
+      shapeType: 'customPolygon',
+      polygonPoints,
+    };
+
+    const nextTemplateEdges = ui.templateEdges.filter((e) => !shape.edgeIds.includes(e.id));
+    const nextTemplateShapes = ui.templateShapes.filter((s) => s.id !== shapeId);
+    const nextProject = { ...project, members: [...project.members, migrateMember(newMember)] };
+    commitProject(set, get, nextProject, nextTemplateEdges, nextTemplateShapes);
+
+    get().setWorkspaceMode('model');
+    get().selectMember(id);
+    return id;
   },
 
   setFinishPanelOpen: (open) =>

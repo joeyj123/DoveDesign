@@ -35,19 +35,22 @@ export function getBoxFaces(box: THREE.Box3): FacePlane[] {
 
 /**
  * Finds an open spot near the origin for a newly-created board so it doesn't spawn
- * stacked on top of existing boards. Walks outward along +X in fixed steps and uses
- * an AABB overlap check against existing members.
+ * stacked on top of existing boards. Walks outward along +Z (the board's width axis)
+ * in steps sized to the new board's own width, so repeated Place clicks line boards
+ * up side by side instead of end-to-end or (per New Order 3.2's diagonal bug in the
+ * unrelated duplicateMember path) diagonally. Uses an AABB overlap check against
+ * existing members to skip past any board already occupying a candidate slot.
  */
 export function findOpenSpawnPosition(
   existingMembers: WoodMember[],
   newBoardSize: [number, number, number]
 ): [number, number, number] {
-  const GRID_STEP = 6;
-  const maxAttempts = 50;
   const [length, thickness, width] = newBoardSize;
-  const candidateMember = (x: number): WoodMember =>
+  const STEP = width + 2;
+  const maxAttempts = 50;
+  const candidateMember = (z: number): WoodMember =>
     ({
-      position: [x, thickness / 2, 0],
+      position: [0, thickness / 2, z],
       rotation: [0, 0, 0],
       length,
       thickness,
@@ -58,10 +61,10 @@ export function findOpenSpawnPosition(
   for (let i = 0; i < maxAttempts; i++) {
     const box = getMemberWorldBox(candidateMember(offset));
     const overlaps = existingMembers.some((m) => box.intersectsBox(getMemberWorldBox(m)));
-    if (!overlaps) return [offset, thickness / 2, 0];
-    offset += GRID_STEP;
+    if (!overlaps) return [0, thickness / 2, offset];
+    offset += STEP;
   }
-  return [offset, thickness / 2, 0];
+  return [0, thickness / 2, offset];
 }
 
 /**

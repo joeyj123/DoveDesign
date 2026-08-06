@@ -1,5 +1,6 @@
 import { useAppStore } from '../store';
 import SpeciesSelect from './SpeciesSelect';
+import Tooltip from './Tooltip';
 
 /**
  * Data Flow Pipeline: Sketch Species Selector (New Order 3.1, Fix 5)
@@ -19,24 +20,29 @@ import SpeciesSelect from './SpeciesSelect';
  * FOLLOWS-BOARD CHECK: n/a — sets defaults for the next board to be drawn,
  *   not a live board's parameters.
  */
+/**
+ * New Order 5: content-only — PropertiesPanel mounts this while
+ * ui.activeTool === 'drawBoard' instead of it self-guarding on activeTool
+ * and floating independently, so it can never stay visible after a tool
+ * switch the way the old standalone floating panel could.
+ */
 export default function SketchMaterialPanel() {
-  const activeTool = useAppStore((s) => s.ui.activeTool);
   const drawDefaults = useAppStore((s) => s.ui.drawDefaults);
   const setDrawMaterial = useAppStore((s) => s.setDrawMaterial);
 
-  if (activeTool !== 'drawBoard') return null;
-
   return (
-    <div className="absolute top-16 right-4 bg-zinc-900 border border-zinc-700 rounded p-3 flex flex-col gap-2 text-base text-zinc-200 w-56 z-10">
-      <div className="font-semibold text-white">Sketch Material</div>
-      <label className="flex items-center justify-between gap-2">
-        <span>Species</span>
-        <SpeciesSelect
-          value={drawDefaults.species}
-          onChange={setDrawMaterial}
-          className="w-36 bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-base text-white"
-        />
-      </label>
+    <div className="flex flex-col gap-2">
+      <Tooltip side="left" info={{ label: 'Species', description: 'Wood species — sets the new board\'s color and grain texture.' }}>
+        <label className="flex items-center justify-between gap-2 w-full">
+          <span>Species</span>
+          <SpeciesSelect
+            value={drawDefaults.species}
+            onChange={setDrawMaterial}
+            className="w-36 bg-charcoal-800 border border-charcoal-600 rounded px-2 py-1 text-base text-white"
+          />
+        </label>
+      </Tooltip>
+      <p className="text-xs text-charcoal-500">Click and drag on the floor to draw a new board.</p>
     </div>
   );
 }

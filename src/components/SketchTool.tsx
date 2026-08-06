@@ -5,6 +5,7 @@ import { Html } from '@react-three/drei';
 import { useAppStore } from '../store';
 import { inferMaterialKind } from '../lib/materials';
 import { formatFractionalInches, parseFractionalInches } from '../lib/fractionalInches';
+import { THEME } from '../lib/theme';
 
 /** Minimum corner-to-corner drag distance (inches) before a board commits — guards accidental clicks. */
 const MIN_DRAG = 3;
@@ -279,7 +280,9 @@ export default function SketchTool() {
         <>
           <mesh position={[preview.cx, drawDefaults.thickness / 2, preview.cz]}>
             <boxGeometry args={[preview.length, drawDefaults.thickness, preview.width]} />
-            <meshBasicMaterial color="#f59e0b" transparent opacity={0.45} />
+            {/* New Order 5.3: amber-500 -> THEME.selectionOrange, unifying this
+                draw-in-progress preview with the app's one active/selected color. */}
+            <meshBasicMaterial color={THEME.selectionOrange} transparent opacity={0.45} />
           </mesh>
           {/* Length readout — attached along the length-running edge (fixed to the
               drag's start side so it doesn't jump sides mid-drag), nudged just

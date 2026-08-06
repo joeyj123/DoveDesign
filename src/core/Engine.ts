@@ -182,7 +182,15 @@ export interface Wire {
 export type StandardFaceId = 'xMin' | 'xMax' | 'yMin' | 'yMax' | 'zMin' | 'zMax';
 
 export interface Face {
-  id: StandardFaceId;
+  /**
+   * 'xMin'..'zMax' for a rectangular board's 6 faces (StandardFaceId); a
+   * custom-polygon extruded board (New Order 7) instead uses 'top'/'bottom'
+   * and 'side-N' — widened to `string` so both shapes share one Face type
+   * without a parallel structure. Mate constraints/annotations still type
+   * their own faceId fields as StandardFaceId since mates are only defined
+   * between rectangular board faces.
+   */
+  id: string;
   outerWire: Wire;
   normal: Vector3D;   // solid-local space, unit length
   uAxis: Vector3D;    // solid-local space, unit length
@@ -235,7 +243,7 @@ export interface MateConstraint {
 // ============================================================
 
 function makeFace(
-  id: StandardFaceId,
+  id: string,
   normal: Vector3D,
   uAxis: Vector3D,
   vAxis: Vector3D,
@@ -255,6 +263,119 @@ function makeFace(
     { id: `${id}-e3`, startVertex: p01, endVertex: p00 },
   ];
   return { id, normal, uAxis, vAxis, origin, widthU, heightV, outerWire: { id: `${id}-wire`, edges } };
+}
+
+/**
+ * Builds a planar N-gon face from an explicit ordered vertex loop (New Order
+ * 7 — an extruded custom-polygon board's top/bottom faces, which aren't
+ * rectangles so the makeFace rectangle formula above doesn't apply). Still a
+ * proper Face + Wire + ordered Edge chain per CAD_MANIFESTO.md Law 2 — never
+ * a vertex soup. widthU/heightV are set to the (u,v)-projected bounding
+ * extent for clamping/bounds-check parity with rectangular faces, even
+ * though the actual boundary is the polygon, not that bounding box.
+ */
+/** Signed area (shoelace, x/z plane) of a footprint loop — positive means CCW when viewed from +Y looking down. New Order 7.1 Fix 6. */
+function polygonSignedArea(points: { x: number; z: number }[]): number {
+  let sum = 0;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    sum += a.x * b.z - b.x * a.z;
+  }
+  return sum / 2;
+}
+
+function makePolygonFace(id: string, normal: Vector3D, uAxis: Vector3D, vAxis: Vector3D, verts: Vector3D[]): Face {
+  const origin = verts[0];
+  const edges: Edge[] = verts.map((v, i) => ({
+    id: `${id}-e${i}`,
+    startVertex: v,
+    endVertex: verts[(i + 1) % verts.length],
+  }));
+  let minU = 0, maxU = 0, minV = 0, maxV = 0;
+  verts.forEach((v, i) => {
+    const rel = V.sub(v, origin);
+    const u = V.dot(rel, uAxis);
+    const w = V.dot(rel, vAxis);
+    if (i === 0) { minU = maxU = u; minV = maxV = w; }
+    else { minU = Math.min(minU, u); maxU = Math.max(maxU, u); minV = Math.min(minV, w); maxV = Math.max(maxV, w); }
+  });
+  return { id, normal, uAxis, vAxis, origin, widthU: maxU - minU, heightV: maxV - minV, outerWire: { id: `${id}-wire`, edges } };
+}
+
+/**
+ * Chamfer geometry (New Order — Modify: Chamfer). A box has 12 edges, each
+ * the intersection of exactly 2 of its 6 StandardFaceId faces. `edgeId` is
+ * the two face ids sorted and joined with '|' (e.g. 'xMax|yMax') — stable
+ * across resizes since it names the TOPOLOGY, not a position.
+ *
+ * For each edge, this table records which boundary ('u0'/'uMax' = the
+ * uAxis-direction ends, 'v0'/'vMax' = the vAxis-direction ends) of EACH of
+ * the two adjacent faces touches that edge, per generateBasePrimitive's own
+ * makeFace() calls above — hand-derived once from those exact origin/
+ * uAxis/vAxis/widthU/heightV values, not guessed.
+ */
+export type EdgeBoundaryKind = 'u0' | 'uMax' | 'v0' | 'vMax';
+export const CHAMFER_EDGE_KINDS: Record<string, [EdgeBoundaryKind, EdgeBoundaryKind]> = {
+  'xMax|yMax': ['uMax', 'uMax'],
+  'xMax|yMin': ['u0', 'uMax'],
+  'xMin|yMax': ['vMax', 'u0'],
+  'xMin|yMin': ['v0', 'u0'],
+  'xMax|zMax': ['vMax', 'uMax'],
+  'xMax|zMin': ['v0', 'vMax'],
+  'xMin|zMax': ['uMax', 'u0'],
+  'xMin|zMin': ['u0', 'v0'],
+  'yMax|zMax': ['v0', 'vMax'],
+  'yMax|zMin': ['vMax', 'uMax'],
+  'yMin|zMax': ['vMax', 'v0'],
+  'yMin|zMin': ['v0', 'u0'],
+};
+
+/** Shrinks one face's boundary at the given edge by `amount`, rebuilt via makeFace so outerWire stays consistent. Clamped so a chamfer can never invert a face into a negative-size rectangle. */
+function shrinkFaceBoundary(face: Face, kind: EdgeBoundaryKind, amount: number): Face {
+  const shrinkU = kind === 'u0' || kind === 'uMax';
+  const newWidthU = shrinkU ? Math.max(0.001, face.widthU - amount) : face.widthU;
+  const newHeightV = !shrinkU ? Math.max(0.001, face.heightV - amount) : face.heightV;
+  let origin = face.origin;
+  if (kind === 'u0') origin = V.add(origin, V.scale(face.uAxis, amount));
+  if (kind === 'v0') origin = V.add(origin, V.scale(face.vAxis, amount));
+  return makeFace(face.id, face.normal, face.uAxis, face.vAxis, origin, newWidthU, newHeightV);
+}
+
+/** The 2 corners of a (possibly already-shrunk) face's boundary edge at the given kind, in a fixed order per kind — paired up against the OTHER face's edge by nearest-distance in buildChamferFace below, so this function's own ordering choice doesn't need to "match" anything by convention. On an UN-shrunk face this boundary IS the shared edge itself — exported so boardFaceMath.ts's edge-picking can reuse it instead of re-deriving edge geometry a second way. */
+export function boundaryEdgePoints(face: Face, kind: EdgeBoundaryKind): [Vector3D, Vector3D] {
+  const p00 = face.origin;
+  const p10 = V.add(p00, V.scale(face.uAxis, face.widthU));
+  const p11 = V.add(p10, V.scale(face.vAxis, face.heightV));
+  const p01 = V.add(p00, V.scale(face.vAxis, face.heightV));
+  switch (kind) {
+    case 'uMax': return [p10, p11];
+    case 'u0': return [p01, p00];
+    case 'vMax': return [p11, p01];
+    case 'v0': return [p00, p10];
+  }
+}
+
+/** Builds the new bevel face connecting two already-shrunk faces' matching boundary edges. Returns null if the chamfer size fully consumed the edge (degenerate). */
+function buildChamferFace(id: string, shrunkA: Face, kindA: EdgeBoundaryKind, shrunkB: Face, kindB: EdgeBoundaryKind): Face | null {
+  const aEdge = boundaryEdgePoints(shrunkA, kindA);
+  const bEdgeRaw = boundaryEdgePoints(shrunkB, kindB);
+  // Match endpoints by nearest distance rather than relying on the two
+  // per-kind orderings above to agree — robust regardless of which kind
+  // combination this edge happens to use.
+  const dSame = V.length(V.sub(aEdge[0], bEdgeRaw[0])) + V.length(V.sub(aEdge[1], bEdgeRaw[1]));
+  const dSwap = V.length(V.sub(aEdge[0], bEdgeRaw[1])) + V.length(V.sub(aEdge[1], bEdgeRaw[0]));
+  const bEdge: [Vector3D, Vector3D] = dSame <= dSwap ? bEdgeRaw : [bEdgeRaw[1], bEdgeRaw[0]];
+
+  const uVec = V.sub(bEdge[0], aEdge[0]);
+  const vVec = V.sub(aEdge[1], aEdge[0]);
+  const widthU = V.length(uVec);
+  const heightV = V.length(vVec);
+  if (widthU < 1e-6 || heightV < 1e-6) return null;
+  const uAxis = V.scale(uVec, 1 / widthU);
+  const vAxis = V.scale(vVec, 1 / heightV);
+  const normal = V.normalize(V.cross(uAxis, vAxis));
+  return makeFace(id, normal, uAxis, vAxis, aEdge[0], widthU, heightV);
 }
 
 export class CADGeometryEngine {
@@ -279,6 +400,75 @@ export class CADGeometryEngine {
   }
 
   /**
+   * PURE FUNCTION (New Order 7) — builds the topology of an extruded custom
+   * polygon: a flat footprint (board-local x,z, CCW when viewed from +Y)
+   * extruded along local Y by `thickness`. Produces one N-gon top face, one
+   * N-gon bottom face, and one rectangular side face per polygon edge (side
+   * faces reuse the exact same makeFace rectangle path every box face
+   * already uses — an extruded polygon's sides ARE rectangles). Still a
+   * proper Face/Wire/Edge topology per CAD_MANIFESTO.md Law 2, derived fresh
+   * from the footprint + thickness parameters every call — never cached.
+   */
+  public static generateExtrudedPolygonPrimitive(footprint: { x: number; z: number }[], thickness: number): { faces: Face[] } {
+    const halfT = thickness / 2;
+    const n = footprint.length;
+    if (n < 3) return { faces: [] };
+
+    // New Order 7.1 Fix 6: the footprint comes straight from wherever the
+    // user happened to click while sketching (Template mode), so it can be
+    // wound either direction with no guarantee either way. Every downstream
+    // face assumption below (topVerts winds so cross(edge1, edge2) points
+    // +Y, bottomVerts is topVerts reversed) only holds for ONE specific
+    // input winding — otherwise the top/bottom faces' actual triangle
+    // winding (which earClipTriangulate preserves from whatever order it's
+    // given, it does not normalize) ends up back-facing from the expected
+    // viewing side, which is exactly what backface-culls a lit
+    // meshStandardMaterial into looking translucent/missing. Verified by
+    // direct cross-product expansion: for 3 consecutive footprint points,
+    // cross(p1-p0, p2-p0).y == -2 * polygonSignedArea(footprint) — so a
+    // POSITIVE signed area produces a NEGATIVE (inward/-Y) winding for the
+    // top face and must be reversed; a negative signed area is already
+    // correct. Normalized once here, at the pure math source, so every face
+    // built below is consistently outward-facing regardless of the user's
+    // original click order.
+    const orientedFootprint = polygonSignedArea(footprint) > 0 ? [...footprint].reverse() : footprint;
+
+    const bottomVerts = orientedFootprint.map((p) => ({ x: p.x, y: -halfT, z: p.z }));
+    const topVerts = orientedFootprint.map((p) => ({ x: p.x, y: halfT, z: p.z }));
+
+    // Bottom face: normal points down, so its boundary must wind CW when
+    // viewed from +Y (i.e. reversed from the footprint's own CCW order) to
+    // be outward-facing from below.
+    const bottomFace = makePolygonFace(
+      'bottom',
+      { x: 0, y: -1, z: 0 },
+      { x: 1, y: 0, z: 0 },
+      { x: 0, y: 0, z: 1 },
+      [...bottomVerts].reverse()
+    );
+    // Top face: normal points up, footprint's own CCW order is already outward-facing.
+    const topFace = makePolygonFace('top', { x: 0, y: 1, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }, topVerts);
+
+    const sideFaces: Face[] = [];
+    for (let i = 0; i < n; i++) {
+      const p0 = orientedFootprint[i];
+      const p1 = orientedFootprint[(i + 1) % n];
+      const edgeDir = V.normalize({ x: p1.x - p0.x, y: 0, z: p1.z - p0.z });
+      const edgeLen = V.length({ x: p1.x - p0.x, y: 0, z: p1.z - p0.z });
+      if (edgeLen < 1e-6) continue;
+      // Outward normal: rotate the CCW footprint edge direction -90 degrees
+      // in the XZ plane (uAxis x vAxis must equal normal per makeFace's
+      // winding convention — cross((dx,0,dz), (0,1,0)) = (dz, 0, -dx)).
+      const normal = { x: edgeDir.z, y: 0, z: -edgeDir.x };
+      sideFaces.push(
+        makeFace(`side-${i}`, normal, edgeDir, { x: 0, y: 1, z: 0 }, { x: p0.x, y: -halfT, z: p0.z }, edgeLen, thickness)
+      );
+    }
+
+    return { faces: [topFace, bottomFace, ...sideFaces] };
+  }
+
+  /**
    * PURE FUNCTION — applies declarative features onto the base topology.
    * Always recomputed fresh from baseTopology + features, never patched.
    * No CADFeature types are populated by the current migration (Phase 16
@@ -287,15 +477,33 @@ export class CADGeometryEngine {
    * switch is fully wired for when features are populated.
    */
   public static evaluateFeatures(baseTopology: { faces: Face[] }, features: CADFeature[]): { faces: Face[] } {
-    const faces = baseTopology.faces.map((f) => ({ ...f }));
+    let faces = baseTopology.faces.map((f) => ({ ...f }));
     for (const feature of features) {
       switch (feature.type) {
+        case 'CHAMFER': {
+          // Only defined between the box's own 6 StandardFaceId faces (see
+          // the axis-edge table above) — a customPolygon board's 'top'/
+          // 'bottom'/'side-N' faces aren't box edges, so this is a no-op if
+          // faceIds don't match (matches how Mate already scopes itself to
+          // StandardFaceId-only boards).
+          const [faceIdA, faceIdB] = feature.edgeId.split('|');
+          const kinds = CHAMFER_EDGE_KINDS[feature.edgeId];
+          const idxA = faces.findIndex((f) => f.id === faceIdA);
+          const idxB = faces.findIndex((f) => f.id === faceIdB);
+          if (!kinds || idxA === -1 || idxB === -1 || feature.size <= 0) break;
+          const shrunkA = shrinkFaceBoundary(faces[idxA], kinds[0], feature.size);
+          const shrunkB = shrinkFaceBoundary(faces[idxB], kinds[1], feature.size);
+          const bevel = buildChamferFace(`chamfer-${feature.id}`, shrunkA, kinds[0], shrunkB, kinds[1]);
+          if (!bevel) break;
+          faces = faces.map((f, i) => (i === idxA ? shrunkA : i === idxB ? shrunkB : f));
+          faces.push(bevel);
+          break;
+        }
         case 'DADO_GROOVE':
         case 'POCKET_HOLE':
         case 'BORE_HOLE':
         case 'MORTISE':
         case 'TENON':
-        case 'CHAMFER':
         case 'FILLET':
           // Localized features attach to a face/edge but do not change the
           // board's outer boundary topology — nothing to do to `faces` here.
@@ -473,29 +681,171 @@ export class CADGeometryEngine {
 
   /**
    * RENDER PIPELINE STEP — converts evaluated topology into a flat
-   * position+normal vertex stream (2 triangles per face, 6 faces) for a
-   * three.js BufferGeometry. Correct outward winding per face.
+   * position+normal+uv vertex stream for a three.js BufferGeometry. Correct
+   * outward winding per face.
+   *
+   * Every rectangular face (every box face, and every side face of a New
+   * Order 7 extruded polygon — both built via makeFace) uses the SAME
+   * hardcoded quad-fan path this function has always used, byte-identical to
+   * before this file's Breaking-Change Audit (no existing board's rendered
+   * output changes). UV there is a plain 0..1 parameterization of the face's
+   * own (u,v) extent (widthU/heightV), so a texture always spans exactly one
+   * face edge-to-edge.
+   *
+   * New Order 7.1 Fix 5: dispatch between the two paths is by FACE IDENTITY
+   * (face.id === 'top'/'bottom', the ids only makePolygonFace ever assigns —
+   * see generateExtrudedPolygonPrimitive), not by incidental edge count. The
+   * original `edges.length === 4` check collided with a 4-point (rectangle/
+   * quadrilateral) extruded footprint: its top/bottom face ALSO happens to
+   * have exactly 4 boundary edges, so it was wrongly reconstructed via the
+   * box-rectangle quad formula below (which assumes an axis-aligned
+   * uAxis/vAxis-derived rectangle, not the polygon's actual — possibly
+   * skewed, non-axis-aligned — vertex positions), producing a corrupted
+   * shape instead of the drawn quadrilateral. Every top/bottom polygon face
+   * (3, 4, 5+ vertices alike) now takes the SAME generalized N-gon path
+   * below unconditionally — one code path for every vertex count, no
+   * triangle-only special case plus a broken fallback for anything else.
+   * Its boundary loop is ear-clip triangulated in the face's own (u,v)
+   * projection, with UV normalized against the polygon's own (u,v) bounding
+   * box so wood grain still maps sensibly across an arbitrary footprint.
    */
-  public static buildRenderMesh(evaluatedTopology: { faces: Face[] }): { positions: Float32Array; normals: Float32Array } {
+  public static buildRenderMesh(evaluatedTopology: { faces: Face[] }): { positions: Float32Array; normals: Float32Array; uvs: Float32Array } {
     const positions: number[] = [];
     const normals: number[] = [];
+    const uvs: number[] = [];
 
     for (const face of evaluatedTopology.faces) {
-      const p00 = face.origin;
-      const p10 = V.add(face.origin, V.scale(face.uAxis, face.widthU));
-      const p11 = V.add(p10, V.scale(face.vAxis, face.heightV));
-      const p01 = V.add(face.origin, V.scale(face.vAxis, face.heightV));
-      // uAxis × vAxis == face.normal by construction (see makeFace), so
-      // winding p00 -> p10 -> p11 -> p01 is outward-facing (CCW from outside).
-      const tris = [p00, p10, p11, p00, p11, p01];
-      for (const p of tris) {
-        positions.push(p.x, p.y, p.z);
-        normals.push(face.normal.x, face.normal.y, face.normal.z);
+      const isPolygonFace = face.id === 'top' || face.id === 'bottom';
+      if (!isPolygonFace && face.outerWire.edges.length === 4) {
+        const p00 = face.origin;
+        const p10 = V.add(face.origin, V.scale(face.uAxis, face.widthU));
+        const p11 = V.add(p10, V.scale(face.vAxis, face.heightV));
+        const p01 = V.add(face.origin, V.scale(face.vAxis, face.heightV));
+        // uAxis × vAxis == face.normal by construction (see makeFace), so
+        // winding p00 -> p10 -> p11 -> p01 is outward-facing (CCW from outside).
+        const tris = [p00, p10, p11, p00, p11, p01];
+        const triUVs: Array<[number, number]> = [[0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1]];
+        for (let i = 0; i < tris.length; i++) {
+          const p = tris[i];
+          positions.push(p.x, p.y, p.z);
+          normals.push(face.normal.x, face.normal.y, face.normal.z);
+          uvs.push(triUVs[i][0], triUVs[i][1]);
+        }
+        continue;
+      }
+
+      // Generalized N-gon path (polygon top/bottom faces).
+      const verts3D = face.outerWire.edges.map((e) => e.startVertex);
+      const uv2D = verts3D.map((v) => {
+        const rel = V.sub(v, face.origin);
+        return { u: V.dot(rel, face.uAxis), v: V.dot(rel, face.vAxis) };
+      });
+      const minU = Math.min(...uv2D.map((p) => p.u));
+      const maxU = Math.max(...uv2D.map((p) => p.u));
+      const minV = Math.min(...uv2D.map((p) => p.v));
+      const maxV = Math.max(...uv2D.map((p) => p.v));
+      const spanU = Math.max(maxU - minU, 1e-6);
+      const spanV = Math.max(maxV - minV, 1e-6);
+
+      const triangleIndices = earClipTriangulate(uv2D);
+      for (const [ia, ib, ic] of triangleIndices) {
+        for (const idx of [ia, ib, ic]) {
+          const p = verts3D[idx];
+          positions.push(p.x, p.y, p.z);
+          normals.push(face.normal.x, face.normal.y, face.normal.z);
+          uvs.push((uv2D[idx].u - minU) / spanU, (uv2D[idx].v - minV) / spanV);
+        }
       }
     }
 
-    return { positions: new Float32Array(positions), normals: new Float32Array(normals) };
+    return { positions: new Float32Array(positions), normals: new Float32Array(normals), uvs: new Float32Array(uvs) };
   }
+}
+
+/**
+ * Plain ear-clipping triangulation of a simple 2D polygon — used only by
+ * buildRenderMesh's generalized N-gon path (New Order 7 extruded polygon
+ * top/bottom faces). Returns index triples into `points`. Kept local to
+ * this file (rather than sharing templateSketchMath.ts's triangulatePolygon)
+ * since Engine.ts is generic board topology, independent of the Template
+ * sketch-plane's 2D math module.
+ */
+function earClipTriangulate(points: { u: number; v: number }[]): [number, number, number][] {
+  if (points.length < 3) return [];
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    area += a.u * b.v - b.u * a.v;
+  }
+  const ccw = area >= 0;
+  const indices = points.map((_, i) => i);
+  const triangles: [number, number, number][] = [];
+
+  function isConvex(a: { u: number; v: number }, b: { u: number; v: number }, c: { u: number; v: number }): boolean {
+    const cross = (b.u - a.u) * (c.v - a.v) - (b.v - a.v) * (c.u - a.u);
+    return ccw ? cross > 1e-9 : cross < -1e-9;
+  }
+
+  function pointInTriangle(
+    p: { u: number; v: number },
+    a: { u: number; v: number },
+    b: { u: number; v: number },
+    c: { u: number; v: number }
+  ): boolean {
+    const d1 = (p.u - b.u) * (a.v - b.v) - (a.u - b.u) * (p.v - b.v);
+    const d2 = (p.u - c.u) * (b.v - c.v) - (b.u - c.u) * (p.v - c.v);
+    const d3 = (p.u - a.u) * (c.v - a.v) - (c.u - a.u) * (p.v - a.v);
+    const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+    const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+    return !(hasNeg && hasPos);
+  }
+
+  let guard = 0;
+  while (indices.length > 3 && guard++ < points.length * points.length) {
+    let earFound = false;
+    for (let i = 0; i < indices.length; i++) {
+      const iPrev = indices[(i - 1 + indices.length) % indices.length];
+      const iCur = indices[i];
+      const iNext = indices[(i + 1) % indices.length];
+      const a = points[iPrev];
+      const b = points[iCur];
+      const c = points[iNext];
+      if (!isConvex(a, b, c)) continue;
+      let containsOther = false;
+      for (const idx of indices) {
+        if (idx === iPrev || idx === iCur || idx === iNext) continue;
+        if (pointInTriangle(points[idx], a, b, c)) {
+          containsOther = true;
+          break;
+        }
+      }
+      if (containsOther) continue;
+      triangles.push([iPrev, iCur, iNext]);
+      indices.splice(i, 1);
+      earFound = true;
+      break;
+    }
+    if (!earFound) break; // ear-clipping stalled — fall through to the fan fallback below
+  }
+  if (indices.length === 3) {
+    triangles.push([indices[0], indices[1], indices[2]]);
+  } else if (indices.length > 3) {
+    // New Order 7.1 Fix 6: a numerically-tricky (near-collinear vertices,
+    // slightly self-intersecting from imprecise hand-drawn clicks) polygon
+    // can stall ear-clipping before every vertex is consumed. Previously
+    // this silently dropped the remaining vertices, leaving a real hole in
+    // the extruded board's top/bottom face — which reads as the board being
+    // translucent/see-through from that angle, since the missing triangles
+    // let you see straight through to whatever's behind. A simple fan from
+    // the first remaining vertex guarantees full coverage (no hole) for the
+    // leftover region — not always a perfect triangulation of a pathological
+    // polygon, but always fully opaque, which is the correctness bar here.
+    for (let i = 1; i < indices.length - 1; i++) {
+      triangles.push([indices[0], indices[i], indices[i + 1]]);
+    }
+  }
+  return triangles;
 }
 
 // ============================================================

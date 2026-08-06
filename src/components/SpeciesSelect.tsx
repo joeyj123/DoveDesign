@@ -22,7 +22,7 @@ export default function SpeciesSelect({
       onChange={(e) => onChange(e.target.value)}
       className={
         className ??
-        'w-full bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-base text-white'
+        'w-full bg-charcoal-800 border border-charcoal-600 rounded px-2 py-1 text-base text-white'
       }
     >
       {!WOOD_SPECIES_LIST.includes(value as (typeof WOOD_SPECIES_LIST)[number]) && (

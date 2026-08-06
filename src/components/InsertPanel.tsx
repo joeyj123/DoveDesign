@@ -6,6 +6,7 @@ import { inferMaterialKind } from '../lib/materials';
 import SpeciesSelect from './SpeciesSelect';
 import { NOMINAL_DIMENSIONS } from '../types';
 import type { NominalSize } from '../types';
+import Tooltip from './Tooltip';
 
 /**
  * Data Flow Pipeline: Insert Tool (New Order 3, updated New Order 3.1 —
@@ -70,7 +71,13 @@ const PRESETS: Preset[] = [
   { key: 'osb716', label: '7/16" OSB Sheet', length: 96, width: 48, thickness: 0.4375, nominalSize: 'Custom' },
 ];
 
-export default function InsertPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * New Order 5: no longer a self-positioned floating panel — PropertiesPanel
+ * only mounts this component while ui.activeTool === 'addBoard', so the
+ * open/onClose props it used to take are gone; visibility is owned entirely
+ * by the same activeTool state every other tool panel now reads.
+ */
+export default function InsertPanel() {
   const members = useAppStore((s) => s.project.members);
   const drawDefaults = useAppStore((s) => s.ui.drawDefaults);
   const addMember = useAppStore((s) => s.addMember);
@@ -87,8 +94,6 @@ export default function InsertPanel({ open, onClose }: { open: boolean; onClose:
   const [thickness, setThickness] = useState(1.5);
   const [nominalSize, setNominalSize] = useState<NominalSize>('2x4');
   const [presetKey, setPresetKey] = useState('2x4');
-
-  if (!open) return null;
 
   function applyPreset(p: Preset) {
     setLength(p.length);
@@ -136,51 +141,50 @@ export default function InsertPanel({ open, onClose }: { open: boolean; onClose:
   }
 
   return (
-    <div className="absolute top-16 left-4 bg-zinc-900 border border-zinc-700 rounded p-3 flex flex-col gap-2 text-base text-zinc-200 w-64 z-10">
-      <div className="flex items-center justify-between">
-        <div className="font-semibold text-white">Insert Board</div>
-        <button onClick={onClose} className="text-zinc-400 hover:text-white text-base px-1">
-          ✕
-        </button>
-      </div>
+    <div className="flex flex-col gap-2">
+      <Tooltip side="left" info={{ label: 'Preset', description: 'Fill length/width/thickness from a common lumber or sheet-goods size.' }}>
+        <label className="flex items-center justify-between gap-2 w-full">
+          <span>Preset</span>
+          <select
+            value={presetKey}
+            onChange={(e) => {
+              const p = PRESETS.find((x) => x.key === e.target.value);
+              if (p) applyPreset(p);
+            }}
+            className="w-40 bg-charcoal-800 border border-charcoal-600 rounded px-2 py-1 text-base text-white"
+          >
+            {PRESETS.map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </Tooltip>
 
-      <label className="flex items-center justify-between gap-2">
-        <span>Preset</span>
-        <select
-          value={presetKey}
-          onChange={(e) => {
-            const p = PRESETS.find((x) => x.key === e.target.value);
-            if (p) applyPreset(p);
-          }}
-          className="w-40 bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-base text-white"
+      <Tooltip side="left" info={{ label: 'Species', description: 'Wood species — sets the board\'s color and grain texture.' }}>
+        <label className="flex items-center justify-between gap-2 w-full">
+          <span>Species</span>
+          <SpeciesSelect
+            value={drawDefaults.species}
+            onChange={setDrawMaterial}
+            className="w-40 bg-charcoal-800 border border-charcoal-600 rounded px-2 py-1 text-base text-white"
+          />
+        </label>
+      </Tooltip>
+
+      <FractionalField label="Length" description="Board length, along its long axis." value={length} onCommit={setLength} />
+      <FractionalField label="Width" description="Board width, across its face." value={width} onCommit={setWidth} />
+      <FractionalField label="Thickness" description="Board thickness." value={thickness} onCommit={setThickness} />
+
+      <Tooltip side="left" info={{ label: 'Place', description: 'Add this board to the project at an open spot near the origin.' }}>
+        <button
+          onClick={handlePlace}
+          className="mt-1 w-full px-3 py-1.5 rounded text-base border bg-orange-600 border-orange-500 text-white hover:bg-orange-500"
         >
-          {PRESETS.map((p) => (
-            <option key={p.key} value={p.key}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="flex items-center justify-between gap-2">
-        <span>Species</span>
-        <SpeciesSelect
-          value={drawDefaults.species}
-          onChange={setDrawMaterial}
-          className="w-40 bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-base text-white"
-        />
-      </label>
-
-      <FractionalField label="Length" value={length} onCommit={setLength} />
-      <FractionalField label="Width" value={width} onCommit={setWidth} />
-      <FractionalField label="Thickness" value={thickness} onCommit={setThickness} />
-
-      <button
-        onClick={handlePlace}
-        className="mt-1 px-3 py-1.5 rounded text-base border bg-orange-600 border-orange-500 text-white hover:bg-orange-500"
-      >
-        Place
-      </button>
+          Place
+        </button>
+      </Tooltip>
     </div>
   );
 }
@@ -188,10 +192,12 @@ export default function InsertPanel({ open, onClose }: { open: boolean; onClose:
 /** Fractional-inch text input: displays formatted while idle, parses on commit. */
 function FractionalField({
   label,
+  description,
   value,
   onCommit,
 }: {
   label: string;
+  description: string;
   value: number;
   onCommit: (value: number) => void;
 }) {
@@ -211,19 +217,21 @@ function FractionalField({
   }
 
   return (
-    <label className="flex items-center justify-between gap-2">
-      <span>{label}</span>
-      <input
-        type="text"
-        inputMode="decimal"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        }}
-        className="w-24 bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-base text-white"
-      />
-    </label>
+    <Tooltip side="left" info={{ label, description }}>
+      <label className="flex items-center justify-between gap-2 w-full">
+        <span>{label}</span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          }}
+          className="w-24 bg-charcoal-800 border border-charcoal-600 rounded px-2 py-1 text-base text-white"
+        />
+      </label>
+    </Tooltip>
   );
 }

@@ -9,6 +9,7 @@ import { formatFractionalInches } from '../lib/fractionalInches';
 import { registerMoveDrag, clearMoveDrag } from '../lib/moveDragState';
 import { clampFloorY } from '../lib/bounds';
 import { armGizmoDragClickSuppress } from '../lib/gizmoDragGuard';
+import { expandWithMateGroups } from '../lib/mateGroups';
 
 /**
  * Data Flow Pipeline: Move Tool — Axis-Handle Gizmo (New Order 2.1)
@@ -231,7 +232,14 @@ export default function MoveGizmo() {
     setOrbitControlsEnabled(false);
     setMoveDragActive(true);
     anchorStart.current.set(...primaryMember.position);
-    const ids = multiSelection.length ? multiSelection : [primaryMember.id];
+    // Mate/Align tool's mate groups (New Order) are a rigid assembly — moving
+    // any one grouped board must drag every board it's mated to along with
+    // it, not just the explicitly-selected ones. Reuses the SAME dragOriginals/
+    // updateMember/moveMembers pipeline every other dragged id already goes
+    // through (floor-clamp, one-undo-step-on-release, etc.) rather than a
+    // second write path — a group member is just another entry in this set.
+    const selectedIds = multiSelection.length ? multiSelection : [primaryMember.id];
+    const ids = expandWithMateGroups(selectedIds);
     dragOriginals.current = new Map(
       ids
         .map((id) => members.find((m) => m.id === id))
@@ -331,7 +339,7 @@ export default function MoveGizmo() {
           center
           style={{ pointerEvents: 'none' }}
         >
-          <div className="bg-zinc-900/90 border border-orange-500 rounded px-2 py-1 text-base text-white whitespace-nowrap">
+          <div className="bg-charcoal-900/90 border border-orange-500 rounded px-2 py-1 text-base text-white whitespace-nowrap">
             X {formatFractionalInches(shownOffset.dx)}  Y {formatFractionalInches(shownOffset.dy)}  Z {formatFractionalInches(shownOffset.dz)}
           </div>
         </Html>

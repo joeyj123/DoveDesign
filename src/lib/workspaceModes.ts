@@ -6,9 +6,10 @@ export const MODE_LABELS: Record<WorkspaceMode, { label: string; blurb: string }
   model:    { label: 'Model',    blurb: 'Shape and lay out boards' },
   assembly: { label: 'Assembly', blurb: 'Join boards together' },
   detail:   { label: 'Detail',   blurb: 'Joinery & hardware' },
+  template: { label: 'Template', blurb: 'Sketch a custom shape to extrude' },
 };
 
-export const MODE_ORDER: WorkspaceMode[] = ['model', 'assembly', 'detail'];
+export const MODE_ORDER: WorkspaceMode[] = ['model', 'assembly', 'detail', 'template'];
 
 /**
  * Single source of truth for which tools are legal in each mode. Consumed by
@@ -19,13 +20,17 @@ export const MODE_ORDER: WorkspaceMode[] = ['model', 'assembly', 'detail'];
  */
 export const MODE_TOOLS: Record<WorkspaceMode, ActiveTool[]> = {
   model: [
-    'select', 'move', 'drawBoard', 'addBoard', 'trimExtend',
+    'select', 'move', 'drawBoard', 'addBoard', 'trimExtend', 'chamfer',
     'cut', 'rip', 'miter',
     'shapeCylinder', 'shapeSphere', 'shapeCone', 'shapeTriPrism', 'shapeHexPrism', 'shapePolygon',
-    'measure', 'centerline',
+    'measure', 'centerline', 'referenceLine',
   ],
   assembly: ['select', 'mate', 'measure'],
   detail: ['select', 'connection', 'joinery', 'joint', 'placeHardware', 'edge', 'measure'],
+  // Template is its own space, not a filtered view of the model's tools —
+  // only its own entry tool is legal here (plus the universal
+  // 'select'/'measure' handled separately by isToolLegalInMode).
+  template: ['template'],
 };
 
 /** Right-sidebar tabs available per mode (first entry = default on switch). */
@@ -33,6 +38,7 @@ export const MODE_PANEL_TABS: Record<WorkspaceMode, RightPanelTab[]> = {
   model:    ['inspector', 'cutlist', 'optimizer', 'estimating', 'tutorial'],
   assembly: ['inspector', 'engineering', 'tutorial'],
   detail:   ['connections', 'inspector', 'hardware', 'estimating', 'tutorial'],
+  template: ['inspector'],
 };
 
 /** Keep the current tab if it exists in the new mode; otherwise the mode default. */
@@ -67,17 +73,20 @@ const TOOL_LABELS: Partial<Record<ActiveTool, string>> = {
   drawBoard: 'Draw Board',
   addBoard: 'Add Board',
   trimExtend: 'Trim / Extend',
+  chamfer: 'Chamfer',
   cut: 'Cross Cut',
   rip: 'Rip Cut',
   miter: 'Miter',
-  measure: 'Measure',
+  measure: 'Dimension Line',
   centerline: 'Centerline',
+  referenceLine: 'Reference Line',
   mate: 'Mate (Join Boards)',
   connection: 'Connections',
   joinery: 'Joinery Cuts',
   joint: 'Joint Markers',
   placeHardware: 'Place Hardware',
   edge: 'Edge Treatment',
+  template: 'Template',
 };
 
 function faceLabel(face: FaceId): string {
@@ -90,7 +99,11 @@ function faceLabel(face: FaceId): string {
  * knows what state they're in and what to do next.
  */
 export function getHintText(
-  ui: Pick<UIState, 'workspaceMode' | 'activeTool' | 'pendingInteraction' | 'mateFaceA' | 'measureStartPoint' | 'selectedMemberId'>,
+  ui: Pick<
+    UIState,
+    'workspaceMode' | 'activeTool' | 'pendingInteraction' | 'mateFaceA' | 'measureStartPoint' |
+    'selectedMemberId' | 'dimensionDraft' | 'referenceDraft'
+  >,
   memberLabelById: (id: string) => string
 ): string {
   const modeName = `${MODE_LABELS[ui.workspaceMode].label} Mode`;
@@ -119,13 +132,19 @@ export function getHintText(
         ? `${prefix} · First face picked (green dot). Now click a snap dot on the second board — right/middle mouse orbits freely without losing your pick.`
         : `${prefix} · Click a snap dot on the first board (it stays still, the second board moves to it).`;
     case 'measure':
-      return ui.measureStartPoint
-        ? `${prefix} · Move to your end point and click to finish the measurement.`
-        : `${prefix} · Click any point on a board to start a measurement.`;
+      if (!ui.dimensionDraft) return `${prefix} · Click point A on a board face to start a dimension line.`;
+      if (!ui.dimensionDraft.endUV) return `${prefix} · Click point B on the SAME face to set what's being measured.`;
+      return `${prefix} · Click a third point to set the offset side/distance of the dimension line.`;
+    case 'referenceLine':
+      return ui.referenceDraft
+        ? `${prefix} · Click the end point — near an edge to snap, or anywhere on the face for a free point.`
+        : `${prefix} · Click the start point on a board face — near an edge to snap, or anywhere on the face for a free point.`;
     case 'centerline':
       return `${prefix} · Click any face of a board to add a centerline marker.`;
     case 'trimExtend':
       return `${prefix} · Click 1: the face to trim/extend TO. Click 2: the board to change.`;
+    case 'chamfer':
+      return `${prefix} · Click an edge on a board to bevel it, then drag the arrow or type a size.`;
     case 'drawBoard':
       return `${prefix} · Click and drag on the floor to draw a new board.`;
     case 'connection':
