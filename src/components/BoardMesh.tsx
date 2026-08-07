@@ -641,7 +641,6 @@ function ChamferDragHandle({
       <mesh
         position={geo.midpoint}
         quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), geo.planeNormal)}
-        visible={false}
         onPointerMove={(e) => {
           if (!dragState.current.dragging) return;
           e.stopPropagation();
@@ -660,6 +659,13 @@ function ChamferDragHandle({
         }}
       >
         <planeGeometry args={[200, 200]} />
+        {/* transparent+opacity 0, NOT visible={false} — R3F's pointer-event
+            raycasting skips objects with visible=false entirely, which was
+            the actual bug (the plane never received onPointerMove/Up at
+            all). Same invisible-but-hit-testable convention as
+            BoardAnnotations.tsx's ContinuationPlane and Trim's own boundary
+            catch-plane elsewhere in this file. */}
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
     </group>
   );
