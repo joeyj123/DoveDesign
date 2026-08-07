@@ -39,22 +39,35 @@ export default function ChamferPanel() {
 
   const member = members.find((m) => m.id === chamferEdge.memberId);
   const chamfer = member?.chamfers?.find((c) => c.edgeId === chamferEdge.edgeId);
-  const size = chamfer?.size ?? 0.25;
+  const sizeA = chamfer?.size ?? 0.25;
+  const sizeB = chamfer?.sizeB ?? sizeA;
+  const [faceIdA, faceIdB] = chamferEdge.edgeId.split('|');
 
-  function setSize(newSize: number) {
+  function setSize(which: 'A' | 'B', newSize: number) {
     if (!member) return;
     const clamped = Math.max(0, newSize);
-    const next = (member.chamfers ?? []).some((c) => c.edgeId === chamferEdge!.edgeId)
-      ? (member.chamfers ?? []).map((c) => (c.edgeId === chamferEdge!.edgeId ? { ...c, size: clamped } : c))
-      : [...(member.chamfers ?? []), { id: crypto.randomUUID(), edgeId: chamferEdge!.edgeId, size: clamped }];
+    const existing = (member.chamfers ?? []).find((c) => c.edgeId === chamferEdge!.edgeId);
+    const nextEntry = existing
+      ? which === 'A'
+        ? { ...existing, size: clamped }
+        : { ...existing, sizeB: clamped }
+      : which === 'A'
+      ? { id: crypto.randomUUID(), edgeId: chamferEdge!.edgeId, size: clamped, sizeB }
+      : { id: crypto.randomUUID(), edgeId: chamferEdge!.edgeId, size: sizeA, sizeB: clamped };
+    const next = existing ? (member.chamfers ?? []).map((c) => (c === existing ? nextEntry : c)) : [...(member.chamfers ?? []), nextEntry];
     updateMember(member.id, { chamfers: next });
   }
+
+  // Angle the bevel makes measured FROM Face A's own surface — atan2 keeps
+  // this well-defined (0°-90°) across the whole size range, including the
+  // symmetric 45° case when sizeA === sizeB.
+  const angleFromA = (Math.atan2(sizeB, sizeA) * 180) / Math.PI;
 
   return (
     <div className="p-3 flex flex-col gap-3 text-charcoal-200">
       <p className="text-sm text-charcoal-400">
-        Drag the orange arrow in the viewport, or type an exact size below. Click a different edge to switch, or
-        Reset to pick again.
+        Drag either orange arrow in the viewport, or type exact sizes below — one per adjacent face, independently.
+        Equal sizes give a 45° bevel; uneven sizes tilt it toward whichever face has the smaller cut.
       </p>
 
       <div className="flex items-center gap-2 rounded border border-charcoal-700 bg-charcoal-800/50 px-2 py-1.5">
@@ -65,7 +78,9 @@ export default function ChamferPanel() {
         </div>
       </div>
 
-      <SizeField value={size} onChange={setSize} />
+      <SizeField label={`Size (${faceIdA})`} value={sizeA} onChange={(v) => setSize('A', v)} />
+      <SizeField label={`Size (${faceIdB})`} value={sizeB} onChange={(v) => setSize('B', v)} />
+      <p className="text-xs text-charcoal-500">Angle from {faceIdA}: {angleFromA.toFixed(1)}°</p>
 
       <div className="flex gap-2 pt-1">
         <button
@@ -92,7 +107,7 @@ export default function ChamferPanel() {
  * (local text state, commit on blur/Enter) plus 1/16" nudge buttons, same
  * shape as MatePanel's offset fields — one convention for every "type or
  * nudge a distance" field in the app. */
-function SizeField({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function SizeField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   const [text, setText] = useState(formatFractionalInches(value));
 
   useEffect(() => {
@@ -110,7 +125,7 @@ function SizeField({ value, onChange }: { value: number; onChange: (v: number) =
 
   return (
     <div className="flex items-center gap-1.5 text-sm">
-      <span className="text-charcoal-400 w-16 shrink-0">Size</span>
+      <span className="text-charcoal-400 w-24 shrink-0">{label}</span>
       <button
         type="button"
         onClick={() => onChange(Math.max(0, value - NUDGE_STEP))}

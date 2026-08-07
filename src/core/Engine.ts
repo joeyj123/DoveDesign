@@ -161,7 +161,8 @@ export type CADFeature =
   | { type: 'BORE_HOLE'; id: string; faceId: string; u: number; v: number; diameter: number; depth: number }
   | { type: 'MORTISE'; id: string; faceId: string; u: number; v: number; width: number; height: number; depth: number }
   | { type: 'TENON'; id: string; faceId: string; u: number; v: number; width: number; height: number; length: number }
-  | { type: 'CHAMFER'; id: string; edgeId: string; size: number }
+  /** size = cut distance along Face A (the first id in edgeId, alphabetically); sizeB = along Face B — independent (Fusion's "Two Distance" chamfer), defaults to size when omitted for a symmetric cut. */
+  | { type: 'CHAMFER'; id: string; edgeId: string; size: number; sizeB?: number }
   | { type: 'FILLET'; id: string; edgeId: string; radius: number };
 
 // ============================================================
@@ -386,24 +387,27 @@ function buildChamferFace(id: string, shrunkA: Face, kindA: EdgeBoundaryKind, sh
  * end-cap's u/v axes are always exactly those same two world directions
  * (its own normal is the edge axis, perpendicular to both).
  */
-function matchCornerFlags(face: Face, dirA: Vector3D, dirB: Vector3D): { isUMax: boolean; isVMax: boolean } {
+function matchCornerFlags(face: Face, dirA: Vector3D, dirB: Vector3D): { isUMax: boolean; isVMax: boolean; uIsA: boolean } {
   const dotUA = V.dot(face.uAxis, dirA);
   const uAlignsWithA = Math.abs(dotUA) > 0.5;
   const uSign = uAlignsWithA ? dotUA : V.dot(face.uAxis, dirB);
   const vSign = uAlignsWithA ? V.dot(face.vAxis, dirB) : V.dot(face.vAxis, dirA);
-  return { isUMax: uSign > 0, isVMax: vSign > 0 };
+  return { isUMax: uSign > 0, isVMax: vSign > 0, uIsA: uAlignsWithA };
 }
 
 /**
  * Cuts one corner off a rectangular face, turning it into a 5-point polygon
  * — this is what an end-cap face needs once the edge it used to meet at
- * that corner has been chamfered. Only valid on a still-4-edge (never
+ * that corner has been chamfered. `sizeU`/`sizeV` are independent (Two
+ * Distance chamfer) — whichever of the two adjacent faces' own sizes
+ * corresponds to this face's u vs v axis is the caller's job to work out
+ * (see matchCornerFlags' `uIsA`). Only valid on a still-4-edge (never
  * previously clipped) face; a face already turned into a pentagon by an
  * earlier chamfer on a DIFFERENT edge is left alone (multiple chamfers
  * sharing one end-cap face is a known, accepted gap for now — better to
  * silently skip than build on stale corner math).
  */
-function clipRectCorner(face: Face, isUMax: boolean, isVMax: boolean, size: number): Face {
+function clipRectCorner(face: Face, isUMax: boolean, isVMax: boolean, sizeU: number, sizeV: number): Face {
   if (face.outerWire.edges.length !== 4) return face;
   const corners = [
     { u: 0, v: 0 },
@@ -418,12 +422,14 @@ function clipRectCorner(face: Face, isUMax: boolean, isVMax: boolean, size: numb
   const prev = corners[(targetIdx + 3) % 4];
   const next = corners[(targetIdx + 1) % 4];
 
-  const stepToward = (from: { u: number; v: number }, to: { u: number; v: number }) => ({
+  const stepToward = (from: { u: number; v: number }, to: { u: number; v: number }, size: number) => ({
     u: from.u + Math.sign(to.u - from.u) * Math.min(size, Math.abs(to.u - from.u)),
     v: from.v + Math.sign(to.v - from.v) * Math.min(size, Math.abs(to.v - from.v)),
   });
-  const towardPrev = stepToward(target, prev);
-  const towardNext = stepToward(target, next);
+  // Whichever coordinate differs from `target` tells us which axis that step
+  // travels along, which tells us which of sizeU/sizeV applies.
+  const towardPrev = stepToward(target, prev, prev.u !== target.u ? sizeU : sizeV);
+  const towardNext = stepToward(target, next, next.u !== target.u ? sizeU : sizeV);
 
   const toPoint = (uv: { u: number; v: number }): Vector3D =>
     V.add(face.origin, V.add(V.scale(face.uAxis, uv.u), V.scale(face.vAxis, uv.v)));
@@ -544,11 +550,13 @@ export class CADGeometryEngine {
           const kinds = CHAMFER_EDGE_KINDS[feature.edgeId];
           const idxA = faces.findIndex((f) => f.id === faceIdA);
           const idxB = faces.findIndex((f) => f.id === faceIdB);
-          if (!kinds || idxA === -1 || idxB === -1 || feature.size <= 0) break;
+          const sizeA = feature.size;
+          const sizeB = feature.sizeB ?? feature.size;
+          if (!kinds || idxA === -1 || idxB === -1 || sizeA <= 0 || sizeB <= 0) break;
           const origFaceA = faces[idxA];
           const origFaceB = faces[idxB];
-          const shrunkA = shrinkFaceBoundary(origFaceA, kinds[0], feature.size);
-          const shrunkB = shrinkFaceBoundary(origFaceB, kinds[1], feature.size);
+          const shrunkA = shrinkFaceBoundary(origFaceA, kinds[0], sizeA);
+          const shrunkB = shrinkFaceBoundary(origFaceB, kinds[1], sizeB);
           const bevel = buildChamferFace(`chamfer-${feature.id}`, shrunkA, kinds[0], shrunkB, kinds[1]);
           if (!bevel) break;
           // The 2 faces adjacent to the picked edge shrink; the OTHER 2
@@ -562,8 +570,8 @@ export class CADGeometryEngine {
             if (i === idxA) return shrunkA;
             if (i === idxB) return shrunkB;
             if (Math.abs(V.dot(f.normal, edgeAxis)) > 0.9) {
-              const { isUMax, isVMax } = matchCornerFlags(f, origFaceA.normal, origFaceB.normal);
-              return clipRectCorner(f, isUMax, isVMax, feature.size);
+              const { isUMax, isVMax, uIsA } = matchCornerFlags(f, origFaceA.normal, origFaceB.normal);
+              return clipRectCorner(f, isUMax, isVMax, uIsA ? sizeA : sizeB, uIsA ? sizeB : sizeA);
             }
             return f;
           });

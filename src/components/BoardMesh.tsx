@@ -333,6 +333,7 @@ export default function BoardMesh({ member }: { member: WoodMember }) {
       id: c.id,
       edgeId: c.edgeId,
       size: c.size,
+      sizeB: c.sizeB,
     }));
     const machined = CADGeometryEngine.evaluateFeatures(base, chamferFeatures);
     const { positions, normals, uvs } = CADGeometryEngine.buildRenderMesh(machined);
@@ -445,7 +446,8 @@ export default function BoardMesh({ member }: { member: WoodMember }) {
             faces={faces}
             boxEdges={boxEdges}
             edgeId={chamferEdge.edgeId}
-            size={(member.chamfers ?? []).find((c) => c.edgeId === chamferEdge.edgeId)?.size ?? 0.25}
+            sizeA={(member.chamfers ?? []).find((c) => c.edgeId === chamferEdge.edgeId)?.size ?? 0.25}
+            sizeB={(member.chamfers ?? []).find((c) => c.edgeId === chamferEdge.edgeId)?.sizeB ?? (member.chamfers ?? []).find((c) => c.edgeId === chamferEdge.edgeId)?.size ?? 0.25}
             chamfers={member.chamfers ?? []}
             updateMember={updateMember}
           />
@@ -564,7 +566,8 @@ function ChamferDragHandle({
   faces,
   boxEdges,
   edgeId,
-  size,
+  sizeA,
+  sizeB,
   chamfers,
   updateMember,
 }: {
@@ -572,101 +575,126 @@ function ChamferDragHandle({
   faces: Face[];
   boxEdges: { edgeId: string; a: Vector3D; b: Vector3D }[];
   edgeId: string;
-  size: number;
-  chamfers: { id: string; edgeId: string; size: number }[];
+  sizeA: number;
+  sizeB: number;
+  chamfers: { id: string; edgeId: string; size: number; sizeB?: number }[];
   updateMember: (id: string, patch: Partial<WoodMember>, skipHistory?: boolean) => void;
 }) {
-  const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
-  const dragState = useRef<{ dragging: boolean }>({ dragging: false });
+  const edge = boxEdges.find((e) => e.edgeId === edgeId);
+  const [faceIdA, faceIdB] = edgeId.split('|');
+  const faceA = faces.find((f) => f.id === faceIdA);
+  const faceB = faces.find((f) => f.id === faceIdB);
+  if (!edge || !faceA || !faceB) return null;
 
-  const geo = useMemo(() => {
-    const edge = boxEdges.find((e) => e.edgeId === edgeId);
-    const [faceIdA, faceIdB] = edgeId.split('|');
-    const faceA = faces.find((f) => f.id === faceIdA);
-    const faceB = faces.find((f) => f.id === faceIdB);
-    if (!edge || !faceA || !faceB) return null;
-    const a = new THREE.Vector3(edge.a.x, edge.a.y, edge.a.z);
-    const b = new THREE.Vector3(edge.b.x, edge.b.y, edge.b.z);
-    const midpoint = a.clone().add(b).multiplyScalar(0.5);
-    const edgeDir = b.clone().sub(a).normalize();
-    const bisector = new THREE.Vector3(faceA.normal.x, faceA.normal.y, faceA.normal.z)
-      .add(new THREE.Vector3(faceB.normal.x, faceB.normal.y, faceB.normal.z))
-      .normalize();
-    // Plane normal perpendicular to both the edge's own direction and the
-    // bisector — the plane spanned by (edgeDir, bisector) is exactly the
-    // one guaranteed to contain every point the handle can be dragged to.
-    const planeNormal = new THREE.Vector3().crossVectors(edgeDir, bisector).normalize();
-    return { midpoint, edgeDir, bisector, planeNormal };
-  }, [boxEdges, faces, edgeId]);
+  const a = new THREE.Vector3(edge.a.x, edge.a.y, edge.a.z);
+  const b = new THREE.Vector3(edge.b.x, edge.b.y, edge.b.z);
+  const midpoint = a.clone().add(b).multiplyScalar(0.5);
+  const edgeDir = b.clone().sub(a).normalize();
+  const normalA = new THREE.Vector3(faceA.normal.x, faceA.normal.y, faceA.normal.z);
+  const normalB = new THREE.Vector3(faceB.normal.x, faceB.normal.y, faceB.normal.z);
 
-  if (!geo) return null;
-  const HANDLE_CLEARANCE = 0.35;
-  const handlePos = geo.midpoint.clone().add(geo.bisector.clone().multiplyScalar(size + HANDLE_CLEARANCE));
-  const coneQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), geo.bisector);
-
-  function commitSize(newSize: number, skipHistory: boolean) {
+  function commit(which: 'A' | 'B', newSize: number, skipHistory: boolean) {
     const clamped = Math.max(0, Math.min(newSize, 12)); // 12" is a generous upper bound, not a real limit — just guards against a wild drag
-    const next = chamfers.some((c) => c.edgeId === edgeId)
-      ? chamfers.map((c) => (c.edgeId === edgeId ? { ...c, size: clamped } : c))
-      : [...chamfers, { id: crypto.randomUUID(), edgeId, size: clamped }];
+    const existing = chamfers.find((c) => c.edgeId === edgeId);
+    const nextEntry = existing
+      ? which === 'A'
+        ? { ...existing, size: clamped }
+        : { ...existing, sizeB: clamped }
+      : which === 'A'
+      ? { id: crypto.randomUUID(), edgeId, size: clamped, sizeB }
+      : { id: crypto.randomUUID(), edgeId, size: sizeA, sizeB: clamped };
+    const next = existing ? chamfers.map((c) => (c === existing ? nextEntry : c)) : [...chamfers, nextEntry];
     updateMember(memberId, { chamfers: next }, skipHistory);
   }
 
   return (
     <group>
+      <ChamferAxisHandle midpoint={midpoint} edgeDir={edgeDir} axisNormal={normalA} size={sizeA} onCommit={(v, skip) => commit('A', v, skip)} />
+      <ChamferAxisHandle midpoint={midpoint} edgeDir={edgeDir} axisNormal={normalB} size={sizeB} onCommit={(v, skip) => commit('B', v, skip)} />
+    </group>
+  );
+}
+
+/**
+ * One draggable arrow, moving strictly along `axisNormal` (one adjacent
+ * face's own normal) — Two Distance chamfer needs one of these per face,
+ * each independent of the other. Dragging raycasts against an invisible
+ * plane spanned by (edgeDir, axisNormal) — the one plane guaranteed to
+ * contain the handle's whole line of travel — then projects the hit point
+ * back onto axisNormal via a dot product to get the new size, same
+ * "raycast a plane, extract one scalar" pattern used throughout this file.
+ */
+function ChamferAxisHandle({
+  midpoint,
+  edgeDir,
+  axisNormal,
+  size,
+  onCommit,
+}: {
+  midpoint: THREE.Vector3;
+  edgeDir: THREE.Vector3;
+  axisNormal: THREE.Vector3;
+  size: number;
+  onCommit: (newSize: number, skipHistory: boolean) => void;
+}) {
+  const setOrbitControlsEnabled = useAppStore((s) => s.setOrbitControlsEnabled);
+  const dragState = useRef<{ dragging: boolean }>({ dragging: false });
+
+  const planeNormal = new THREE.Vector3().crossVectors(edgeDir, axisNormal).normalize();
+  const HANDLE_CLEARANCE = 0.35;
+  const handlePos = midpoint.clone().add(axisNormal.clone().multiplyScalar(size + HANDLE_CLEARANCE));
+  const coneQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), axisNormal);
+
+  function endDrag() {
+    if (!dragState.current.dragging) return;
+    dragState.current.dragging = false;
+    setOrbitControlsEnabled(true);
+    onCommit(size, false);
+    armGizmoDragClickSuppress();
+  }
+
+  return (
+    <>
       <mesh
         position={handlePos}
         quaternion={coneQuat}
         onPointerDown={(e) => {
           e.stopPropagation();
-          (e.target as Element).setPointerCapture?.(e.pointerId);
           dragState.current.dragging = true;
           setOrbitControlsEnabled(false);
         }}
         onPointerUp={(e) => {
           e.stopPropagation();
-          if (!dragState.current.dragging) return;
-          dragState.current.dragging = false;
-          setOrbitControlsEnabled(true);
-          commitSize(size, false);
-          armGizmoDragClickSuppress();
+          endDrag();
         }}
       >
-        <coneGeometry args={[0.25, 0.6, 12]} />
+        <coneGeometry args={[0.2, 0.5, 12]} />
         <meshBasicMaterial color={THEME.selectionOrange} />
       </mesh>
-      {/* Invisible drag plane — large relative to any realistic board so the
-          drag never runs out of surface, same oversized-catch-plane
-          convention as BoardAnnotations.tsx's ContinuationPlane. */}
+      {/* Invisible-but-hit-testable drag plane — transparent+opacity 0, NOT
+          visible={false} (R3F's pointer raycasting skips visible=false
+          objects entirely — see the New Order fix for this exact bug).
+          Same oversized-catch-plane convention as BoardAnnotations.tsx's
+          ContinuationPlane. */}
       <mesh
-        position={geo.midpoint}
-        quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), geo.planeNormal)}
+        position={midpoint}
+        quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), planeNormal)}
         onPointerMove={(e) => {
           if (!dragState.current.dragging) return;
           e.stopPropagation();
           const local = e.object.parent!.worldToLocal(e.point.clone());
-          const rel = local.clone().sub(geo.midpoint);
-          const newSize = rel.dot(geo.bisector);
-          commitSize(newSize, true);
+          const rel = local.clone().sub(midpoint);
+          const newSize = rel.dot(axisNormal);
+          onCommit(newSize, true);
         }}
         onPointerUp={(e) => {
           e.stopPropagation();
-          if (!dragState.current.dragging) return;
-          dragState.current.dragging = false;
-          setOrbitControlsEnabled(true);
-          commitSize(size, false);
-          armGizmoDragClickSuppress();
+          endDrag();
         }}
       >
         <planeGeometry args={[200, 200]} />
-        {/* transparent+opacity 0, NOT visible={false} — R3F's pointer-event
-            raycasting skips objects with visible=false entirely, which was
-            the actual bug (the plane never received onPointerMove/Up at
-            all). Same invisible-but-hit-testable convention as
-            BoardAnnotations.tsx's ContinuationPlane and Trim's own boundary
-            catch-plane elsewhere in this file. */}
         <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-    </group>
+    </>
   );
 }

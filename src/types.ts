@@ -155,7 +155,7 @@ export interface WoodMember {
    * the two adjacent StandardFaceId faces sorted and joined with '|' (e.g.
    * 'xMax|yMax') — see Engine.ts's CHAMFER_EDGE_KINDS. Only meaningful for
    * shapeType 'box' boards; fed into CADGeometryEngine.evaluateFeatures. */
-  chamfers?: { id: string; edgeId: string; size: number }[];
+  chamfers?: { id: string; edgeId: string; size: number; sizeB?: number }[];
 }
 
 // ─── Assembly Mates ─────────────────────────────────────────────────────────
