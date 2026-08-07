@@ -378,6 +378,60 @@ function buildChamferFace(id: string, shrunkA: Face, kindA: EdgeBoundaryKind, sh
   return makeFace(id, normal, uAxis, vAxis, aEdge[0], widthU, heightV);
 }
 
+/**
+ * Which corner of an END-CAP face (a face perpendicular to the chamfered
+ * edge's own running direction, e.g. zMin/zMax for a Z-running edge) sits at
+ * the now-chamfered corner — found by matching this face's own uAxis/vAxis
+ * against the two ORIGINAL (pre-shrink) adjacent faces' normals, since an
+ * end-cap's u/v axes are always exactly those same two world directions
+ * (its own normal is the edge axis, perpendicular to both).
+ */
+function matchCornerFlags(face: Face, dirA: Vector3D, dirB: Vector3D): { isUMax: boolean; isVMax: boolean } {
+  const dotUA = V.dot(face.uAxis, dirA);
+  const uAlignsWithA = Math.abs(dotUA) > 0.5;
+  const uSign = uAlignsWithA ? dotUA : V.dot(face.uAxis, dirB);
+  const vSign = uAlignsWithA ? V.dot(face.vAxis, dirB) : V.dot(face.vAxis, dirA);
+  return { isUMax: uSign > 0, isVMax: vSign > 0 };
+}
+
+/**
+ * Cuts one corner off a rectangular face, turning it into a 5-point polygon
+ * — this is what an end-cap face needs once the edge it used to meet at
+ * that corner has been chamfered. Only valid on a still-4-edge (never
+ * previously clipped) face; a face already turned into a pentagon by an
+ * earlier chamfer on a DIFFERENT edge is left alone (multiple chamfers
+ * sharing one end-cap face is a known, accepted gap for now — better to
+ * silently skip than build on stale corner math).
+ */
+function clipRectCorner(face: Face, isUMax: boolean, isVMax: boolean, size: number): Face {
+  if (face.outerWire.edges.length !== 4) return face;
+  const corners = [
+    { u: 0, v: 0 },
+    { u: face.widthU, v: 0 },
+    { u: face.widthU, v: face.heightV },
+    { u: 0, v: face.heightV },
+  ];
+  const targetIdx = corners.findIndex(
+    (c) => c.u === (isUMax ? face.widthU : 0) && c.v === (isVMax ? face.heightV : 0)
+  );
+  const target = corners[targetIdx];
+  const prev = corners[(targetIdx + 3) % 4];
+  const next = corners[(targetIdx + 1) % 4];
+
+  const stepToward = (from: { u: number; v: number }, to: { u: number; v: number }) => ({
+    u: from.u + Math.sign(to.u - from.u) * Math.min(size, Math.abs(to.u - from.u)),
+    v: from.v + Math.sign(to.v - from.v) * Math.min(size, Math.abs(to.v - from.v)),
+  });
+  const towardPrev = stepToward(target, prev);
+  const towardNext = stepToward(target, next);
+
+  const toPoint = (uv: { u: number; v: number }): Vector3D =>
+    V.add(face.origin, V.add(V.scale(face.uAxis, uv.u), V.scale(face.vAxis, uv.v)));
+
+  const loop2D = corners.flatMap((c, i) => (i === targetIdx ? [towardPrev, towardNext] : [c]));
+  return makePolygonFace(face.id, face.normal, face.uAxis, face.vAxis, loop2D.map(toPoint));
+}
+
 export class CADGeometryEngine {
   /**
    * PURE FUNCTION — builds the 6 faces of a rectangular board from its
@@ -491,11 +545,28 @@ export class CADGeometryEngine {
           const idxA = faces.findIndex((f) => f.id === faceIdA);
           const idxB = faces.findIndex((f) => f.id === faceIdB);
           if (!kinds || idxA === -1 || idxB === -1 || feature.size <= 0) break;
-          const shrunkA = shrinkFaceBoundary(faces[idxA], kinds[0], feature.size);
-          const shrunkB = shrinkFaceBoundary(faces[idxB], kinds[1], feature.size);
+          const origFaceA = faces[idxA];
+          const origFaceB = faces[idxB];
+          const shrunkA = shrinkFaceBoundary(origFaceA, kinds[0], feature.size);
+          const shrunkB = shrinkFaceBoundary(origFaceB, kinds[1], feature.size);
           const bevel = buildChamferFace(`chamfer-${feature.id}`, shrunkA, kinds[0], shrunkB, kinds[1]);
           if (!bevel) break;
-          faces = faces.map((f, i) => (i === idxA ? shrunkA : i === idxB ? shrunkB : f));
+          // The 2 faces adjacent to the picked edge shrink; the OTHER 2
+          // faces that cap the two ends of that edge (whichever faces'
+          // normal runs along the edge's own direction) each lose the one
+          // corner where they used to meet faceA/faceB — otherwise they
+          // still reach into space the new bevel now occupies, showing as
+          // a leftover triangular sliver at the edge's ends.
+          const edgeAxis = V.normalize(V.cross(origFaceA.normal, origFaceB.normal));
+          faces = faces.map((f, i) => {
+            if (i === idxA) return shrunkA;
+            if (i === idxB) return shrunkB;
+            if (Math.abs(V.dot(f.normal, edgeAxis)) > 0.9) {
+              const { isUMax, isVMax } = matchCornerFlags(f, origFaceA.normal, origFaceB.normal);
+              return clipRectCorner(f, isUMax, isVMax, feature.size);
+            }
+            return f;
+          });
           faces.push(bevel);
           break;
         }
