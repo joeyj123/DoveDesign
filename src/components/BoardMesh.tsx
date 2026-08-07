@@ -448,6 +448,7 @@ export default function BoardMesh({ member }: { member: WoodMember }) {
             edgeId={chamferEdge.edgeId}
             sizeA={(member.chamfers ?? []).find((c) => c.edgeId === chamferEdge.edgeId)?.size ?? 0.25}
             sizeB={(member.chamfers ?? []).find((c) => c.edgeId === chamferEdge.edgeId)?.sizeB ?? (member.chamfers ?? []).find((c) => c.edgeId === chamferEdge.edgeId)?.size ?? 0.25}
+            maxSize={Math.min(member.width, member.thickness) * 0.45}
             chamfers={member.chamfers ?? []}
             updateMember={updateMember}
           />
@@ -568,6 +569,7 @@ function ChamferDragHandle({
   edgeId,
   sizeA,
   sizeB,
+  maxSize,
   chamfers,
   updateMember,
 }: {
@@ -577,6 +579,7 @@ function ChamferDragHandle({
   edgeId: string;
   sizeA: number;
   sizeB: number;
+  maxSize: number;
   chamfers: { id: string; edgeId: string; size: number; sizeB?: number }[];
   updateMember: (id: string, patch: Partial<WoodMember>, skipHistory?: boolean) => void;
 }) {
@@ -594,7 +597,12 @@ function ChamferDragHandle({
   const normalB = new THREE.Vector3(faceB.normal.x, faceB.normal.y, faceB.normal.z);
 
   function commit(which: 'A' | 'B', newSize: number, skipHistory: boolean) {
-    const clamped = Math.max(0, Math.min(newSize, 12)); // 12" is a generous upper bound, not a real limit — just guards against a wild drag
+    // maxSize keeps the cut well short of the board's own cross-section —
+    // past that, the sliver of wood left at the board's end becomes so
+    // thin it z-fights (flickers depending on camera angle), confirmed
+    // live on a large drag. Not a real design limit, just a "stay inside
+    // geometry that can actually render cleanly" guard.
+    const clamped = Math.max(0, Math.min(newSize, maxSize));
     const existing = chamfers.find((c) => c.edgeId === edgeId);
     const nextEntry = existing
       ? which === 'A'

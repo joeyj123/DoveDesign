@@ -3,6 +3,12 @@ import { useAppStore } from '../store';
 import { formatFractionalInches, parseFractionalInches } from '../lib/fractionalInches';
 
 const NUDGE_STEP = 1 / 16;
+/** Same reasoning as BoardMesh.tsx's ChamferAxisHandle: past this fraction
+ * of the board's own smaller cross-section dimension, the leftover sliver
+ * of wood gets thin enough to z-fight (flicker depending on camera angle)
+ * — confirmed live on a large drag. Kept in sync with the drag handle's
+ * own clamp so typing a size can't exceed what dragging allows. */
+const MAX_SIZE_FRACTION = 0.45;
 
 /**
  * Data Flow Pipeline: Chamfer Tool Panel
@@ -23,16 +29,38 @@ const NUDGE_STEP = 1 / 16;
 export default function ChamferPanel() {
   const members = useAppStore((s) => s.project.members);
   const chamferEdge = useAppStore((s) => s.ui.chamferEdge);
+  const setChamferEdge = useAppStore((s) => s.setChamferEdge);
   const resetChamferPick = useAppStore((s) => s.resetChamferPick);
   const removeChamfer = useAppStore((s) => s.removeChamfer);
   const updateMember = useAppStore((s) => s.updateMember);
 
   if (!chamferEdge) {
+    // A board might already have chamfers from a prior pick — list them all
+    // here (across every board) so there's a way back to editing one
+    // besides re-finding and re-clicking the exact same edge in the 3D
+    // viewport, which was the actual gap Joey ran into.
+    const allChamfers = members.flatMap((m) => (m.chamfers ?? []).map((c) => ({ member: m, chamfer: c })));
     return (
       <div className="p-3 flex flex-col gap-2 text-charcoal-200">
         <p className="text-sm text-charcoal-400">
           Click an edge on a board to bevel it — the closest edge to your cursor highlights orange as you move.
         </p>
+        {allChamfers.length > 0 && (
+          <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-charcoal-800">
+            <div className="text-xs uppercase tracking-wider text-charcoal-500">Existing Chamfers</div>
+            {allChamfers.map(({ member: m, chamfer: c }) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setChamferEdge({ memberId: m.id, edgeId: c.edgeId })}
+                className="flex items-center justify-between rounded px-2 py-1.5 text-sm bg-charcoal-800/50 border border-charcoal-700 hover:border-orange-500 hover:text-white text-charcoal-300"
+              >
+                <span>{m.label} — {c.edgeId.replace('|', ' / ')}</span>
+                <span className="text-charcoal-500">{formatFractionalInches(c.size)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -42,10 +70,11 @@ export default function ChamferPanel() {
   const sizeA = chamfer?.size ?? 0.25;
   const sizeB = chamfer?.sizeB ?? sizeA;
   const [faceIdA, faceIdB] = chamferEdge.edgeId.split('|');
+  const maxSize = member ? Math.min(member.width, member.thickness) * MAX_SIZE_FRACTION : 12;
 
   function setSize(which: 'A' | 'B', newSize: number) {
     if (!member) return;
-    const clamped = Math.max(0, newSize);
+    const clamped = Math.max(0, Math.min(newSize, maxSize));
     const existing = (member.chamfers ?? []).find((c) => c.edgeId === chamferEdge!.edgeId);
     const nextEntry = existing
       ? which === 'A'
@@ -80,7 +109,9 @@ export default function ChamferPanel() {
 
       <SizeField label={`Size (${faceIdA})`} value={sizeA} onChange={(v) => setSize('A', v)} />
       <SizeField label={`Size (${faceIdB})`} value={sizeB} onChange={(v) => setSize('B', v)} />
-      <p className="text-xs text-charcoal-500">Angle from {faceIdA}: {angleFromA.toFixed(1)}°</p>
+      <p className="text-xs text-charcoal-500">
+        Angle from {faceIdA}: {angleFromA.toFixed(1)}° · max size {formatFractionalInches(maxSize)} for this board
+      </p>
 
       <div className="flex gap-2 pt-1">
         <button
