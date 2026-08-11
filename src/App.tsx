@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import Viewport from './components/Viewport';
+import CameraLockToggle from './components/CameraLockToggle';
 import ToolRail from './components/ToolRail';
 import PropertiesPanel from './components/PropertiesPanel';
 import TopMenuBar from './components/TopMenuBar';
@@ -7,6 +8,7 @@ import { useAppStore } from './store';
 import { cancelActiveMoveDrag } from './lib/moveDragState';
 import { cancelActiveRotateDrag } from './lib/rotateDragState';
 import { cancelActiveTemplateDraw } from './lib/templateDrawState';
+import { cancelActiveCutoutDraw } from './lib/cutoutDrawState';
 import { expandWithMateGroups } from './lib/mateGroups';
 import type { ActiveTool, TemplateDrawTool } from './types';
 
@@ -69,6 +71,7 @@ export default function App() {
   const recoverAutosave = useAppStore((s) => s.recoverAutosave);
   const dismissRecovery = useAppStore((s) => s.dismissRecovery);
   const removeMembers = useAppStore((s) => s.removeMembers);
+  const toggleCameraLocked = useAppStore((s) => s.toggleCameraLocked);
   const nudgeDimensionLine = useAppStore((s) => s.nudgeDimensionLine);
   const nudgeReferenceLine = useAppStore((s) => s.nudgeReferenceLine);
 
@@ -122,6 +125,12 @@ export default function App() {
         // setActiveTool('template') switches workspaceMode to 'template'
         // automatically via the existing mode-follows-tool logic in store.ts.
         setActiveTool('template');
+      } else if (key === 'l') {
+        // Camera lock (CameraLockToggle.tsx): Model-space only — Template
+        // already claims 'l' for its own Line draw tool (branch above,
+        // which always wins first while inTemplate), so this branch is only
+        // ever reached outside Template, where 'l' is otherwise unclaimed.
+        toggleCameraLocked();
       } else if (e.key === 'Tab') {
         // Rotate tool (New Order 4): Tab cycles which axis's ring is active,
         // same cycle pattern as prior tools' axis-lock affordances.
@@ -142,6 +151,10 @@ export default function App() {
         // point/chain, it never deletes already-committed edges. If nothing
         // was pending, Escape falls through to the plain exit below.
         if (cancelActiveTemplateDraw()) return;
+        // New Order 11: an in-progress Cutout sketch point, same "un-does the
+        // pending point, never deletes already-placed points" precedent as
+        // Template's chain cancel above.
+        if (cancelActiveCutoutDraw()) return;
         // New Order 8: an in-progress Dimension/Reference Line click sequence
         // (draft lives in ui state, not a local component ref, so it's just a
         // direct check-and-clear rather than a singleton-registration
@@ -225,11 +238,21 @@ export default function App() {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [setActiveTool, resetToolState, duplicateMember, moveMembers, undo, redo, setRotationAxis, setWorkspaceMode, removeMembers, nudgeDimensionLine, nudgeReferenceLine]);
+  }, [setActiveTool, resetToolState, duplicateMember, moveMembers, undo, redo, setRotationAxis, setWorkspaceMode, removeMembers, nudgeDimensionLine, nudgeReferenceLine, toggleCameraLocked]);
 
   return (
     <div className="w-full h-full bg-charcoal-950 text-white font-sans tracking-wide relative">
       <Viewport />
+      <CameraLockToggle />
+      {/* Subtle vignette over the 3D viewport — a plain CSS radial-gradient
+          overlay, not a Three.js scene change (drei's Grid fade already owns
+          the world-space depth cue; this is a screen-space one on top, same
+          "don't touch the frozen pipeline for a cosmetic tweak" approach).
+          pointer-events-none so it never intercepts orbit/drag input. */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse at center, transparent 65%, rgba(0,0,0,0.16) 100%)' }}
+      />
       <ToolRail />
       <PropertiesPanel />
       <TopMenuBar />

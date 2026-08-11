@@ -20,7 +20,7 @@ export const MODE_ORDER: WorkspaceMode[] = ['model', 'assembly', 'detail', 'temp
  */
 export const MODE_TOOLS: Record<WorkspaceMode, ActiveTool[]> = {
   model: [
-    'select', 'move', 'drawBoard', 'addBoard', 'trimExtend', 'chamfer',
+    'select', 'move', 'drawBoard', 'addBoard', 'trimExtend', 'chamfer', 'cutout',
     'cut', 'rip', 'miter',
     'shapeCylinder', 'shapeSphere', 'shapeCone', 'shapeTriPrism', 'shapeHexPrism', 'shapePolygon',
     'measure', 'centerline', 'referenceLine',
@@ -74,8 +74,9 @@ const TOOL_LABELS: Partial<Record<ActiveTool, string>> = {
   addBoard: 'Add Board',
   trimExtend: 'Trim / Extend',
   chamfer: 'Chamfer',
+  cutout: 'Cutout',
   cut: 'Cross Cut',
-  rip: 'Rip Cut',
+  rip: 'Rip / Cross Cut',
   miter: 'Miter',
   measure: 'Dimension Line',
   centerline: 'Centerline',
@@ -145,6 +146,8 @@ export function getHintText(
       return `${prefix} · Click 1: the face to trim/extend TO. Click 2: the board to change.`;
     case 'chamfer':
       return `${prefix} · Click an edge on a board to bevel it, then drag the arrow or type a size.`;
+    case 'cutout':
+      return `${prefix} · Click a face on a board to sketch a profile on it.`;
     case 'drawBoard':
       return `${prefix} · Click and drag on the floor to draw a new board.`;
     case 'connection':

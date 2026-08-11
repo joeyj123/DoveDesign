@@ -156,6 +156,39 @@ export interface WoodMember {
    * 'xMax|yMax') — see Engine.ts's CHAMFER_EDGE_KINDS. Only meaningful for
    * shapeType 'box' boards; fed into CADGeometryEngine.evaluateFeatures. */
   chamfers?: { id: string; edgeId: string; size: number; sizeB?: number }[];
+  /** Modify > Cutout (New Order 11, Part 1 of 2). Each entry is a single
+   * closed 2D profile sketched on one of this board's box faces, stored as
+   * an ordered point loop in that FACE's OWN (u,v) space — never a
+   * world-space coordinate (CAD_MANIFESTO.md Law 1/2). World position is
+   * always re-derived fresh from the face's live geometry via
+   * CADGeometryEngine.projectUVToLocal + this board's current
+   * position/rotation, every render — nothing here is a cached point.
+   * Inert data only this Order: no depth, no cut direction, no boolean
+   * subtraction — New Order 11.1 gives it something to do. Only meaningful
+   * for shapeType 'box' boards, same scoping as chamfers/mate. */
+  cutoutProfiles?: CutoutProfile[];
+}
+
+// ─── Cutout Profile (New Order 11, Part 1 of 2) ────────────────────────────
+// A single closed 2D sketch pinned to one board face — see WoodMember.cutoutProfiles
+// above. `points` is the closed loop in the face's own (u,v) parameterization
+// (arcs are baked into straight-segment samples at commit time, same
+// "closed 2D point loop" shape the New Order 11 spec calls for — no curve
+// parameters are retained after commit).
+export interface CutoutProfile {
+  id: string;
+  faceId: FaceId;
+  points: { u: number; v: number }[];
+  /** New Order 11.1 (Part 2): how far into (Cut) or out of (Add) the board
+   * this profile extends along the picked face's normal. Optional/undefined
+   * on a freshly-committed profile from a pre-11.1 session read (treated as
+   * an inert 0-depth outline, same as before) — CutoutDrawTools.tsx always
+   * sets a real default (0.5") going forward. */
+  depth?: number;
+  /** 'cut' removes material into the board (implemented); 'add' (a raised
+   * boss extending out from the face) is explicitly descoped this Order —
+   * stored for forward-compat but evaluateFeatures treats it as a no-op. */
+  direction?: 'cut' | 'add';
 }
 
 // ─── Assembly Mates ─────────────────────────────────────────────────────────
@@ -613,6 +646,13 @@ export interface UIState {
   isolatedMemberId: string | null;
   /** Lock OrbitControls during draw-board drag. */
   orbitControlsEnabled: boolean;
+  /** User-facing camera lock (CameraLockToggle.tsx / the 'L' shortcut) —
+   * freezes rotate/pan/zoom entirely until toggled back off. Independent of
+   * orbitControlsEnabled (which tools already drive automatically for the
+   * duration of a drag) and of Template/Cutout's own enableRotate-only
+   * locks — this is a persistent user choice, not reset by switching tools
+   * or workspace modes, so it stays on/off exactly as the user set it. */
+  cameraLocked: boolean;
   /** Increment camera reset from context menu. */
   cameraResetNonce: number;
   /** Camera preset to animate to (e.g. 'top', 'front', 'left', 'right', 'back', 'bottom', 'iso-front-top-right'). */
@@ -630,6 +670,33 @@ export interface UIState {
    * entry/drag), and a live hover preview before a pick is committed. */
   chamferEdge: { memberId: string; edgeId: string } | null;
   chamferHoverEdge: { memberId: string; edgeId: string } | null;
+  /** Modify > Cutout (New Order 11): which board+face is currently picked
+   * (armed for sketching a profile), a live hover preview before a pick is
+   * committed (same hover-then-commit shape as Mate/Trim/Chamfer), and
+   * which draw tool (Line/Arc) is currently armed while sketching. */
+  cutoutFace: { memberId: string; face: FaceId } | null;
+  cutoutHoverFace: { memberId: string; face: FaceId } | null;
+  cutoutDrawTool: 'line' | 'arc' | 'preset' | null;
+  /** Preset Shape tool (regular shapes + joinery-pocket presets, src/lib/presetShapes.ts):
+   * which catalog shape id is currently armed while cutoutDrawTool === 'preset'. */
+  cutoutPresetShapeId: string | null;
+  /** New Order 11.1 (Part 2): which committed profile is currently armed for
+   * depth/direction editing (panel fields + the in-viewport push/pull
+   * handle) — set automatically right after a profile commits, or by
+   * clicking one in CutoutPanel.tsx's "Existing Cutout Profiles" list. */
+  cutoutEditProfile: { memberId: string; profileId: string } | null;
+  /** Modify > Rip / Cross Cut (reuses the 'rip' ActiveTool value already
+   * reserved pre-Samson-reset — one tool handles both; which one an
+   * operation actually is comes from whether the picked Reference Line
+   * runs along the face's own u or v axis, see src/lib/ripCutSplit.ts).
+   * Same hover-then-pick-a-face shape as Cutout/Chamfer/Mate/Trim above —
+   * once a face is picked, ripCutLineId selects WHICH of that face's own
+   * Reference Lines is the cut path, and ripCutKerf is the typed blade
+   * width removed at the cut (default 1/8", a standard table saw blade). */
+  ripCutFace: { memberId: string; face: FaceId } | null;
+  ripCutHoverFace: { memberId: string; face: FaceId } | null;
+  ripCutLineId: string | null;
+  ripCutKerf: number;
   contextMenu: ContextMenuState;
   /** Incremented to cancel in-progress draw-board drag from Escape handler. */
   drawBoardCancelNonce: number;

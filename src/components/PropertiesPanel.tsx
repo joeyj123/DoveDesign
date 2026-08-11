@@ -8,6 +8,8 @@ import TemplatePanel from './TemplatePanel';
 import MatePanel from './MatePanel';
 import TrimPanel from './TrimPanel';
 import ChamferPanel from './ChamferPanel';
+import CutoutPanel from './CutoutPanel';
+import RipCutPanel from './RipCutPanel';
 import EditableLabel from './EditableLabel';
 import Tooltip from './Tooltip';
 import CollapsibleSection from './CollapsibleSection';
@@ -101,11 +103,13 @@ export default function PropertiesPanel() {
     activeTool === 'mate' ? 'Mate' :
     activeTool === 'trimExtend' ? 'Trim/Extend' :
     activeTool === 'chamfer' ? 'Chamfer' :
+    activeTool === 'cutout' ? 'Cutout' :
+    activeTool === 'rip' ? 'Rip / Cross Cut' :
     'Select';
 
   if (panelCollapsed) {
     return (
-      <div className="absolute top-10 right-0 bottom-0 w-10 bg-charcoal-900 border-l border-charcoal-700 flex flex-col items-center py-3 gap-3">
+      <div className="absolute top-14 right-3 bottom-3 w-10 bg-charcoal-900 border border-charcoal-700 rounded-xl shadow-xl flex flex-col items-center py-3 gap-3">
         <PanelEdgeTab collapsed onClick={() => setPanelCollapsed(false)} />
         <span
           className="text-[10px] uppercase tracking-wider text-charcoal-500 mt-4"
@@ -118,9 +122,9 @@ export default function PropertiesPanel() {
   }
 
   return (
-    <div className="absolute top-10 right-0 bottom-0 w-72 flex flex-col text-base text-charcoal-200">
+    <div className="absolute top-14 right-3 bottom-3 w-72 flex flex-col text-base text-charcoal-200">
       <PanelEdgeTab collapsed={false} onClick={() => setPanelCollapsed(true)} />
-      <div className="flex-1 flex flex-col min-h-0 bg-charcoal-900 border-l border-charcoal-700 overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 bg-charcoal-900 border border-charcoal-700 rounded-xl shadow-xl overflow-hidden">
         <div className="px-3 py-3 border-b border-charcoal-700 shrink-0">
           <div className="font-semibold text-white">{toolLabel}</div>
         </div>
@@ -174,6 +178,10 @@ export default function PropertiesPanel() {
 
           {activeTool === 'chamfer' && <ChamferPanel />}
 
+          {activeTool === 'cutout' && <CutoutPanel />}
+
+          {activeTool === 'rip' && <RipCutPanel />}
+
           {activeTool === 'rotate' && (
             <Section title="Rotation Axis">
               <div className="flex gap-2">
@@ -181,7 +189,7 @@ export default function PropertiesPanel() {
                   <button
                     key={axis}
                     onClick={() => setRotationAxis(axis)}
-                    className={`flex-1 px-2 py-1.5 rounded text-base border ${
+                    className={`flex-1 px-2 py-1.5 rounded text-base border transition-all duration-150 active:scale-95 ${
                       rotationAxis === axis
                         ? 'bg-orange-600 border-orange-500 text-white'
                         : 'bg-charcoal-800 border-charcoal-700 text-charcoal-200 hover:bg-charcoal-700'
@@ -211,7 +219,7 @@ export default function PropertiesPanel() {
                 {selectedMember ? (
                   <BoardEditPanel member={selectedMember} />
                 ) : (
-                  <p className="text-xs text-charcoal-500">Select a board to edit its dimensions.</p>
+                  <EmptyHint text="Select a board to edit its dimensions." />
                 )}
               </CollapsibleSection>
 
@@ -239,7 +247,7 @@ export default function PropertiesPanel() {
  */
 function PanelEdgeTab({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {
   return (
-    <div className="absolute -top-px -right-px z-10">
+    <div className="absolute top-2 right-2 z-10">
       <Tooltip
         side="left"
         info={
@@ -251,11 +259,34 @@ function PanelEdgeTab({ collapsed, onClick }: { collapsed: boolean; onClick: () 
         <button
           onClick={onClick}
           aria-label={collapsed ? 'Expand panel' : 'Collapse panel'}
-          className="w-6 h-6 rounded-tr-lg rounded-bl-md bg-charcoal-800 border border-charcoal-700 flex items-center justify-center text-charcoal-400 hover:text-spruce-400 hover:bg-charcoal-700 transition-colors text-base leading-none"
+          className="w-6 h-6 rounded-md bg-charcoal-800 border border-charcoal-700 flex items-center justify-center text-charcoal-400 hover:text-spruce-400 hover:bg-charcoal-700 transition-all duration-150 active:scale-90 text-base leading-none"
         >
           {collapsed ? '»' : '«'}
         </button>
       </Tooltip>
+    </div>
+  );
+}
+
+/** Small icon + text treatment for "nothing here yet" states, replacing a
+ * bare line of gray text — used wherever a section has no content to show
+ * until the user takes an action (no board selected, no boards placed). */
+function EmptyHint({ text }: { text: string }) {
+  return (
+    <div className="flex flex-col items-center text-center gap-2 py-4 px-2">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="w-7 h-7 text-charcoal-600"
+      >
+        <rect x="4" y="7" width="16" height="10" rx="1.5" strokeDasharray="2.5 2.5" />
+        <path d="M9 12h6" strokeDasharray="2.5 2.5" />
+      </svg>
+      <p className="text-xs text-charcoal-500 leading-relaxed">{text}</p>
     </div>
   );
 }
@@ -304,7 +335,7 @@ function EntitiesSection({ open, onToggle }: { open: boolean; onToggle: () => vo
   return (
     <CollapsibleSection title={`Entities (${totalCount})`} open={open} onToggle={onToggle}>
       {members.length === 0 ? (
-        <p className="text-xs text-charcoal-500">No boards yet — use Sketch or Insert to add one.</p>
+        <EmptyHint text="No boards yet — use Sketch or Insert to add one." />
       ) : (
         <ul className="flex flex-col gap-1">
           {members.map((m) => (

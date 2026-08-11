@@ -199,6 +199,15 @@ function IconCutout() {
   );
 }
 
+function IconRipCut() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="6" width="18" height="12" rx="1" />
+      <path d="M9 6v12" strokeDasharray="2 2" />
+    </svg>
+  );
+}
+
 function IconPepe() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -217,7 +226,8 @@ const MATE: ToolDef = { tool: 'mate', label: 'Mate', shortcut: 'J', description:
 const TRIM_EXTEND: ToolDef = { tool: 'trimExtend', label: 'Trim/Extend', shortcut: 'K', description: 'Click a boundary face, then another board — it snaps to trim or extend flush against that face.', icon: <IconTrimExtend /> };
 const CHAMFER: ToolDef = { tool: 'chamfer', label: 'Chamfer', shortcut: 'C', description: 'Click an edge to bevel it — drag the arrow or type a size.', icon: <IconChamfer /> };
 const FILLET: ToolDef = { tool: 'fillet', label: 'Fillet', shortcut: '', description: 'Round an edge instead of beveling it — coming soon.', icon: <IconFillet />, disabled: true };
-const CUTOUT: ToolDef = { tool: 'cutout', label: 'Cutout', shortcut: '', description: 'Remove a chosen region of a board — coming soon (the groundwork for future joinery).', icon: <IconCutout />, disabled: true };
+const CUTOUT: ToolDef = { tool: 'cutout', label: 'Cutout', shortcut: '', description: 'Click a face, then sketch a closed profile on it (Line/Arc) — a preview outline only for now, no material is removed yet.', icon: <IconCutout /> };
+const RIP_CUT: ToolDef = { tool: 'rip', label: 'Rip / Cross Cut', shortcut: '', description: 'Click a face, then pick a straight Reference Line on it to split the board into two — along the length (rip) or across it (cross cut), auto-detected from the line.', icon: <IconRipCut /> };
 const DIMENSION: ToolDef = { tool: 'measure', label: 'Dimension', shortcut: 'D', description: 'Click point A, point B, then a third point to set the offset — a callout measuring the distance between two points on a board.', icon: <IconDimensionLine /> };
 const REFERENCE: ToolDef = { tool: 'referenceLine', label: 'Reference', shortcut: 'X', description: 'Click a start and end point directly on a board face (snaps near an edge) to save a permanent reference line.', icon: <IconReferenceLine /> };
 
@@ -262,9 +272,9 @@ const RAIL_ITEMS: RailItem[] = [
     kind: 'group',
     id: 'modify',
     label: 'Modify',
-    description: 'Trim/extend a board\'s length, bevel or round an edge, or cut out a region.',
+    description: 'Trim/extend a board\'s length, bevel or round an edge, cut out a region, or split it with a rip/cross cut.',
     icon: <IconModifyGroup />,
-    tools: [TRIM_EXTEND, CHAMFER, FILLET, CUTOUT],
+    tools: [TRIM_EXTEND, CHAMFER, FILLET, CUTOUT, RIP_CUT],
   },
   {
     kind: 'tool',
@@ -351,7 +361,7 @@ export default function ToolRail() {
   return (
     <div
       ref={railRef}
-      className={`absolute top-10 left-0 bottom-0 w-20 flex flex-col items-stretch bg-charcoal-900 border-r overflow-visible transition-colors ${
+      className={`absolute top-14 left-3 bottom-3 w-20 flex flex-col items-stretch bg-charcoal-900 border rounded-xl shadow-xl overflow-visible transition-colors ${
         workspaceMode === 'template' ? 'border-orange-600/60' : 'border-charcoal-700'
       }`}
     >
@@ -433,7 +443,7 @@ export default function ToolRail() {
               {isOpen && (
                 <div
                   ref={flyoutRef}
-                  className={`absolute top-0 flex flex-row gap-1 bg-charcoal-900 border border-charcoal-700 rounded-lg p-2 z-50 shadow-xl ${
+                  className={`absolute top-0 flex flex-row gap-1 bg-charcoal-900 border border-charcoal-700 rounded-lg p-2 z-50 shadow-xl animate-[flyoutIn_120ms_ease-out] ${
                     flyoutSide === 'left' ? 'right-full mr-2' : 'left-full ml-2'
                   }`}
                 >
@@ -501,14 +511,14 @@ function RailButton({
     ? 'bg-orange-600 border-orange-500 text-white'
     : highlighted
     ? 'bg-spruce-800/70 border-spruce-600 text-white'
-    : 'bg-charcoal-800 border-charcoal-700 text-charcoal-300 hover:bg-charcoal-700 hover:border-spruce-700/60';
+    : 'bg-charcoal-800 border-charcoal-700 text-charcoal-300 hover:bg-charcoal-700 hover:border-spruce-700/60 hover:-translate-y-px';
 
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
-      className={`group relative flex flex-col items-center gap-1 rounded px-1 py-2 text-base border transition-colors ${wide ? 'w-16' : 'w-full'} ${stateClasses}`}
+      className={`group relative flex flex-col items-center gap-1 rounded px-1 py-2 text-base border transition-all duration-150 ease-out active:scale-95 active:duration-75 ${wide ? 'w-16' : 'w-full'} ${stateClasses}`}
     >
       {/* New Order 6.1 fix 4: the icon is its own centered flex item, exactly
           matching Select's markup (no icon+chevron row) — previously the

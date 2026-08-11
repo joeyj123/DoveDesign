@@ -10,7 +10,7 @@ import type {
   JointMarker, JointMarkerType, MateGroup,
   WorkspaceMode, PendingInteraction, WoodJoint, FaceId, NominalSize,
   TemplateDrawTool, TemplateEdge, TemplateShape,
-  ReferenceLine, ReferenceLinePoint,
+  ReferenceLine, ReferenceLinePoint, CutoutProfile,
 } from './types';
 import { NOMINAL_DIMENSIONS } from './types';
 import { trimToBoundary, extendToBoundary, snapLengthToFacePlane } from './lib/trimExtend';
@@ -23,6 +23,8 @@ import { findCloseFacePairs, buildMateFromPair, lapJointPatch } from './lib/quic
 import { createCutOperation } from './lib/joinery';
 import { serializeWcad, parseWcad } from './lib/wcad';
 import { splitByCrossCut, splitByRipCut } from './lib/memberSplit';
+import { getMemberFaces } from './lib/boardFaceMath';
+import { resolveRipCutLine } from './lib/ripCutSplit';
 import { CADGeometryEngine, migrateWoodMemberToSolidBoard, type MateConstraint as EngineMateConstraint } from './core/Engine';
 import { buildLoopPolygon, computePerpOffset, clampOffsetMagnitude } from './lib/templateSketchMath';
 
@@ -65,6 +67,7 @@ const DEFAULT_UI: UIState = {
   trimBoundaryId: null,
   isolatedMemberId: null,
   orbitControlsEnabled: true,
+  cameraLocked: false,
   cameraResetNonce: 0,
   cameraPreset: null,
   angleSnapEnabled: true,
@@ -73,6 +76,15 @@ const DEFAULT_UI: UIState = {
   activeAnnotationEndpoint: null,
   chamferEdge: null,
   chamferHoverEdge: null,
+  cutoutFace: null,
+  cutoutHoverFace: null,
+  cutoutDrawTool: null,
+  cutoutPresetShapeId: null,
+  cutoutEditProfile: null,
+  ripCutFace: null,
+  ripCutHoverFace: null,
+  ripCutLineId: null,
+  ripCutKerf: 0.125,
   contextMenu: { open: false, x: 0, y: 0, memberId: null },
   drawBoardCancelNonce: 0,
   gridVisible: true,
@@ -302,6 +314,7 @@ interface AppStore {
   setTransformGizmoActive: (active: boolean) => void;
   setTrimBoundary:  (id: string | null) => void;
   setOrbitControlsEnabled: (enabled: boolean) => void;
+  toggleCameraLocked: () => void;
   /** New Order 2 (Move tool): true only while a left-drag board move is active. */
   setMoveDragActive: (active: boolean) => void;
   resetCamera: () => void;
@@ -317,6 +330,20 @@ interface AppStore {
   setChamferHoverEdge: (target: UIState['chamferHoverEdge']) => void;
   resetChamferPick: () => void;
   removeChamfer: (memberId: string, edgeId: string) => void;
+  setCutoutFace: (target: UIState['cutoutFace']) => void;
+  setCutoutHoverFace: (target: UIState['cutoutHoverFace']) => void;
+  setCutoutDrawTool: (tool: UIState['cutoutDrawTool']) => void;
+  setCutoutPresetShapeId: (id: UIState['cutoutPresetShapeId']) => void;
+  setCutoutEditProfile: (target: UIState['cutoutEditProfile']) => void;
+  resetCutoutPick: () => void;
+  addCutoutProfile: (memberId: string, profile: CutoutProfile) => void;
+  removeCutoutProfile: (memberId: string, profileId: string) => void;
+  setRipCutFace: (target: UIState['ripCutFace']) => void;
+  setRipCutHoverFace: (target: UIState['ripCutHoverFace']) => void;
+  setRipCutLineId: (id: UIState['ripCutLineId']) => void;
+  setRipCutKerf: (kerf: number) => void;
+  resetRipCutPick: () => void;
+  splitMemberAlongLine: (memberId: string, lineId: string, kerf: number) => { ok: true } | { ok: false; reason: string };
   setAngleSnapIncrement: (deg: UIState['angleSnapIncrement']) => void;
   openContextMenu: (x: number, y: number, memberId: string | null) => void;
   closeContextMenu: () => void;
@@ -377,8 +404,8 @@ interface AppStore {
   setAssemblyGuideOpen: (open: boolean) => void;
   setPolygonDrawPoints: (pts: [number, number][]) => void;
   setMultiSelection: (ids: string[]) => void;
-  splitMemberByCrossCut: (memberId: string, position: number) => void;
-  splitMemberByRipCut: (memberId: string, targetWidth: number) => void;
+  splitMemberByCrossCut: (memberId: string, position: number, kerf?: number) => void;
+  splitMemberByRipCut: (memberId: string, targetWidth: number, kerf?: number) => void;
   toggleMultiSelectionMember: (id: string) => void;
   setCombinedSelectionBounds: (bounds: UIState['combinedSelectionBounds']) => void;
   setBoxSelectRect: (rect: UIState['boxSelectRect']) => void;
@@ -1008,6 +1035,8 @@ export const useAppStore = create<AppStore>()(
           ...(tool !== 'mate' ? { mateFaceA: null, mateFaceB: null, matePickTarget: 'A' as const, mateHoverFace: null } : {}),
           ...(tool !== 'trimExtend' ? { trimHoverFace: null } : {}),
           ...(tool !== 'chamfer' ? { chamferEdge: null, chamferHoverEdge: null } : {}),
+          ...(tool !== 'cutout' ? { cutoutFace: null, cutoutHoverFace: null, cutoutDrawTool: null, cutoutPresetShapeId: null, cutoutEditProfile: null } : {}),
+          ...(tool !== 'rip' ? { ripCutFace: null, ripCutHoverFace: null, ripCutLineId: null } : {}),
           ...templateTransitionPatch(s.ui.workspaceMode, nextMode),
         },
       };
@@ -1024,6 +1053,9 @@ export const useAppStore = create<AppStore>()(
 
   setOrbitControlsEnabled: (enabled) =>
     set((s) => ({ ui: { ...s.ui, orbitControlsEnabled: enabled } })),
+
+  toggleCameraLocked: () =>
+    set((s) => ({ ui: { ...s.ui, cameraLocked: !s.ui.cameraLocked } })),
 
   setMoveDragActive: (active) =>
     set((s) => ({ ui: { ...s.ui, moveDragActive: active } })),
@@ -1075,6 +1107,14 @@ export const useAppStore = create<AppStore>()(
         trimHoverFace: null,
         chamferEdge: null,
         chamferHoverEdge: null,
+        cutoutFace: null,
+        cutoutHoverFace: null,
+        cutoutDrawTool: null,
+        cutoutPresetShapeId: null,
+        cutoutEditProfile: null,
+        ripCutFace: null,
+        ripCutHoverFace: null,
+        ripCutLineId: null,
         mateGridOffset: null,
         fastenerPlacementMode: false,
         fastenerPlacementMateId: null,
@@ -1147,6 +1187,49 @@ export const useAppStore = create<AppStore>()(
     });
     if (get().ui.chamferEdge?.memberId === memberId && get().ui.chamferEdge?.edgeId === edgeId) {
       set((s) => ({ ui: { ...s.ui, chamferEdge: null } }));
+    }
+  },
+
+  setCutoutFace: (target) => set((s) => ({ ui: { ...s.ui, cutoutFace: target } })),
+  setCutoutHoverFace: (target) => set((s) => ({ ui: { ...s.ui, cutoutHoverFace: target } })),
+  setCutoutDrawTool: (tool) =>
+    set((s) => ({ ui: { ...s.ui, cutoutDrawTool: tool, ...(tool !== 'preset' ? { cutoutPresetShapeId: null } : {}) } })),
+  setCutoutPresetShapeId: (id) => set((s) => ({ ui: { ...s.ui, cutoutPresetShapeId: id } })),
+  resetCutoutPick: () =>
+    set((s) => ({ ui: { ...s.ui, cutoutFace: null, cutoutHoverFace: null, cutoutDrawTool: null, cutoutPresetShapeId: null } })),
+  setCutoutEditProfile: (target) => set((s) => ({ ui: { ...s.ui, cutoutEditProfile: target } })),
+
+  setRipCutFace: (target) => set((s) => ({ ui: { ...s.ui, ripCutFace: target } })),
+  setRipCutHoverFace: (target) => set((s) => ({ ui: { ...s.ui, ripCutHoverFace: target } })),
+  setRipCutLineId: (id) => set((s) => ({ ui: { ...s.ui, ripCutLineId: id } })),
+  setRipCutKerf: (kerf) => set((s) => ({ ui: { ...s.ui, ripCutKerf: Math.max(0, kerf) } })),
+  resetRipCutPick: () =>
+    set((s) => ({ ui: { ...s.ui, ripCutFace: null, ripCutHoverFace: null, ripCutLineId: null } })),
+
+  // New Order 11: committing a profile writes straight through updateMember,
+  // the SAME history/commit pipeline every other board-parameter edit
+  // already uses (CAD_MANIFESTO.md Law 4) — no second undo mechanism.
+  // New Order 11.1 (Part 2): a freshly-committed profile gets a real default
+  // depth/direction immediately (0.5" Cut — a visible, common "shallow
+  // pocket" starting point, same reasoning as Chamfer's 0.25" default on
+  // first pick) and is armed for editing right away (cutoutEditProfile), so
+  // the push/pull handle is available the instant the sketch closes.
+  addCutoutProfile: (memberId, profile) => {
+    const member = get().project.members.find((m) => m.id === memberId);
+    if (!member) return;
+    const withDefaults: CutoutProfile = { depth: 0.5, direction: 'cut', ...profile };
+    get().updateMember(memberId, { cutoutProfiles: [...(member.cutoutProfiles ?? []), withDefaults] });
+    set((s) => ({ ui: { ...s.ui, cutoutEditProfile: { memberId, profileId: withDefaults.id } } }));
+  },
+
+  removeCutoutProfile: (memberId, profileId) => {
+    const member = get().project.members.find((m) => m.id === memberId);
+    if (!member) return;
+    get().updateMember(memberId, {
+      cutoutProfiles: (member.cutoutProfiles ?? []).filter((p) => p.id !== profileId),
+    });
+    if (get().ui.cutoutEditProfile?.profileId === profileId) {
+      set((s) => ({ ui: { ...s.ui, cutoutEditProfile: null } }));
     }
   },
 
@@ -1839,10 +1922,10 @@ export const useAppStore = create<AppStore>()(
     set((s) => ({ ui: { ...s.ui, quickJoinMiterAxis: null } }));
   },
 
-  splitMemberByCrossCut: (memberId, position) => {
+  splitMemberByCrossCut: (memberId, position, kerf = 0) => {
     const member = get().project.members.find((m) => m.id === memberId);
     if (!member) return;
-    const [board1, board2] = splitByCrossCut(member, position);
+    const [board1, board2] = splitByCrossCut(member, position, kerf);
     const p = get().project;
     commitProject(set, get, {
       ...p,
@@ -1881,10 +1964,35 @@ export const useAppStore = create<AppStore>()(
     }));
   },
 
-  splitMemberByRipCut: (memberId, targetWidth) => {
+  // Modify > Rip / Cross Cut: resolves a picked Reference Line into
+  // (kind, value) via ripCutSplit.ts's pure geometry, then calls whichever
+  // of the two EXISTING split actions above applies — no third copy of the
+  // mates/fasteners/mateGroups/mateConstraints/dimensionLines/
+  // referenceLines/woodJoints cleanup those already do correctly.
+  splitMemberAlongLine: (memberId, lineId, kerf) => {
+    const member = get().project.members.find((m) => m.id === memberId);
+    if (!member) return { ok: false, reason: 'board not found' };
+    const line = get().project.referenceLines.find((l) => l.id === lineId);
+    if (!line) return { ok: false, reason: 'reference line not found' };
+    const faces = getMemberFaces(member);
+    const face = faces.find((f) => f.id === line.anchorFaceId);
+    if (!face) return { ok: false, reason: 'reference line is not on a valid face' };
+
+    const resolution = resolveRipCutLine(line, face, member);
+    if ('ok' in resolution) return resolution;
+
+    if (resolution.kind === 'cross') {
+      get().splitMemberByCrossCut(memberId, resolution.value, kerf);
+    } else {
+      get().splitMemberByRipCut(memberId, resolution.value, kerf);
+    }
+    return { ok: true };
+  },
+
+  splitMemberByRipCut: (memberId, targetWidth, kerf = 0) => {
     const member = get().project.members.find((m) => m.id === memberId);
     if (!member) return;
-    const [board1, board2] = splitByRipCut(member, targetWidth);
+    const [board1, board2] = splitByRipCut(member, targetWidth, kerf);
     const p = get().project;
     commitProject(set, get, {
       ...p,

@@ -23,7 +23,7 @@ export default function CollapsibleSection({
     <div className="border-b border-charcoal-800">
       <button
         onClick={onToggle}
-        className="group w-full flex items-center justify-between px-3 py-2 text-left text-charcoal-300 hover:text-white"
+        className="group w-full flex items-center justify-between px-3 py-2 text-left text-charcoal-300 hover:text-white transition-colors duration-150"
       >
         <span className="text-xs uppercase tracking-wider pb-1 border-b border-spruce-700/50">{title}</span>
         <span className="text-charcoal-400 group-hover:text-spruce-400 transition-colors">

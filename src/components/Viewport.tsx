@@ -10,6 +10,8 @@ import MoveGizmo from './MoveGizmo';
 import RotateGizmo from './RotateGizmo';
 import TemplateCameraLock from './TemplateCameraLock';
 import TemplateDrawTools from './TemplateDrawTools';
+import CutoutCameraLock from './CutoutCameraLock';
+import CutoutDrawTools from './CutoutDrawTools';
 import { THEME } from '../lib/theme';
 
 /**
@@ -31,8 +33,10 @@ import { THEME } from '../lib/theme';
 export default function Viewport() {
   const members = useAppStore((s) => s.project.members);
   const orbitControlsEnabled = useAppStore((s) => s.ui.orbitControlsEnabled);
+  const cameraLocked = useAppStore((s) => s.ui.cameraLocked);
   const activeTool = useAppStore((s) => s.ui.activeTool);
   const workspaceMode = useAppStore((s) => s.ui.workspaceMode);
+  const cutoutFace = useAppStore((s) => s.ui.cutoutFace);
   const selectMember = useAppStore((s) => s.selectMember);
   const setSelectedTemplateShapeId = useAppStore((s) => s.setSelectedTemplateShapeId);
   const selectDimensionLine = useAppStore((s) => s.selectDimensionLine);
@@ -211,13 +215,40 @@ export default function Viewport() {
           RotateGizmo above). */}
       <TemplateDrawTools />
 
+      {/* New Order 11: camera lock onto a picked board face's plane (Cutout
+          tool) — same always-mounted/self-gating pattern as
+          TemplateCameraLock above, just keyed on ui.cutoutFace instead of
+          workspaceMode. */}
+      <CutoutCameraLock controlsRef={controlsRef} />
+      <CutoutDrawTools />
+
       {/* Template is a locked 2D plane, not a freely-orbitable view —
           enableRotate is the only OrbitControls behavior change; pan/zoom
-          stay on so the user can still frame the sketch. */}
+          stay on so the user can still frame the sketch. New Order 11
+          follow-up fix (2026-08-10): Cutout's sketch capture plane is the
+          SAME kind of locked-plane precision surface once a face is picked
+          (CutoutCameraLock.tsx frames the camera straight at it) — but
+          nothing was disabling rotate for it, so a real mouse's natural
+          down-to-up drift while clicking would orbit the camera off that
+          locked framing. Once orbited even slightly, a click's ray could
+          pass through/behind a nearer, now-visible face of the same board
+          before reaching the picked face's capture plane — the point still
+          resolves against the capture plane (correct math), but it no
+          longer corresponds to what's rendered under the cursor, which
+          reads as "the point doesn't land where I clicked." Disabling
+          rotate while cutoutFace is armed (sketching in progress) closes
+          that gap, same precision requirement as Template, only pan/zoom
+          stay on. */}
+      {/* cameraLocked (CameraLockToggle.tsx / 'L' shortcut) is a full,
+          user-driven freeze layered on top of orbitControlsEnabled (which
+          tools already drive automatically per-drag) — combined here rather
+          than as a second <OrbitControls>, so every other lock reason
+          (draw-board drag, Move/Rotate gizmo drag) keeps working exactly as
+          before whether or not the user has also locked the camera. */}
       <OrbitControls
         ref={controlsRef}
-        enabled={orbitControlsEnabled}
-        enableRotate={workspaceMode !== 'template'}
+        enabled={orbitControlsEnabled && !cameraLocked}
+        enableRotate={workspaceMode !== 'template' && !cutoutFace}
         makeDefault
       />
     </Canvas>

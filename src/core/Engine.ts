@@ -163,7 +163,16 @@ export type CADFeature =
   | { type: 'TENON'; id: string; faceId: string; u: number; v: number; width: number; height: number; length: number }
   /** size = cut distance along Face A (the first id in edgeId, alphabetically); sizeB = along Face B — independent (Fusion's "Two Distance" chamfer), defaults to size when omitted for a symmetric cut. */
   | { type: 'CHAMFER'; id: string; edgeId: string; size: number; sizeB?: number }
-  | { type: 'FILLET'; id: string; edgeId: string; radius: number };
+  | { type: 'FILLET'; id: string; edgeId: string; radius: number }
+  /**
+   * New Order 11.1 (Part 2) — Modify > Cutout's actual material removal.
+   * `points` is the committed 2D profile in the picked face's own (u,v)
+   * space (unchanged from New Order 11's CutoutProfile). `direction: 'add'`
+   * (raised boss) is explicitly descoped this Order — evaluateFeatures
+   * treats it as a no-op, stored only for forward-compat. Box boards
+   * (StandardFaceId faces) only, same scoping as CHAMFER/Mate/Trim.
+   */
+  | { type: 'CUTOUT'; id: string; faceId: string; points: { u: number; v: number }[]; depth: number; direction: 'cut' | 'add' };
 
 // ============================================================
 // 3. TOPOLOGY
@@ -199,6 +208,20 @@ export interface Face {
   origin: Vector3D;   // solid-local space — the (u=0, v=0) corner of the face
   widthU: number;
   heightV: number;
+  /**
+   * True only for faces built by `makePolygonFace` (an explicit ordered
+   * vertex loop — customPolygon top/bottom, and CUTOUT's stitched top/
+   * floor faces). `buildRenderMesh` MUST route these through its
+   * generalized N-gon path even when the loop happens to have exactly 4
+   * vertices (e.g. a rectangular cutout's floor) — `makeFace`'s quad path
+   * reconstructs geometry from origin+uAxis*widthU+vAxis*heightV, which
+   * silently assumes the 4 verts are in that exact p00->p10->p11->p01
+   * order/handedness. A `makePolygonFace` loop makes no such promise, so
+   * dispatching by edge count alone (the old check) corrupted any
+   * 4-vertex polygon face — this was the CUTOUT floor-face bug (New Order
+   * 11.1 follow-up, 2026-08-10). Undefined/false for `makeFace` faces.
+   */
+  isPolygonBoundary?: boolean;
 }
 
 // ============================================================
@@ -301,7 +324,7 @@ function makePolygonFace(id: string, normal: Vector3D, uAxis: Vector3D, vAxis: V
     if (i === 0) { minU = maxU = u; minV = maxV = w; }
     else { minU = Math.min(minU, u); maxU = Math.max(maxU, u); minV = Math.min(minV, w); maxV = Math.max(maxV, w); }
   });
-  return { id, normal, uAxis, vAxis, origin, widthU: maxU - minU, heightV: maxV - minV, outerWire: { id: `${id}-wire`, edges } };
+  return { id, normal, uAxis, vAxis, origin, widthU: maxU - minU, heightV: maxV - minV, outerWire: { id: `${id}-wire`, edges }, isPolygonBoundary: true };
 }
 
 /**
@@ -436,6 +459,295 @@ function clipRectCorner(face: Face, isUMax: boolean, isVMax: boolean, sizeU: num
 
   const loop2D = corners.flatMap((c, i) => (i === targetIdx ? [towardPrev, towardNext] : [c]));
   return makePolygonFace(face.id, face.normal, face.uAxis, face.vAxis, loop2D.map(toPoint));
+}
+
+/**
+ * New Order 11.1 (Part 2) — Cutout topology helpers.
+ *
+ * LAW 2 RECONCILIATION (documented per the Order's explicit requirement):
+ * the existing Face type has exactly one boundary (`outerWire`) — there is
+ * no separate "innerWire"/hole concept, and adding one would be a
+ * structural change to CAD_ENGINE_BLUEPRINT.ts's core types (the STOP
+ * condition this Order calls out). Instead, a pocket's opening is
+ * represented with the EXISTING Face/Wire/Edge shape unchanged, using the
+ * standard "keyhole" B-Rep technique: the face's outer rectangle boundary
+ * and the cutout profile's hole boundary are stitched into ONE ordered,
+ * closed edge loop (outer boundary, a zero-width bridge segment over to the
+ * nearest hole vertex, the full hole loop, and back) — still a single
+ * `outerWire: Wire` per Face, still an ordered `Edge[]` forming a closed
+ * loop, exactly what Law 2 requires. `makePolygonFace` (already used
+ * unmodified by New Order 7's extruded-polygon top/bottom faces) builds
+ * this loop into a real Face with no type changes at all. The pocket's
+ * interior geometry (walls + floor) are each ADDITIONAL, ordinary Face
+ * entries appended to the Solid's existing `faces` array — extending the
+ * list, never inventing a second geometry representation alongside it.
+ */
+/** Stitches the face's own outer rectangle (0,0)-(widthU,heightV) and a
+ * hole loop into one simple (self-touching, zero-width-slit) closed polygon
+ * loop via the standard keyhole technique — see the Law 2 reconciliation
+ * comment above. `holeUV` must already be correctly, OPPOSITELY wound from
+ * the outer rectangle's CCW winding (see polygonSignedAreaUV callers).
+ *
+ * The prior version of this function bridged via the two globally NEAREST
+ * outer/hole vertices (by raw 3D distance). That bridge segment had no
+ * guarantee of staying inside the rectangle-minus-hole region — for an
+ * off-center hole the "nearest" pair could sit on the far side of the hole
+ * from each other, so the bridge visually cut back across the hole itself.
+ * The resulting self-intersecting loop stalled the ear-clip triangulator
+ * below, which silently fell back to a plain vertex fan — exactly what
+ * produced the reported "2D triangle, no depth" artifact (New Order 11.2
+ * follow-up fix).
+ *
+ * This version instead bridges via a horizontal ray in the face's own UV
+ * space: from the hole's rightmost vertex (max u) straight out to a new
+ * point split into the rectangle's right edge at the same v. Since that
+ * vertex has the MAXIMUM u of any hole point, every other hole edge lies
+ * entirely at u <= that value (a straight line between two such points is a
+ * convex combination of their u's, so it can never exceed the max) — the
+ * ray provably cannot cross the hole boundary again before reaching the
+ * rectangle edge. Nothing else occupies this face (CUTOUT only ever runs
+ * against a still-simple 4-edge rectangular face, see the `edges.length !==
+ * 4` guard above), so this bridge is always non-self-intersecting.
+ */
+function buildKeyholeLoopUV(widthU: number, heightV: number, holeUV: { u: number; v: number }[]): { u: number; v: number }[] {
+  let hi = 0;
+  for (let i = 1; i < holeUV.length; i++) {
+    if (holeUV[i].u > holeUV[hi].u) hi = i;
+  }
+  const bridgeV = holeUV[hi].v;
+  const split = { u: widthU, v: bridgeV };
+  const holeRot = [...holeUV.slice(hi), ...holeUV.slice(0, hi)];
+  return [
+    split,
+    { u: widthU, v: heightV },
+    { u: 0, v: heightV },
+    { u: 0, v: 0 },
+    { u: widthU, v: 0 },
+    split,
+    ...holeRot,
+    holeRot[0],
+  ];
+}
+
+function polygonSignedAreaUV(points: { u: number; v: number }[]): number {
+  let sum = 0;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    sum += a.u * b.v - b.u * a.v;
+  }
+  return sum / 2;
+}
+
+// ============================================================
+// Edge-crossing CUTOUT ("edge notch" — rabbets, edge dados, corner
+// notches that touch the board's own edge, as opposed to the interior-
+// only pocket handled by buildKeyholeLoopUV above).
+// ============================================================
+
+/** Reverse of CHAMFER_EDGE_KINDS: for a (faceId, EdgeBoundaryKind) pair,
+ * which OTHER StandardFaceId face shares that edge, and which kind that
+ * edge is on the other face's own boundary. Built once from the same
+ * hand-derived table Chamfer already trusts — no second source of truth
+ * for box-edge topology. */
+const EDGE_ADJACENCY: Record<string, { face: StandardFaceId; kind: EdgeBoundaryKind }> = (() => {
+  const table: Record<string, { face: StandardFaceId; kind: EdgeBoundaryKind }> = {};
+  for (const [pairKey, kinds] of Object.entries(CHAMFER_EDGE_KINDS)) {
+    const [a, b] = pairKey.split('|') as [StandardFaceId, StandardFaceId];
+    table[`${a}:${kinds[0]}`] = { face: b, kind: kinds[1] };
+    table[`${b}:${kinds[1]}`] = { face: a, kind: kinds[0] };
+  }
+  return table;
+})();
+
+/** The face's own outer boundary with a rectangular notch cut from one
+ * edge (touching that edge along `kind`, spanning [along0, along1] of the
+ * edge's own running coordinate, reaching `reach` inward from the edge) —
+ * an 8-point CCW loop built by inserting the 4 notch-detour points into
+ * the rectangle's own CCW corner sequence at the affected edge. Degenerates
+ * gracefully (harmless duplicate/zero-length edges, same tolerance the
+ * keyhole bridge's ear-clip fix already handles) when along0 is 0 or
+ * along1 is the edge's full length — e.g. a notch spanning a whole edge
+ * collapses to the same shrunk rectangle a straight rabbet across the full
+ * width would produce. */
+function buildEdgeNotchOuterUV(
+  widthU: number,
+  heightV: number,
+  kind: EdgeBoundaryKind,
+  along0: number,
+  along1: number,
+  reach: number
+): { u: number; v: number }[] {
+  const A = { u: 0, v: 0 };
+  const B = { u: widthU, v: 0 };
+  const C = { u: widthU, v: heightV };
+  const D = { u: 0, v: heightV };
+  switch (kind) {
+    case 'uMax':
+      return [A, B, { u: widthU, v: along0 }, { u: widthU - reach, v: along0 }, { u: widthU - reach, v: along1 }, { u: widthU, v: along1 }, C, D];
+    case 'u0':
+      return [A, B, C, D, { u: 0, v: along1 }, { u: reach, v: along1 }, { u: reach, v: along0 }, { u: 0, v: along0 }];
+    case 'v0':
+      return [A, { u: along0, v: 0 }, { u: along0, v: reach }, { u: along1, v: reach }, { u: along1, v: 0 }, B, C, D];
+    case 'vMax':
+      return [A, B, C, { u: along1, v: heightV }, { u: along1, v: heightV - reach }, { u: along0, v: heightV - reach }, { u: along0, v: heightV }, D];
+  }
+}
+
+/** Reorders a flat vertex loop (already CCW-or-not) so its own geometric
+ * normal (from the first 3 non-collinear vertices) matches `desired` —
+ * reverses the whole loop if it doesn't. Every new face this edge-notch
+ * builder constructs is oriented this way rather than by hand-derived
+ * sign/winding rules per face-pair combination, which would be easy to get
+ * backwards (an inside-out face silently disappears under the board's
+ * default FrontSide material — a much harder bug to spot than a failed
+ * build). */
+function orientPolygon(pts: Vector3D[], desired: Vector3D): Vector3D[] {
+  for (let i = 1; i < pts.length - 1; i++) {
+    const raw = V.cross(V.sub(pts[i], pts[0]), V.sub(pts[i + 1], pts[0]));
+    const len = V.length(raw);
+    if (len < 1e-9) continue;
+    const normal = V.scale(raw, 1 / len);
+    return V.dot(normal, desired) < 0 ? [...pts].reverse() : pts;
+  }
+  return pts;
+}
+
+/** The in-plane axis (F's own uAxis or vAxis) that runs ALONG a given
+ * boundary kind's edge — i.e. the axis whose value is `along0`/`along1` in
+ * buildEdgeNotchOuterUV above. */
+function alongAxisForKind(face: Face, kind: EdgeBoundaryKind): Vector3D {
+  return kind === 'uMax' || kind === 'u0' ? face.vAxis : face.uAxis;
+}
+
+function edgeOuterUV(kind: EdgeBoundaryKind, widthU: number, heightV: number): number {
+  return kind === 'uMax' ? widthU : kind === 'u0' ? 0 : kind === 'vMax' ? heightV : 0;
+}
+
+function pointOnEdge(face: Face, kind: EdgeBoundaryKind, along: number, widthU: number, heightV: number): Vector3D {
+  if (kind === 'uMax' || kind === 'u0') return CADGeometryEngine.projectUVToLocal(face, edgeOuterUV(kind, widthU, heightV), along);
+  return CADGeometryEngine.projectUVToLocal(face, along, edgeOuterUV(kind, widthU, heightV));
+}
+
+/** A flat rectangular floor face on `face`'s own surface plane, at the
+ * notch's location (same per-kind layout buildEdgeNotchOuterUV cuts),
+ * offset inward by `depth` along -face.normal. uAxis/vAxis/normal are
+ * passed straight through from `face` (unchanged directions), so — same as
+ * every other makeFace call in this file — winding is correct by
+ * construction; no orientPolygon needed here. */
+function edgeNotchFloorRect(face: Face, kind: EdgeBoundaryKind, along0: number, along1: number, reach: number, depth: number, id: string): Face {
+  const alongLen = along1 - along0;
+  let originUV: { u: number; v: number };
+  let widthU: number;
+  let heightV: number;
+  switch (kind) {
+    case 'uMax': originUV = { u: face.widthU - reach, v: along0 }; widthU = reach; heightV = alongLen; break;
+    case 'u0': originUV = { u: 0, v: along0 }; widthU = reach; heightV = alongLen; break;
+    case 'v0': originUV = { u: along0, v: 0 }; widthU = alongLen; heightV = reach; break;
+    case 'vMax': originUV = { u: along0, v: face.heightV - reach }; widthU = alongLen; heightV = reach; break;
+  }
+  const origin = V.sub(CADGeometryEngine.projectUVToLocal(face, originUV.u, originUV.v), V.scale(face.normal, depth));
+  return makeFace(id, face.normal, face.uAxis, face.vAxis, origin, widthU, heightV);
+}
+
+/** The depth×depth end-cap wall at one end of the notch's along-edge
+ * extent (only needed where that end falls short of the face's full edge
+ * length — an end that runs the full edge has no remaining material there
+ * to cap). `desiredNormal` points into the cavity; orientPolygon corrects
+ * the loop to match it rather than relying on a hand-derived winding. */
+function edgeNotchEndWall(face: Face, gFace: Face, kind: EdgeBoundaryKind, along: number, reach: number, depth: number, desiredNormal: Vector3D, id: string): Face {
+  const e = pointOnEdge(face, kind, along, face.widthU, face.heightV);
+  const fFloorPt = V.sub(e, V.scale(face.normal, depth));
+  const innerPt = V.sub(fFloorPt, V.scale(gFace.normal, reach));
+  const gFloorPt = V.sub(e, V.scale(gFace.normal, reach));
+  const pts = orientPolygon([e, fFloorPt, innerPt, gFloorPt], desiredNormal);
+  return makePolygonFace(id, desiredNormal, face.normal, gFace.normal, pts);
+}
+
+/**
+ * Builds a full edge-crossing "notch" cut: shrinks BOTH the picked face F
+ * and its neighbor G across their shared edge (the physical corner the
+ * notch actually removes material from — a rabbet or edge dado is not
+ * containable within one face's own boundary alone), plus a floor on each
+ * face and up to 2 end-cap walls where the notch's along-edge extent falls
+ * short of the full edge length. Returns null (caller no-ops, same
+ * fail-safe convention as every other guard in this feature) if the
+ * neighbor face can't be resolved or isn't still a simple rectangle.
+ *
+ * `reach` = how far the notch extends inward from the touched edge, in F's
+ * own in-plane perpendicular axis (from the profile's own drawn/placed
+ * extent — the SKETCH decides this, same as the interior pocket case).
+ * `depth` = feature.depth, the existing "how far into the board" field —
+ * reused here as BOTH how far F's floor sits below F's surface (along
+ * F.normal) AND, symmetrically, how far G's own boundary shrinks (since
+ * the two faces meet at 90 degrees, the block removed from the corner has
+ * exactly these 2 perpendicular dimensions, one governing each face's
+ * shrink-vs-floor-depth roles the opposite way round).
+ */
+function buildEdgeNotchFeature(
+  faces: Face[],
+  faceIdx: number,
+  kind: EdgeBoundaryKind,
+  along0: number,
+  along1: number,
+  reach: number,
+  depth: number,
+  idPrefix: string
+): Face[] | null {
+  const face = faces[faceIdx];
+  const adj = EDGE_ADJACENCY[`${face.id}:${kind}`];
+  if (!adj) return null;
+  const gIdx = faces.findIndex((f) => f.id === adj.face);
+  if (gIdx === -1) return null;
+  const gFace = faces[gIdx];
+  if (gFace.outerWire.edges.length !== 4 || face.outerWire.edges.length !== 4) return null;
+
+  const reachClamped = Math.max(0.02, Math.min(reach, (kind === 'uMax' || kind === 'u0' ? face.widthU : face.heightV) - 0.02));
+  const gPerp = adj.kind === 'uMax' || adj.kind === 'u0' ? gFace.widthU : gFace.heightV;
+  const depthClamped = Math.max(0.02, Math.min(depth, gPerp - 0.02));
+
+  // F's own along-edge coordinate range maps onto G's own coordinate range
+  // for the SAME physical edge by reprojecting the two along-edge endpoint
+  // positions through G's own (u,v) — robust regardless of which direction
+  // each face's own axes happen to run along the shared edge, rather than
+  // hand-deriving a sign per face-pair combination.
+  const e0 = pointOnEdge(face, kind, along0, face.widthU, face.heightV);
+  const e1 = pointOnEdge(face, kind, along1, face.widthU, face.heightV);
+  const g0 = CADGeometryEngine.projectLocalToUV(gFace, e0);
+  const g1 = CADGeometryEngine.projectLocalToUV(gFace, e1);
+  const gAlongIsU = adj.kind === 'vMax' || adj.kind === 'v0';
+  const gAlong0 = Math.min(gAlongIsU ? g0.u : g0.v, gAlongIsU ? g1.u : g1.v);
+  const gAlong1 = Math.max(gAlongIsU ? g0.u : g0.v, gAlongIsU ? g1.u : g1.v);
+
+  const newFUV = buildEdgeNotchOuterUV(face.widthU, face.heightV, kind, along0, along1, reachClamped);
+  const newF = makePolygonFace(face.id, face.normal, face.uAxis, face.vAxis, newFUV.map((p) => CADGeometryEngine.projectUVToLocal(face, p.u, p.v)));
+
+  const newGUV = buildEdgeNotchOuterUV(gFace.widthU, gFace.heightV, adj.kind, gAlong0, gAlong1, depthClamped);
+  const newG = makePolygonFace(gFace.id, gFace.normal, gFace.uAxis, gFace.vAxis, newGUV.map((p) => CADGeometryEngine.projectUVToLocal(gFace, p.u, p.v)));
+
+  // Floors: F's floor sits `depth` below F's surface, reaching `reach` in
+  // from the edge (F's own dimensions); G's floor is the SAME physical
+  // block seen from G's side, so its roles swap — it sits `reach` below
+  // G's surface, reaching `depth` in from the edge.
+  const floorF = edgeNotchFloorRect(face, kind, along0, along1, reachClamped, depthClamped, `${idPrefix}-floorF`);
+  const floorG = edgeNotchFloorRect(gFace, adj.kind, gAlong0, gAlong1, depthClamped, reachClamped, `${idPrefix}-floorG`);
+
+  // End-cap walls: only where the notch's along-edge extent falls short of
+  // the face's own full edge length on that end (an end that runs the full
+  // edge has no remaining material there to cap).
+  const edgeLen = kind === 'uMax' || kind === 'u0' ? face.heightV : face.widthU;
+  const alongAxis = alongAxisForKind(face, kind);
+  const endWalls: Face[] = [];
+  if (along0 > 0.02) {
+    endWalls.push(edgeNotchEndWall(face, gFace, kind, along0, reachClamped, depthClamped, alongAxis, `${idPrefix}-wallStart`));
+  }
+  if (along1 < edgeLen - 0.02) {
+    endWalls.push(edgeNotchEndWall(face, gFace, kind, along1, reachClamped, depthClamped, V.negate(alongAxis), `${idPrefix}-wallEnd`));
+  }
+
+  const patched = faces.map((f, i) => (i === faceIdx ? newF : i === gIdx ? newG : f));
+  patched.push(floorF, floorG, ...endWalls);
+  return patched;
 }
 
 export class CADGeometryEngine {
@@ -587,6 +899,145 @@ export class CADGeometryEngine {
           // Localized features attach to a face/edge but do not change the
           // board's outer boundary topology — nothing to do to `faces` here.
           break;
+        case 'CUTOUT': {
+          // 'add' (raised boss) explicitly descoped this Order — the
+          // profile is stored data but produces no geometry change yet.
+          if (feature.direction !== 'cut') break;
+          if (feature.points.length < 3) break;
+          const faceIdx = faces.findIndex((f) => f.id === feature.faceId);
+          if (faceIdx === -1) break;
+          const face = faces[faceIdx];
+          // Only a still-simple rectangular (4-edge) face boundary — a face
+          // already reshaped by an earlier cutout (or a customPolygon's
+          // non-4-edge top/bottom/side face) is left alone rather than
+          // stacked on top of, per this Order's explicit single-profile,
+          // no-multi-cut-interaction scope.
+          if (face.outerWire.edges.length !== 4) break;
+
+          // Edge-crossing cut (rabbet / edge dado / edge notch): the
+          // profile's own bounding box tells us whether it touches one of
+          // the face's 4 boundary edges rather than sitting fully interior.
+          // Exactly one touched edge routes to buildEdgeNotchFeature (which
+          // also reshapes the ADJACENT face sharing that edge — a rabbet
+          // isn't containable within one face's boundary alone); touching
+          // two or more edges at once (a corner notch spanning both
+          // directions) is explicitly out of scope this Order and falls
+          // through as a safe no-op rather than risk wrong geometry, same
+          // as every other unresolvable-guard case in this switch. Zero
+          // touched edges is the existing interior-pocket case, unchanged.
+          const EDGE_TOUCH_EPS = 0.02;
+          const ptUs = feature.points.map((p) => p.u);
+          const ptVs = feature.points.map((p) => p.v);
+          const bboxMinU = Math.min(...ptUs), bboxMaxU = Math.max(...ptUs);
+          const bboxMinV = Math.min(...ptVs), bboxMaxV = Math.max(...ptVs);
+          const touchedEdges: EdgeBoundaryKind[] = [];
+          if (bboxMinU <= EDGE_TOUCH_EPS) touchedEdges.push('u0');
+          if (bboxMaxU >= face.widthU - EDGE_TOUCH_EPS) touchedEdges.push('uMax');
+          if (bboxMinV <= EDGE_TOUCH_EPS) touchedEdges.push('v0');
+          if (bboxMaxV >= face.heightV - EDGE_TOUCH_EPS) touchedEdges.push('vMax');
+
+          if (touchedEdges.length === 1) {
+            const kind = touchedEdges[0];
+            // reach = how far the profile's own bounding box extends inward
+            // from the touched edge (the perpendicular dimension); along =
+            // its extent running ALONG that same edge (the other axis).
+            const reachAmount = kind === 'uMax' ? face.widthU - bboxMinU : kind === 'u0' ? bboxMaxU : kind === 'vMax' ? face.heightV - bboxMinV : bboxMaxV;
+            const along0 = kind === 'uMax' || kind === 'u0' ? bboxMinV : bboxMinU;
+            const along1 = kind === 'uMax' || kind === 'u0' ? bboxMaxV : bboxMaxU;
+            const patched = buildEdgeNotchFeature(faces, faceIdx, kind, along0, along1, reachAmount, feature.depth, `edgecut-${feature.id}`);
+            if (patched) {
+              faces = patched;
+              break;
+            }
+            // buildEdgeNotchFeature couldn't resolve a neighbor (e.g. a
+            // non-standard face) — fall through to the interior path below,
+            // which will still clamp/render SOMETHING rather than silently
+            // dropping the feature, even though it won't look correct for
+            // a genuinely edge-touching profile on an unsupported face.
+          } else if (touchedEdges.length >= 2) {
+            break; // corner notch — out of scope this Order, safe no-op
+          }
+
+          // Clamp depth against the board's own extent along this face's
+          // normal (found from the OPPOSITE face, still the un-machined
+          // base topology at this point in the fold) — a through-cut that
+          // removes material is fine, but the floor is kept a hair short of
+          // the opposite face so this stays a real pocket with a floor
+          // (never a fully-severing cut, which the Order's own scope rules
+          // out — Law 2's one-connected-Solid-per-board assumption).
+          const oppositeFace = faces.find((f) => V.dot(f.normal, V.negate(face.normal)) > 0.99);
+          const boardExtent = oppositeFace
+            ? Math.abs(V.dot(V.sub(oppositeFace.origin, face.origin), face.normal))
+            : Infinity;
+          const FLOOR_GAP = 0.05;
+          const depth = Math.min(Math.max(feature.depth, 0), boardExtent - FLOOR_GAP);
+          if (depth <= 0) break;
+
+          const profileAtFace = feature.points.map((p) => CADGeometryEngine.projectUVToLocal(face, p.u, p.v));
+
+          // The face's own outer rectangle is CCW viewed from its own
+          // normal (uAxis x vAxis === normal, by makeFace's construction).
+          // The hole loop stitched into the top face's keyhole polygon must
+          // be OPPOSITELY wound (CW) for the combined loop to stay simple
+          // (non-self-crossing) — the standard keyhole rule.
+          const holeAreaUV = polygonSignedAreaUV(feature.points);
+          const outerIsCCW = true; // origin,+u,+u+v,+v is always CCW in a face's own (u,v) axes
+          const holeMatchesOuterHandedness = holeAreaUV > 0 === outerIsCCW;
+          const holeLoopUV = holeMatchesOuterHandedness ? [...feature.points].reverse() : feature.points;
+          const holeLoop3D = holeLoopUV.map((p) => CADGeometryEngine.projectUVToLocal(face, p.u, p.v));
+
+          const stitchedTopUV = buildKeyholeLoopUV(face.widthU, face.heightV, holeLoopUV);
+          const stitchedTop = stitchedTopUV.map((p) => CADGeometryEngine.projectUVToLocal(face, p.u, p.v));
+          const newTopFace = makePolygonFace(face.id, face.normal, face.uAxis, face.vAxis, stitchedTop);
+
+          // Floor: same shape as the hole, offset down by depth, wound the
+          // SAME handedness as the outer boundary (CCW from face.normal) so
+          // it reads as an ordinary outward-facing (upward, into the empty
+          // cavity) face — i.e. the reverse of holeLoopUV, not holeLoopUV
+          // itself.
+          const floorLoop3D = [...holeLoop3D].reverse().map((p) => V.sub(p, V.scale(face.normal, depth)));
+          const floorFace = makePolygonFace(`cutout-${feature.id}-floor`, face.normal, face.uAxis, face.vAxis, floorLoop3D);
+
+          // Walls: one rectangle per profile edge, each built with its OWN
+          // local (uAxis, vAxis) basis — the along-the-edge direction and
+          // the into-the-board depth direction — via the same makeFace
+          // rectangle helper every box/side face already uses (never
+          // reusing the top face's own uAxis/vAxis, which don't span a
+          // wall's plane). Oriented so uAxis x vAxis (== the passed normal)
+          // points toward the profile's own centroid — i.e. into the
+          // cavity, the empty-space side, matching every other Face's
+          // "normal points away from solid material" convention.
+          const n = feature.points.length;
+          let cu = 0, cv = 0;
+          for (const p of feature.points) { cu += p.u; cv += p.v; }
+          const centroidLocal = CADGeometryEngine.projectUVToLocal(face, cu / n, cv / n);
+          const depthDir = V.negate(face.normal);
+          const wallFaces: Face[] = [];
+          for (let i = 0; i < n; i++) {
+            const p0 = profileAtFace[i];
+            const p1 = profileAtFace[(i + 1) % n];
+            const edgeLen = V.length(V.sub(p1, p0));
+            if (edgeLen < 1e-6) continue;
+            let uAxisW = V.scale(V.sub(p1, p0), 1 / edgeLen);
+            let originW = p0;
+            let normalW = V.normalize(V.cross(uAxisW, depthDir));
+            const mid = V.scale(V.add(p0, p1), 0.5);
+            if (V.dot(normalW, V.sub(centroidLocal, mid)) < 0) {
+              // Flip which end the wall starts from — flips both the
+              // winding (so the fixed p00->p10->p11->p01 quad path in
+              // buildRenderMesh stays outward-correct) and normalW
+              // consistently, rather than negating normalW alone.
+              uAxisW = V.negate(uAxisW);
+              originW = p1;
+              normalW = V.normalize(V.cross(uAxisW, depthDir));
+            }
+            wallFaces.push(makeFace(`cutout-${feature.id}-wall-${i}`, normalW, uAxisW, depthDir, originW, edgeLen, depth));
+          }
+
+          faces = faces.map((f, i) => (i === faceIdx ? newTopFace : f));
+          faces.push(floorFace, ...wallFaces);
+          break;
+        }
       }
     }
     return { faces };
@@ -794,7 +1245,16 @@ export class CADGeometryEngine {
     const uvs: number[] = [];
 
     for (const face of evaluatedTopology.faces) {
-      const isPolygonFace = face.id === 'top' || face.id === 'bottom';
+      // Dispatch on the face's own construction provenance (isPolygonBoundary,
+      // set only by makePolygonFace), never on incidental edge count or id —
+      // a makePolygonFace loop (customPolygon top/bottom, or CUTOUT's
+      // stitched top/floor faces) makes no promise about vertex order/
+      // handedness matching makeFace's p00->p10->p11->p01 convention, even
+      // when it happens to have exactly 4 vertices (e.g. a rectangular
+      // cutout's floor — this was the New Order 11.1 follow-up bug: such a
+      // floor face was silently misrouted through the quad-reconstruction
+      // path below and came out corrupted/misplaced).
+      const isPolygonFace = face.isPolygonBoundary === true;
       if (!isPolygonFace && face.outerWire.edges.length === 4) {
         const p00 = face.origin;
         const p10 = V.add(face.origin, V.scale(face.uAxis, face.widthU));
@@ -872,6 +1332,17 @@ function earClipTriangulate(points: { u: number; v: number }[]): [number, number
     b: { u: number; v: number },
     c: { u: number; v: number }
   ): boolean {
+    // A keyhole-stitched loop (see buildKeyholeLoopUV) deliberately repeats
+    // its two bridge vertices at different list indices (the zero-width
+    // seam) — without this guard, a coincident duplicate sitting exactly on
+    // one of the ear's own 3 corners was misread as "inside" (boundary
+    // counts as contained below), permanently blocking that ear and
+    // stalling the loop into the fan fallback (the exact cause of the
+    // reported flat/no-depth cutout).
+    const EPS = 1e-7;
+    const coincides = (x: { u: number; v: number }, y: { u: number; v: number }) =>
+      Math.abs(x.u - y.u) < EPS && Math.abs(x.v - y.v) < EPS;
+    if (coincides(p, a) || coincides(p, b) || coincides(p, c)) return false;
     const d1 = (p.u - b.u) * (a.v - b.v) - (a.u - b.u) * (p.v - b.v);
     const d2 = (p.u - c.u) * (b.v - c.v) - (b.u - c.u) * (p.v - c.v);
     const d3 = (p.u - a.u) * (c.v - a.v) - (c.u - a.u) * (p.v - a.v);
