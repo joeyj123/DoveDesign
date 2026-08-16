@@ -1,5 +1,32 @@
 # DoveDesign — Progress
 
+## 2026-08-16 — Fix: removed Cutout's forced camera-rotate lock
+Joey reported the Cutout tool's camera still felt "terrible" despite the
+2026-08-11 manual `cameraLocked` toggle — the root complaint was the
+tool's OWN automatic lock, not a missing feature. `Viewport.tsx`'s
+`<OrbitControls>` had `enableRotate={workspaceMode !== 'template' &&
+!cutoutFace}` (from New Order 11), force-disabling rotate any time a
+Cutout face was picked, regardless of whether the user wanted it locked.
+Per Joey's explicit choice, removed the `&& !cutoutFace` condition
+entirely — Cutout no longer auto-disables rotate on face-pick; the user
+can freely orbit while sketching a cutout, same as any other tool.
+`CutoutCameraLock.tsx`'s initial straight-on snap on face-pick is
+untouched (still frames the view once), and the manual `cameraLocked`
+toggle ('L' key / padlock icon) is still available for anyone who wants a
+hard freeze. Removed the now-unused `cutoutFace` store read in
+`Viewport.tsx` (was only feeding the deleted condition). `npm run build`:
+clean, 0 TypeScript errors. Verified live: dev server loads with zero
+console errors. **Not independently verified live**: a real mouse
+click-drag actually rotating the camera during Cutout sketching — this
+environment's long-documented synthetic-pointer-drag limitation means
+that needs Joey's real-mouse pass. Worth flagging: this reintroduces the
+click-misalignment risk `enableRotate={!cutoutFace}` was originally added
+to prevent (a real mouse's down-to-up drift while clicking could rotate
+the camera mid-click, so a click's ray might pass through a different,
+now-visible face before reaching the picked face's capture plane) — Joey
+accepted this tradeoff explicitly in favor of free camera control.
+
+
 ## 2026-07-31 — Workflow change
 Joey started working directly with Claude (chat) in-session to implement
 changes, instead of writing NEW_ORDER_N_PROMPT.md files for a separate
@@ -3800,6 +3827,797 @@ a third copy of that cleanup logic.
   session flagged as unverifiable here) — the CLICK-based face pick itself
   is now proven to work via the DOM-click test above, just not the
   hover-preview polish on top of it.
+
+## 2026-08-12 — Cutout tool: numeric fields by default + move-after-placement
+Joey's feedback: Cutout "is very difficult to control" — Preset Shape
+placement (`CutoutDrawTools.tsx`) only ever showed a numeric size/position
+field behind a hidden Tab keypress most users would never find, defaulting
+to eyeballed mouse-drag; and once a profile was committed there was no way
+to move it short of Remove + redraw from scratch.
+
+- **Preset Shape sizing/positioning fields now render as visible inputs by
+  default**, not a click-to-reveal label: the `sizing` phase shows a live
+  size input next to the shape, the `positioning` phase shows live X/Y (u,v)
+  inputs (or, when snapped onto a Reference Line, a "distance from line
+  start" input) — drag still works exactly as before when the field isn't
+  focused, typing into the field now needs no Tab discovery step at all.
+  New state: `presetPosEditing`/`presetPosUText`/`presetPosVText` +
+  `submitPresetPosition`, mirroring the existing size/distance field
+  pattern exactly (one convention, not a fourth invented one).
+- **Move an already-placed cutout profile** (`CutoutPanel.tsx`'s
+  `CutoutProfileEditor`, new Order 12): new `PositionField` component (nudge
+  buttons + typed absolute value, same shape as the existing `DepthField`)
+  for Position X/Y, computed from the profile's own point-loop bounding-box
+  min corner in face (u,v) space. Nudging/typing translates every point in
+  `profile.points` by the same delta and writes through the SAME
+  `commit`/`updateMember` path depth/direction already use — no second
+  write path, no change to the profile's own shape, only its position
+  (CAD_MANIFESTO.md Law 1). No edge-crossing clamp on move (unlike initial
+  placement's `clampPresetCenter`) — kept out of scope this Order; a shape
+  nudged off the face edge just looks wrong and can be nudged back, it
+  doesn't corrupt state.
+- **Deferred, explicitly out of scope this Order** (per Joey's own
+  priority call — Cutout first): Rip/Cross Cut's cut-line drawing/90° snap
+  redesign, and reorganizing the Entities panel into per-type tabs. Both
+  flagged for a future New Order.
+- `npm run build`: clean, 0 TypeScript errors.
+- **Verified**: dev server loads with zero console errors. **Not verified
+  live via real mouse interaction** — placing/moving a Preset Shape is a
+  pointer-drag-heavy gesture sequence in the 3D viewport, the same category
+  of interaction flagged as unreliable to verify via headless/synthetic
+  clicks in every prior session touching Cutout/Chamfer/Sketch. Needs
+  Joey's real-mouse pass: does the size field show and stay in sync while
+  dragging, does clicking into X/Y fields pause drag-follow correctly, does
+  typing an exact position move the shape, does the new Position X/Y
+  nudge/type on an existing profile actually move it in the viewport.
+
+## 2026-08-12 (2) — Rip/Cross Cut: self-contained draw tool (New Order 13)
+Follow-up to the same day's Cutout session. Joey's feedback: Rip/Cross Cut
+"does not really do anything" — root cause (from the earlier chat-mode
+investigation) was a hidden two-tool prerequisite: the tool could only cut
+along a Reference Line drawn separately via Annotate > Reference Line, and
+even then required the line to be dead-straight and edge-to-edge within a
+tight 0.06" tolerance — invisible failure modes that read as "nothing
+happens." Joey's explicit direction: make the tool draw its own cut line,
+and offer the same kind of explicit tool-option buttons Cutout already has
+(Line/Arc/Preset there → Cross Cut/Rip Cut here).
+
+- **`src/lib/ripCutSplit.ts` extended** (not rewritten — Law 4): new
+  `availableRipCutKinds(face)` reuses the existing `axisForSplitKind` check
+  against `face.uAxis`/`face.vAxis` to report which cut kind(s) a picked
+  face can even offer (an end face only offers Rip, a face along the width
+  only offers Cross, most side/top/bottom faces offer both) — so the panel
+  only ever shows buttons that will actually work. New
+  `resolveRipCutPoint(uv, face, member, kind)` extracts the exact same
+  tail math `resolveRipCutLine` already ran on a picked line's midpoint,
+  so a live cursor position converts to the same `value` units
+  `splitMemberByCrossCut`/`splitMemberByRipCut` expect, with the same
+  `MIN_PIECE_SIZE` edge guard.
+- **New `RipCutDrawTool.tsx`** (mounted in `Viewport.tsx` alongside
+  `CutoutDrawTools`): once a kind is armed, an invisible capture plane on
+  the picked face (same 4-corner-triangle convention `CutoutDrawTools.tsx`
+  already uses) tracks the cursor's live (u,v), and — since a real
+  rip/cross cut always runs edge-to-edge — locks the line to the FULL
+  perpendicular span at whichever single coordinate (u or v) the armed
+  kind uses, rendered as a solid spruce-accent line. This is effectively
+  the 90°-snap Joey asked about: the line is ALWAYS axis-aligned and
+  edge-to-edge by construction, never freehand, so there's no "not
+  parallel" failure mode possible anymore.
+- **`RipCutPanel.tsx`**: new "Draw a Cut Line on This Face" button row
+  (Cross Cut / Rip Cut, only the kinds `availableRipCutKinds` allows for
+  this face) as the PRIMARY path, followed by a numeric "Position" field
+  (typing pauses the live mouse-follow via new `ui.ripCutPositionEditing`,
+  same focus/blur convention as Cutout's numeric fields) as the explicit
+  alternative to dragging Joey asked for. The old "pick an existing
+  Reference Line" flow is kept intact underneath, unchanged, as a fallback
+  — not removed, since it still works for lines already drawn for other
+  purposes. Kerf field and the "Split Board" button are now shared by
+  both paths.
+- **New `ui.ripCutDrawKind`** (armed kind) and **repurposed
+  `ui.ripCutPreviewPosition`** (now the cut line's raw face-(u,v) fixed
+  coordinate while drawing, converted to the real split `value` only at
+  commit via `resolveRipCutPoint` — avoids needing any inverse-projection
+  math for the numeric field, the same reason Cutout's X/Y fields store
+  raw uv directly). All reset alongside the existing `ripCutFace`/
+  `ripCutLineId` cleanup at every tool-switch/reset site.
+- `npm run build`: clean, 0 TypeScript errors.
+- **Verified**: dev server loads with zero console errors. **Not verified
+  live via real mouse interaction** — same as the Cutout session earlier
+  today, positioning a cut line by dragging over the 3D viewport is a
+  pointer-move-heavy gesture, historically unreliable to verify via
+  synthetic/headless clicks in this environment. Needs Joey's real-mouse
+  pass: arm Cross Cut or Rip Cut, confirm the line follows the mouse and
+  snaps to a clean edge-to-edge span, confirm the Position field updates
+  live and can be typed into directly, confirm Split Board actually
+  splits the board into two pieces.
+
+## 2026-08-12 (3) — Entities panel: tabs by entity kind (New Order 14)
+Third fix this day, same feedback thread. Joey: "in select we need to
+organize the entities box, everything should be selectable there but right
+now it just makes one giant list we should be able to have like tabs for
+every kind of entity including lines and stuff."
+
+- **`PropertiesPanel.tsx`'s `EntitiesSection`**: the old version stacked
+  Boards / Dimension Lines / Reference Lines as three concatenated `<ul>`s
+  separated only by a thin divider — no way to jump straight to one kind.
+  Replaced with a tab row (Boards / Dimensions / References / Cutouts),
+  each showing its own count, only the active tab's list rendered. Same
+  underlying store data/actions as before for Boards/Dimensions/
+  References — no new write paths, just re-organized presentation.
+- **Cutout Profiles are now a real Entities tab** — previously only
+  reachable from inside the Cutout tool's own panel (its "Existing Cutout
+  Profiles" list), not selectable from the main Entities list at all
+  despite being a per-board entity like any other. New tab reuses
+  `member.cutoutProfiles`, `setCutoutEditProfile`, `removeCutoutProfile` —
+  the SAME actions `CutoutPanel.tsx`'s own list already used, just
+  surfaced here too (not a duplicate implementation).
+- Each empty tab shows a specific hint (`EmptyHint`) pointing at the tool
+  that creates that entity kind, instead of one generic blank state.
+- Chamfers/Mates were NOT added as tabs this Order — scoped out to keep
+  this a presentation reorg, not a new-entity-type sweep; flagged for a
+  future Order if Joey wants them too.
+- `npm run build`: clean, 0 TypeScript errors. **Verified live**: loaded
+  the dev server, confirmed the tab row renders (Boards (0) / Dimensions
+  (0) / References (0) / Cutouts (0)) with zero console errors — an empty
+  project only exercises the empty-state hints, so populating boards/
+  lines/cutouts and clicking between tabs still needs Joey's pass.
+
+## 2026-08-12 (4) — Rip/Cross Cut default preview + Reference Line 90° lock (New Order 15)
+Joey tested New Order 13/14 live: Rip/Cross Cut worked, but "it only
+worked when I typed the inches in" — dragging appeared to do nothing. Root
+cause: arming a Cross/Rip Cut kind left `ripCutPreviewPosition` `null`
+until the mouse actually moved over the highlighted face, so nothing
+rendered until the FIRST successful hover — if that hover never landed
+(wrong spot, camera angle, whatever), the tool looked entirely inert and
+typing was the only path that ever showed feedback. Separately, Joey liked
+the existing edge/endpoint Snap toggle in the Reference Line panel and
+asked for a genuine 90° lock alongside it too (a general-purpose version of
+what Rip/Cross Cut's line already does by construction).
+
+- **`RipCutPanel.tsx`'s `pickDrawKind`**: now seeds `ripCutPreviewPosition`
+  to the face's own midpoint the INSTANT a kind is armed (before any mouse
+  movement), so a valid cut line always appears immediately — drag from
+  there, or type over it. Panel instructions rewritten to say so
+  explicitly ("A cut line is now shown... starting at its middle").
+- **New `ui.referenceAngleSnapEnabled`** + **`AngleSnapToggle`** (next to
+  the existing `SnapToggle` in the Reference Line panel): while on, a
+  Reference Line's second point always locks to exactly horizontal or
+  vertical relative to the first (`BoardAnnotations.tsx`'s new pure
+  `lockTo90`), applied AFTER edge-snap so a locked line can still land
+  exactly on an edge. Off by default — doesn't change existing free-angle
+  drawing until a user opts in. Distinct flag from Rip/Cross Cut's own
+  hard lock (that one can't be turned off, since a real saw cut is always
+  straight) and from `annotationSnapEnabled` (pulls onto nearby geometry,
+  never forces the line's own angle).
+- `npm run build`: clean, 0 TypeScript errors. Not yet verified live by
+  Joey — next test pass should confirm arming Cross/Rip Cut shows an
+  immediate line with no mouse movement required, and that the new Lock to
+  90° checkbox actually keeps a dragged Reference Line's second point
+  axis-aligned.
+
+## 2026-08-13 — Cutout on-canvas drag handle (New Order 16)
+Joey shared SolidWorks reference screenshots (sketch-entity handles: square
+endpoints + diamond midpoint, dragged directly on the geometry) and asked
+for that alternative to New Order 12's panel-only Position X/Y nudge
+fields for moving an already-placed Cutout profile.
+
+- **New `CutoutMoveHandle` (`BoardMesh.tsx`)**, rendered alongside the
+  existing `CutoutDepthHandle` whenever `ui.cutoutEditProfile` is armed.
+  Sits at the profile's bounding-box CENTER (extended from New Order 12's
+  `PositionField`, which only tracked the min corner) via
+  `CADGeometryEngine.projectUVToLocal`, offset slightly off the face along
+  its normal for visual clearance (cosmetic only — ignored by the drag
+  math). Orange octahedron marker, matching Chamfer's existing draggable-
+  handle color convention.
+- **Drag math**: an invisible catch plane that IS the face's own plane
+  (not a perpendicular plane like Chamfer/CutoutDepthHandle's 1D push-pull
+  handles use) — a hit point converts to face-(u,v) via
+  `CADGeometryEngine.projectLocalToUV` (same function every other Cutout
+  face interaction already uses), and the delta from the profile's own
+  current center (re-derived fresh from `profile.points` every render,
+  never accumulated) translates every point. Same `updateMember(...,
+  skipHistory)` write path New Order 12's nudge/type fields and every
+  other in-viewport handle already use — no second write path, no new
+  store action.
+- **History**: live drag frames write `skipHistory: true`; release
+  re-commits the current (already-updated) `cutoutProfiles` once with
+  `skipHistory: false` so undo lands on the drag's final position as one
+  entry, not every intermediate frame — same pattern `CutoutDepthHandle`
+  already established.
+- **Bidirectional sync**: no new wiring needed — `CutoutPanel.tsx`'s
+  Position X/Y fields already derive their displayed value fresh from
+  `profile.points` on every render, so a live drag updates them
+  automatically and typing into them updates the handle's rendered
+  position the same way.
+- `npm run build`: clean, 0 TypeScript errors. Verified live via the
+  Browser preview: app loads with zero console errors. Per this project's
+  own established precedent (pointer-drag gestures are unreliable to
+  verify via synthetic/headless clicks), the actual drag interaction needs
+  Joey's real-mouse pass: arm an existing Cutout profile, confirm the
+  orange diamond/octahedron handle appears at its center, drag it and
+  confirm the profile + Position X/Y fields move together live, type into
+  Position X/Y and confirm the handle follows, move/rotate the board and
+  confirm the handle stays correctly placed, and confirm undo/redo after a
+  drag reverts/restores the position as a single step.
+
+## 2026-08-13 (2) — New Order 16 fix pass: drag actually working
+Joey tested New Order 16 live: clicking the handle instead reoriented the
+camera to the board's long edge, and dragging did nothing at all.
+
+- **Root cause**: the invisible drag-catch plane sat exactly coincident
+  with the real board surface (offset 0 along the face normal, same as
+  `centroid`). A plane geometrically identical in position to the actual
+  board mesh z-fights it for raycasting — pointer events landed on the
+  solid board (triggering ordinary board-click/camera-focus behavior)
+  about as often as on the intended invisible plane, so grabbing the
+  handle often actually grabbed the board instead, and once a drag did
+  start, subsequent pointermoves frequently hit the board (which has no
+  drag handler) instead of the plane, so the profile never moved.
+- **Fix**: the catch plane now sits at `handlePos` (the same CLEARANCE
+  offset already used for the visible handle marker) instead of exactly
+  on the face — a plane parallel to the face but pulled off its surface,
+  same offset-to-avoid-z-fighting idea `CutoutProfileOutline` already
+  uses for its own render, just applied to a raycast target instead of a
+  visual one. `CADGeometryEngine.projectLocalToUV` only reads the
+  uAxis/vAxis components of a hit point, so this offset changes nothing
+  about the resulting (u,v) math — purely a raycast-priority fix.
+- Bumped the handle's octahedron size up (0.16 -> 0.22, `depthTest:
+  false` so it never gets visually buried in the board) for an easier
+  grab target.
+- **New**: dashed orange crosshair guide lines from the handle's current
+  (u,v) out to all four face edges, shown only while actively dragging —
+  Joey's ask, so the profile can be placed precisely against the face
+  boundary instead of eyeballing a drag. Pure visual overlay, re-derived
+  every render from the same centerU/centerV the drag math already uses.
+- `npm run build`: clean, 0 TypeScript errors. Not yet re-verified live by
+  Joey — next pass should confirm the handle grabs cleanly without
+  reorienting the camera, drags smoothly with the Position X/Y panel
+  fields updating live, and the dashed edge guides appear during the drag
+  and disappear on release.
+
+## 2026-08-13 (3) — New Order 16 fix pass 2: replaced R3F raycasting with manual drag math
+Joey tested the (2) fix live: handle grab still occasionally reoriented
+the camera, and the drag itself was "sticky" — inconsistent, didn't
+reliably track the mouse.
+
+- **Real root cause**: relying on React Three Fiber's own per-object
+  pointer events for onPointerMove/onPointerUp meant the mouse had to stay
+  hovering exactly over our (invisible) plane mesh every single animation
+  frame for events to fire on it at all. Any gap — fast mouse movement,
+  the scene raycaster's nearest-hit ordering flipping between our plane
+  and the real board mesh at certain angles — silently dropped events.
+  When the drag-END event specifically got dropped this way, the pointerup
+  fell through to the BOARD's own click handler instead, which (while the
+  Cutout tool is active) interprets a click as "pick a face" and sets
+  `ui.cutoutFace` — which is exactly what `CutoutCameraLock.tsx` reacts to
+  by reframing the camera dead-on to whatever face it just picked. That's
+  the "camera jumps to the long edge" symptom: an ordinary mis-picked end
+  face, not a bug in the camera lock itself.
+- **Fix**: replaced the scene-raycast-dependent drag with the standard
+  robust pattern — on `pointerdown`, capture the pointer
+  (`gl.domElement.setPointerCapture`) and register plain `window`
+  `pointermove`/`pointerup` listeners; math is done manually every frame
+  (raw `clientX/clientY` -> NDC -> `THREE.Raycaster.setFromCamera` against
+  a `THREE.Plane` built once at grab time from the face's live world-space
+  normal/center) — never dependent on the scene raycaster hitting any
+  particular mesh again after the initial grab. The invisible catch-plane
+  mesh from fix (2) is gone entirely; only the visible orange octahedron
+  handle remains as a mesh.
+- **Second bug caught in the same pass**: the original `endDrag` committed
+  the FINAL history entry using the `cutoutProfiles` prop directly — which
+  by release time was a stale pre-drag closure (captured once, back when
+  the drag started), not the drag's actual end position. Every
+  intermediate frame correctly translated the ORIGINAL point set by the
+  total delta-so-far (never compounding), so the live drag looked right,
+  but the release commit was silently overwriting that with the
+  untouched original position — a snap-back baked into history. Fixed by
+  stashing the last-applied array on the drag's own ref
+  (`dragState.current.lastNext`) and having `endDrag` commit THAT instead
+  of the prop.
+- `npm run build`: clean, 0 TypeScript errors. Not yet re-verified live by
+  Joey — next pass should confirm: grabbing the handle never reorients the
+  camera, the drag tracks the mouse smoothly and continuously (including
+  fast movements), release leaves the profile exactly where it was
+  dropped (no snap-back), and undo reverts the whole drag as one step.
+
+## 2026-08-13 (4) — New Order 16 fix pass 3: camera jump was an event-timing race, not a raycast miss
+Joey tested (3): dragging itself now works beautifully (his words) even
+along the face edge, but release still jumped the camera. Dug further.
+
+- **Actual root cause**: fix (3)'s `window`-level pointerup listener was
+  bubble-phase, and R3F's own pointerup handling is attached directly to
+  the canvas element — which sits BELOW `window` in the bubble chain, so
+  R3F's canvas listener (which raycasts fresh, finds the real board
+  underneath the release point, and fires the board's `onClick` to re-pick
+  a Cutout face) was running and completing BEFORE our window listener
+  ever got a chance to call `armGizmoDragClickSuppress()`. The guard was
+  being armed one event-cycle too late.
+- **Fix part 1**: moved the `pointermove`/`pointerup` listeners to the
+  CAPTURE phase (`addEventListener(..., true)`) and call
+  `stopPropagation()` immediately inside them. Capture phase runs
+  window-first, target-last — the opposite order of bubble — so this now
+  intercepts and fully swallows the event before it ever reaches the
+  canvas, meaning R3F's own handler never even sees it.
+- **Fix part 2 (the actually load-bearing one)**: `stopPropagation()` on a
+  `pointerup` event does NOT prevent the browser from separately,
+  independently dispatching a `click` event right after — pointer events
+  and the legacy mouse/click sequence are dispatched as distinct event
+  objects, so stopping one doesn't stop the other. That follow-up `click`
+  is exactly what the board's `onClick` listens for. Added a THIRD
+  capture-phase listener, for `click` specifically, primed at pointerdown
+  time (`onWindowClickSwallow`) — swallows the one click generated by the
+  drag gesture and self-removes the instant it fires, with a 500ms
+  `setTimeout` fallback removal in case a click never arrives (so this can
+  never leak a permanent listener that eats some unrelated later click).
+- `npm run build`: clean, 0 TypeScript errors. Verified the app loads with
+  zero console errors via the Browser preview; genuine interactive
+  pointer-drag verification isn't possible in this headless environment
+  (no compositing display for screenshots), so the actual click-swallow
+  behavior still needs Joey's real-mouse pass — same limitation noted in
+  every prior fix pass for this Order.
+- **Rigorous test checklist for Joey** (beyond the circular preset shape
+  already confirmed working): hand-drawn Line and Arc cutouts (not just
+  Preset shapes); a non-circular Preset shape (square, joinery pocket);
+  dragging a profile on a board that's been rotated (not just moved) —
+  exercises the `transformDirection`/`localToWorld` board-rotation math in
+  the drag-plane setup; a board with MULTIPLE cutout profiles — arm one,
+  drag it, confirm only that one profile moves and switching to edit a
+  DIFFERENT profile on the same board still works cleanly; drag a profile
+  so its center crosses near a face edge/corner (the dashed guides should
+  track smoothly all the way to the boundary); type directly into Position
+  X/Y after a drag (confirm the handle jumps to match, not just the
+  reverse); undo immediately after a drag, then redo; drag, then
+  immediately drag AGAIN without releasing focus/re-arming (back-to-back
+  drags); and confirm Move/Rotate-ing the whole board while a profile is
+  still armed for editing keeps the handle glued to the correct spot on
+  the board (the FOLLOWS-BOARD guarantee).
+
+## 2026-08-13 (5) — New feature: Routed Edge Groove tool + roadmap entry
+Joey asked for a "routed edge groove" tool (a groove/channel that runs
+along the full length of an edge or interior shape), added to the
+roadmap and built the same session — plus flagged that Cutout profiles
+have no post-commit RESIZE handle (only Move and Depth exist).
+
+**Data Flow Pipeline** (per CLAUDE.md Law 3):
+- INPUT: user picks a board edge (reuses Chamfer's exact `nearestBoxEdge`
+  hover/pick interaction), then Width + Depth (typed fields in
+  `EdgeGroovePanel.tsx`, or two in-viewport drag handles).
+- CALCULATION: `edgeId` (same sorted-face-pair format Chamfer already
+  uses) resolves to `[kindA, kindB]` via the EXISTING
+  `CHAMFER_EDGE_KINDS` table (Engine.ts) — no new topology table. The new
+  `EDGE_GROOVE` CADFeature case in `evaluateFeatures` calls
+  `buildEdgeNotchFeature(faces, faceIdx, kindA, 0, edgeLength, width,
+  depth, idPrefix)` — the SAME function Cutout's own edge-crossing rabbet
+  case already uses internally, just spanning the edge's whole length
+  (`along0=0, along1=edgeLength`) instead of a sketch-derived sub-range.
+  Zero new CSG/geometry math was written — a routed edge groove IS an
+  edge-notch with no along-edge sub-range.
+- OUTPUT: `member.edgeGrooves?: {id, edgeId, width, depth}[]` (types.ts),
+  mapped 1:1 to `EDGE_GROOVE` in `BoardMesh.tsx`'s geometry `useMemo`
+  alongside the existing `chamferFeatures`/`cutoutFeatures` arrays. Routes
+  through the same `updateMember` write path as every other feature.
+- FOLLOWS-BOARD CHECK: yes — same `faces` list (`getMemberFaces`) and
+  `boxEdges` every other edge-based tool in `BoardMesh.tsx` already uses.
+
+**What was built:**
+- New `ActiveTool` value `'edgeGroove'`, registered in
+  `MODE_TOOLS.model`/`TOOL_LABELS`/`getHintText` (`workspaceModes.ts`).
+- New UI state (`edgeGrooveEdge`/`edgeGrooveHoverEdge`) + actions
+  (`setEdgeGrooveEdge`/`setEdgeGrooveHoverEdge`/`resetEdgeGroovePick`/
+  `removeEdgeGroove`) in `store.ts`, wired into the existing tool-switch
+  reset and `resetToolState` alongside Chamfer's own fields.
+- `BoardMesh.tsx`: hover highlight (spruceAccent, distinguishing it from
+  Chamfer's orange — a different kind of operation) + picked highlight +
+  a new `EdgeGrooveDragHandle` component. That handle reuses
+  `ChamferAxisHandle` completely unmodified for BOTH axes — a new
+  `inwardTangentForKind` helper supplies Face A's in-plane inward
+  direction for the Width handle (perpendicular to the edge, along the
+  face's own surface), and Face A's true normal (same as Chamfer's own
+  handle) for the Depth handle. `ChamferAxisHandle` was already generic
+  to any drag direction, not hardcoded to a face normal, so this needed
+  no changes to that component at all.
+- New `EdgeGroovePanel.tsx`, structurally identical to `ChamferPanel.tsx`
+  (Width/Depth `SizeField`s, an "Existing Edge Grooves" list when nothing
+  is picked, Remove/Reset buttons) — same `MAX_SIZE_FRACTION`/`MIN_SIZE`
+  clamps as Chamfer for the same z-fighting-sliver reason.
+- New rail entry under Modify (`ToolRail.tsx`) and `PropertiesPanel.tsx`
+  routing, following the exact pattern every other Modify tool uses.
+- `npm run build`: clean, 0 TypeScript errors. Not yet verified live —
+  same pointer-drag verification limitation as every drag-handle feature
+  in this project; needs Joey's real-mouse pass (see checklist below).
+
+**Cutout resize-handle investigation** (Joey's second ask): confirmed
+this is a real, currently-missing capability, not a bug — New Order 16's
+own scope notes explicitly deferred it ("A vertex-level resize/reshape
+handle is a bigger follow-on, not this Order"). Only Move (position) and
+Depth exist post-commit; the shape's own size is fixed once placed
+(Remove + redraw is the only current path to resize). Logged as a
+dedicated roadmap item (`DOVEDESIGN_ROADMAP.md`) rather than bundled into
+this session — it needs its own design decision first (uniform-scale for
+regular Preset shapes vs. true per-vertex reshaping for hand-drawn
+Line/Arc profiles), per Manifesto Law 4's "no bundled scope" rule.
+
+**Test checklist for Joey:**
+- Arm Edge Groove, click an edge — confirm the spruce-colored highlight
+  appears on hover and locks in (thicker) on pick, and a visible starting
+  groove (1/4"×1/4") appears immediately.
+- Drag each orange arrow handle (Width, Depth) — confirm the groove's
+  visible channel grows/shrinks along the correct axis for each.
+- Type into the Width/Depth fields — confirm the groove updates and the
+  drag handles jump to match.
+- Try a groove on a short/thin board — confirm it clamps well short of
+  fully consuming the cross-section (no z-fighting sliver).
+- Undo/redo after a drag.
+- Confirm a board with BOTH a Chamfer and an Edge Groove on different
+  edges renders correctly (features composing, not conflicting).
+
+## 2026-08-13 (6) — Camera-jump/orbit-lock bug was systemic, not Cutout-specific
+Joey tested and hit the SAME camera-jump bug again, but this time while
+the panel showed the Cutout tool, with rotation/orbit getting stuck
+disabled entirely ("locking rotation/orbit camera... going nuts").
+
+- **Root cause**: `CutoutDepthHandle` (the push/pull depth cone) and
+  `ChamferAxisHandle` (Chamfer's own two-arrow handle, ALSO reused
+  unchanged by the brand-new Edge Groove tool this same session) were
+  never updated with the pointer-capture/capture-phase-window-listener
+  fix built for `CutoutMoveHandle` earlier today — they still used the
+  original per-mesh R3F onPointerMove/onPointerUp pattern, which is
+  exactly what caused the original bug. This wasn't a Cutout-specific
+  issue at all; it was baked into a drag-interaction pattern this whole
+  codebase already had in THREE places. The "locking rotation" symptom
+  specifically: `setOrbitControlsEnabled(false)` fires on pointerdown, but
+  if the matching pointerup gets dropped (falls through to the board's own
+  click handler instead of this handle), `endDrag()` — the only place that
+  calls `setOrbitControlsEnabled(true)` — never runs, leaving orbit
+  disabled indefinitely until a page reload resets the (unpersisted) UI
+  state back to its default.
+- **Fix**: rewrote both `ChamferAxisHandle` and `CutoutDepthHandle` with
+  the identical pointer-capture + capture-phase `window` pointermove/
+  pointerup listeners + click-swallow pattern already proven on
+  `CutoutMoveHandle` — no new technique, just applying the SAME fix to
+  the other two components sharing the vulnerable pattern. Fixing
+  `ChamferAxisHandle` fixes both Chamfer's own handle AND Edge Groove's
+  (which reuses it unmodified), so this is one fix covering three tools'
+  worth of drag handles.
+- `npm run build`: clean, 0 TypeScript errors. **If Joey's orbit is
+  currently stuck from a PRE-fix drag attempt, a page reload is needed** —
+  the fix only prevents the lock going forward; it can't retroactively
+  un-stick already-broken live UI state (unpersisted, so a reload clears
+  it to its default `enabled: true`). Real interactive verification of all
+  three handles (Chamfer, Cutout Depth, Edge Groove) still needs Joey's
+  real-mouse pass — same headless-environment limitation as every prior
+  fix pass this Order.
+
+## 2026-08-13 (7) — Camera-jump root cause #2: commit-then-repick race, not a stale bundle
+Joey reported the camera still jumping after the (6) fix — but the
+screenshots showed he was testing Preset Shape PLACEMENT (before commit,
+X/Y positioning phase), not a committed profile's drag handles. Verified
+the dev server WAS serving the latest code (`curl`'d the served
+BoardMesh.tsx and confirmed the new listener code was present) — not a
+stale-bundle problem as suspected.
+
+- **Real root cause**: `CutoutDrawTools.tsx`'s `commitProfile()` (used by
+  both Preset Shape and Line/Arc commits) calls `resetCutoutPick()`
+  immediately, which sets `ui.cutoutFace` back to null and unmounts this
+  whole component. The SAME physical click that committed the shape also
+  generates a native 'click' event slightly later in the same gesture —
+  and by the time THAT fires, this component is already gone, so the
+  click raycasts straight through to the real board mesh underneath and
+  gets reinterpreted by `BoardMesh.tsx`'s own `handleClick` as "pick a
+  brand-new face," which `CutoutCameraLock.tsx` then reframes the camera
+  to. One click was doing two unrelated things: finish placing the shape,
+  AND (accidentally) arm a whole new face pick.
+- **Fix**: `commitProfile()` now calls `armGizmoDragClickSuppress()` the
+  instant it commits, before `resetCutoutPick()`. That guard is already
+  checked at the very top of every board's `handleClick` (originally
+  built for an unrelated gizmo-drag-end/stray-click collision, same shape
+  of bug) — arming it here swallows exactly the one spurious click this
+  gesture produces, before it can trigger the unintended face re-pick.
+  Confirmed Mate/Rip-Cut/Trim don't share this risk — their own resets
+  are triggered by explicit panel BUTTON clicks, not as a side effect of
+  the same 3D click that committed something.
+- Also clarified for Joey: during PLACEMENT (before a shape is
+  committed), there is no draggable handle — the shape follows the mouse
+  continuously and a click locks it in (the panel's "or drag" copy is a
+  little misleading here). The orange/octahedron DRAG handles only exist
+  for an already-committed profile armed for editing (via the Cutouts
+  list or Entities panel) — that's what New Order 16 and its fix passes
+  actually touch.
+- `npm run build`: clean, 0 TypeScript errors. Not yet re-verified live.
+
+## 2026-08-13 (8) — Preset Shape sizing: added a real pre-commit drag handle
+Joey clarified what he actually wanted: not a post-commit resize handle
+(that's the separate roadmap item from earlier today) but a real
+grabbable handle DURING the Preset Shape 'sizing' phase — before the
+shape is even placed — so size can be set by dragging OR typing without
+having to place-then-edit-then-move-on. The existing behavior resized the
+shape on ANY mouse movement over the face (no button held), which read as
+"only the text field actually works" since there was nothing visible to
+grab.
+
+- **`CutoutDrawTools.tsx`**: new explicit orange sphere handle, rendered
+  only during `presetPhase === 'sizing'`, sitting right on the shape's own
+  boundary (straight out from center by the current size — an obvious
+  "this is the resize point," not an arbitrary marker). Implemented with
+  the SAME pointer-capture + capture-phase `window` listener pattern as
+  today's other handle fixes (`startSizeDrag`/`onSizeDragMove`/
+  `onSizeDragUp`/`endSizeDrag`) — a world-space plane raycast, never
+  dependent on the scene raycaster re-hitting this specific mesh every
+  frame. Dragging computes the new size as the live cursor's distance from
+  the shape's own center (`length2D(sub2D(raw, presetCenter))`) — the
+  exact same formula the old hover-only behavior already used, just now
+  gated behind an actual press-drag-release instead of any stray mouse
+  movement.
+- Releasing the handle locks the size in AND advances straight to
+  'positioning' (same as pressing Enter in the typed size field) — one
+  motion, not drag-then-still-have-to-click-separately.
+- The existing typed field and hover-follow behavior are UNCHANGED — this
+  adds a third input method (press-drag-release), it doesn't replace
+  either of the other two.
+- `npm run build`: clean, 0 TypeScript errors. Not yet verified live.
+
+## 2026-08-14 — New Order: Feature Tree / History Panel
+
+Joey asked for a SolidWorks-style FeatureManager tree — a sidebar listing
+every board and every feature applied to it, click to select/edit. This is
+purely a navigation UI built on existing state, not a new geometry or
+history system.
+
+**Data Flow Pipeline** (per CLAUDE.md Law 3):
+- INPUT: `project.members` (each board's own `chamfers`/`edgeGrooves`/
+  `cutoutProfiles` arrays — already the single source of truth every
+  Modify tool panel reads/writes) and `project.mates`. `ui.selectedMemberId`,
+  `ui.chamferEdge`, `ui.edgeGrooveEdge`, `ui.cutoutEditProfile`,
+  `ui.selectedMateId` (existing "what's armed for editing" fields) drive row
+  highlighting.
+- CALCULATION: none of its own. Each member's feature rows are just that
+  member's existing chamfers/edgeGrooves/cutoutProfiles arrays mapped to a
+  label, in their existing array order — no new ordering/timestamp
+  tracking, no event log (explicitly NOT an undo-log-based history, per the
+  Order's scope). Mates are read from `project.mates` and shown under
+  whichever member is `memberAId`.
+- OUTPUT: none stored by this panel. Clicking a row only calls EXISTING
+  store actions — `selectMember`, `setActiveTool`, `setChamferEdge`,
+  `setEdgeGrooveEdge`, `setCutoutEditProfile`, `setSelectedMateId` — the
+  same actions BoardMesh.tsx's own in-viewport pick handlers already call.
+  No new write path.
+- FOLLOWS-BOARD CHECK: n/a — pure UI chrome, reads no geometry, writes no
+  placement data.
+
+**What was built:**
+- New `src/components/FeatureTreePanel.tsx`: a collapsible sidebar (same
+  collapse-to-edge-strip pattern as `PropertiesPanel.tsx`), positioned
+  between the ToolRail and the PropertiesPanel. Each board is a row
+  (label, click to select via the existing `selectMember`/`setActiveTool`
+  pair); if it has any chamfers/edge grooves/cutouts/mates, an
+  expand/collapse chevron reveals them as indented sub-rows. Clicking a
+  sub-row selects the member AND arms that feature's existing edit state
+  (`setChamferEdge`/`setEdgeGrooveEdge`/`setCutoutEditProfile`/
+  `setSelectedMateId`) plus switches `activeTool` so `PropertiesPanel`
+  automatically shows that feature's existing panel (ChamferPanel,
+  EdgeGroovePanel, CutoutPanel, MatePanel) — no new editors were built.
+- Hidden while `workspaceMode === 'template'` (Template mode is its own 2D
+  sketch space with its own shapes, same convention `PropertiesPanel`'s
+  Board Properties/Entities sections already follow).
+- Wired into `App.tsx` between `<ToolRail />` and `<PropertiesPanel />`.
+- No changes to Engine.ts, any CSG/feature evaluation logic, or how
+  geometry is computed — this reads existing `project.members`/
+  `project.mates` state only.
+- `npm run build`: clean, 0 TypeScript errors.
+
+**Test checklist for Joey:**
+- Place a couple of boards — confirm each appears as a row in the new
+  Feature Tree panel (left side, next to the tool rail).
+- Add a Chamfer, an Edge Groove, and a Cutout to one board — confirm all
+  three appear as indented sub-rows under that board, and the row count
+  badge matches.
+- Click a Chamfer sub-row — confirm the Chamfer tool arms and its panel
+  shows that exact edge's existing size, ready to edit.
+- Click an Edge Groove sub-row and a Cutout sub-row — confirm the same for
+  each (Edge Groove tool / Cutout tool panels open pre-armed).
+- Mate two boards, then click the Mate sub-row under the first board —
+  confirm the Mate tool arms with that mate selected.
+- Click a plain board row (not a feature) — confirm it selects that board
+  and switches to the Select tool.
+- Collapse/expand the panel via the corner tab — confirm it doesn't affect
+  ToolRail or PropertiesPanel.
+- Switch to Template mode — confirm the Feature Tree panel disappears
+  (Template has its own separate shape list).
+- Undo/redo a feature add/remove — confirm the tree updates to match
+  (it reads live state, no stale cache expected).
+
+## 2026-08-14 — New Order: 3D Extrude Tool (push/pull boss)
+
+Joey asked for a SolidWorks-style push/pull tool: click a face, drag a
+handle along its normal to add or remove material, live numeric readout.
+
+**Data Flow Pipeline** (per CLAUDE.md Law 3):
+- INPUT: an existing `CutoutProfile` (`WoodMember.cutoutProfiles`) — its
+  `faceId`, `points` (closed (u,v) loop on that face), and `depth` +
+  `direction` (`'cut' | 'add'`), all already-existing New Order 11/11.1
+  fields. No new CADFeature type, no new ActiveTool, no new panel — see
+  "Scope decision" below.
+- CALCULATION: `Engine.ts`'s `evaluateFeatures` CUTOUT case, `direction
+  === 'add'` branch. Reuses the profile's own points, projected to
+  board-local 3D via `CADGeometryEngine.projectUVToLocal` (same call the
+  'cut' pocket path already makes). A cap face is built at
+  `point + faceNormal * height` for every profile point (`orientPolygon`
+  guarantees it faces outward regardless of the profile's original
+  winding), plus one rectangular wall face per profile edge connecting
+  the base (on the original face, unmodified) to the raised cap — built
+  with the SAME `makeFace` rectangle helper and per-edge winding-flip
+  technique the 'cut' pocket's own `wallFaces` loop already uses, with
+  the flip condition inverted (a boss's walls face AWAY from its own
+  centroid — solid wood fills the interior, not empty cavity space, the
+  literal inverse of a pocket). The original face's boundary is left
+  untouched (no hole stitched in) since the boss sits flush against it —
+  zero new CSG math, this is `evaluateFeatures`'s existing 'cut' path
+  read backwards.
+- OUTPUT: no schema change. `CutoutProfile.direction`/`.depth` already
+  existed (New Order 11.1) — `direction: 'add'` was accepted by the type
+  and by `CutoutPanel.tsx`'s existing Cut/Add toggle button, but
+  `evaluateFeatures` treated it as a no-op ("isn't built yet" per its own
+  in-panel copy). This Order is that missing geometry implementation, not
+  a new feature.
+- RENDER: `BoardMesh.tsx`'s existing `cutoutFeatures` mapping (member.
+  cutoutProfiles -> CADFeature CUTOUT) already passes `direction` through
+  unchanged — no wiring needed there. `CutoutDepthHandle` (the existing
+  in-viewport push/pull cone, pointer-capture + capture-phase window
+  listener pattern, per CLAUDE.md's explicit reuse requirement) now reads
+  `profile.direction` to flip its `sign`: for 'cut' the handle moves
+  INWARD as depth grows (unchanged behavior); for 'add' it moves OUTWARD
+  along the face normal as height grows — the one thing that differs
+  between the two, the rest of the drag math (plane raycast, clamp,
+  commit path, skipHistory-while-dragging/commit-on-release) is
+  identical and untouched.
+- FOLLOWS-BOARD CHECK: yes — same as every other Cutout feature; geometry
+  re-derives fresh from `member.cutoutProfiles` + the board's current
+  faces every render, nothing cached.
+
+**Scope decision**: the New Order prompt asked to check whether push/pull
+already existed for cutouts before building a new tool, and to prioritize
+the missing half. It did: `CutoutPanel.tsx`'s `CutoutProfileEditor`
+already had a working Cut/Add toggle wired all the way to
+`updateMember(..., { direction: 'add' })` — the ONLY missing piece was
+`evaluateFeatures` actually producing geometry for it, and
+`CutoutDepthHandle`'s drag direction. Building a second parallel
+ActiveTool/panel/CADFeature type for the same capability would have
+duplicated the entire Cutout profile-pick/sketch/depth-handle machinery
+this session, in direct conflict with Manifesto Law 4 (no rewriting
+working logic) — so this Order completed the existing 'add' path instead
+of adding a new one.
+
+**What changed:**
+- `src/core/Engine.ts`: `evaluateFeatures`'s CUTOUT case gained the
+  `direction === 'add'` boss-extrusion branch (see Calculation above).
+- `src/components/BoardMesh.tsx`: `CutoutDepthHandle` now reads
+  `profile.direction` and flips its drag sign or the outward/inward
+  handle placement.
+- `src/components/CutoutPanel.tsx`: removed the "Add isn't built yet"
+  placeholder copy; the Depth field now shows as "Height" when direction
+  is Add.
+- `src/types.ts`: updated `CutoutProfile.direction`'s doc comment (it
+  previously said 'add' was a stored-but-inert no-op).
+- `npm run build`: clean, 0 TypeScript errors.
+
+**Test checklist for Joey:**
+- Arm Cutout, sketch a profile (Preset Shape or Line/Arc) on a face,
+  commit it — confirm it still cuts in by default (existing Cut
+  behavior unchanged).
+- In the profile editor, click "Add" — confirm the board immediately
+  grows a solid boss/protrusion outward from the face in the shape of
+  the profile, instead of a pocket.
+- Drag the orange handle straight out from the board — confirm the boss
+  grows taller live, and dragging it back toward the board shrinks it
+  (clamped at 0, no inversion through the face).
+- Type a numeric value into the Height field — confirm the boss updates
+  and the handle jumps to match.
+- Toggle Cut/Add back and forth on the same profile — confirm the board
+  switches cleanly between pocket and boss with no leftover geometry.
+- Undo/redo after a drag and after a Cut/Add toggle.
+- A board with BOTH an existing Chamfer (or Edge Groove) on one edge AND
+  a new boss on a face — confirm both render together correctly
+  (features composing, not conflicting).
+- Move/rotate the board with a boss present — confirm the boss stays
+  correctly attached to its face (FOLLOWS-BOARD).
+
+## New Order: Cutout Sketch Tool — Angle Lock, Alignment Guides, Persistent Dimensions (2026-08-14)
+
+### Data Flow Pipeline: Angle Lock + Alignment Guides + Persistent Dimension Labels
+
+INPUT:
+  - The Cutout/Boss sketch's in-progress chain (`sketchPoints`, face-local
+    (u,v) — CutoutDrawTools.tsx), the live cursor's raw (u,v) each pointer
+    move/click, and (for angle lock only) the chain's last point as the
+    angle anchor.
+
+CALCULATION:
+  - New pure module `src/lib/sketchAngleSnap.ts`: `applyAngleLock` rotates
+    the anchor->cursor vector onto the nearest 15 degree increment when
+    within 3 degrees, preserving the anchor-to-cursor distance exactly.
+    `findAlignmentGuide` finds the nearest already-placed chain point
+    sharing (within 0.15") the cursor's u or v, and snaps that one axis
+    onto it. `resolveLineFallback` composes both: alignment tried first,
+    angle lock then applied to whatever that produced, so the two lock
+    together when the cursor genuinely satisfies both.
+  - This fallback tier is ONLY consulted in `resolveSketchPointFull`
+    (CutoutDrawTools.tsx) after the three existing, unchanged, higher-
+    priority snaps fail: sketch-chain-point > reference-line > face-edge.
+    Angle lock's anchor is null (disabled) for the Arc tool and for a
+    chain's first point — it only applies to Line's segment placement.
+
+OUTPUT:
+  - `resolveSketchPointFull` returns the effective (u,v) point plus
+    `angleLock`/`alignment` metadata, stored in a small `cursorSnapMeta`
+    state alongside the existing `cursorUV` state (both re-derived fresh
+    every pointer move, same convention as `cursorUV` already used).
+    Persistent dimension labels read directly from `sketchPoints` (no new
+    state) — every consecutive pair gets a midpoint label.
+
+RENDER:
+  - Angle readout + lock indicator appended to the existing live-preview
+    length `<Html>` badge (bold/orange when locked). A new dashed guide
+    `<Line>` (THEME.alignmentGuide, a new distinct blue token — neither
+    existing orange nor spruce token fit, both already mean something else
+    in this same view) spans from the aligned chain point through the
+    cursor when an alignment guide is active. Small, dimmer `<Html>` badges
+    render at each committed segment's midpoint.
+
+FOLLOWS-BOARD CHECK: yes, automatically — every rendered point (guide
+  lines, labels, badges) goes through the same `toLocal` helper as every
+  other element in this file, itself inside the `<group position=
+  {member.position} rotation={member.rotation}>` wrapper, so all of it
+  moves with the board with no manual re-sync step.
+
+**What was built:**
+- `src/lib/sketchAngleSnap.ts` (new): pure angle-lock + alignment-guide
+  math, no three.js/React, mirrors `cutoutSnap.ts`/`referenceLineSnap.ts`'s
+  structure.
+- `src/lib/theme.ts`: added `THEME.alignmentGuide` (`#5b9bd5`, muted blue)
+  — the third visual signal, distinct from `selectionOrange` (live
+  preview) and `spruceAccent` (reference-line snap).
+- `src/components/CutoutDrawTools.tsx`:
+  - `resolveSketchPointFull` (new) wraps the existing chain/ref/edge
+    priority chain and adds the alignment-guide + angle-lock fallback tier
+    only when nothing higher-priority claimed the point; `resolveSketchPoint`
+    now takes an optional `angleAnchor` and delegates to it.
+  - `handlePointerDown`'s Line/Arc commit and `handlePointerMove`'s Line
+    preview both call the same resolver with the same anchor logic, so
+    what's previewed matches what gets committed.
+  - New `cursorSnapMeta` state (angleLock/alignment), cleared on every
+    commit/undo/cancel alongside the existing `cursorUV`/`arcViaPoint`
+    resets.
+  - Length/angle `<Html>` badge extended with the angle readout and
+    "locked" indicator; new alignment-guide dashed `<Line>`; new per-
+    committed-segment midpoint length badges.
+  - Preset Shape tool logic, pointer-capture drag code (`startSizeDrag`/
+    `onSizeDragMove`/etc.), Engine.ts, and `addCutoutProfile`/`commitProfile`
+    were NOT touched.
+- `npm run build`: clean, 0 TypeScript errors.
+
+**Test checklist for Joey:**
+- Arm Cutout (or Boss/Add) on a face, start a Line: drag near 0/45/90
+  degrees from the last point — confirm the segment snaps exactly onto
+  that angle, the badge shows the angle with "· locked" and turns
+  bold/orange, and clicking commits the SAME locked point you saw (not a
+  slightly different one).
+- Draw a second/third point roughly level (same X or Y) with an earlier
+  point in the chain — confirm a thin dashed blue guide line appears
+  between them and the cursor snaps exactly onto that shared axis.
+- After placing a couple of segments, confirm each committed segment
+  shows its own small, dimmer length label at its midpoint, staying
+  visible while you keep sketching.
+- Draw near an existing Reference Line, or near the chain's own start
+  point, or near a face edge/corner — confirm those snaps still win
+  outright over angle lock/alignment guide (no fighting/jitter).
+- Confirm the Preset Shape tool (placing/sizing/positioning a preset
+  shape) is completely unaffected — no angle/alignment behavior there.
+- Confirm Boss/Add-material direction cutouts (built on this same
+  component) sketch identically to Cut — no regression from sharing the
+  component.
+- Arc tool: confirm alignment guides can still engage on via/end points,
+  but there is no angle-lock/angle-readout behavior (Arc doesn't have a
+  single straight segment angle to lock).
 
 ## Standing Technical Rules
 - npm run build before every push
